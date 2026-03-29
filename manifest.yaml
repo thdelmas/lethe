@@ -295,55 +295,88 @@ features:
         recovery: "osmosis_usb"             # Only way back is OSmosis USB flash
 
   bender:
-    description: "Voice-first AI companion — Bender Bending Rodriguez"
-    enabled_by_default: true          # Pre-installed, but user chooses to activate
+    description: "Bender — the voice of LETHE. Native AI layer, not an app."
+    type: "system_component"            # Not an app — part of the OS
+    enabled_by_default: true
     source: "https://github.com/thdelmas/bender"
-    package: "org.osmosis.bender"
-    service_port: 8080                # Localhost only
+    service_port: 8080
+
+    # ── System integration ──
+    # Bender is the default assistant on LETHE. It replaces Google Assistant.
+    # Long-press home, swipe up from corner, or "Hey Bender" triggers it.
+    integration:
+      default_assist: true              # Long-press home → Bender
+      lockscreen_shortcut: true         # Swipe-up shortcut on lock screen
+      persistent_notification: true     # Always-on notification for quick access
+      quick_settings_tile: true         # Tile in notification shade pull-down
+      webview_wrapper: true             # Native Activity wrapper (not a browser tab)
+      system_app_path: "/system/app/Bender"  # Installed as system app in /system
+
+    # ── Voice activation ──
+    voice:
+      wake_word: "Hey Bender"           # Offline wake-word via Porcupine/Snowboy
+      wake_word_enabled: false          # Off by default — user enables in Settings
+      tts_engine: "espeak"              # System TTS — deep gruff voice
+      tts_params:
+        pitch: 2
+        speed: 160
+        voice: "en+m7"
+      stt_engine: "whisper"             # Server-side STT via Whisper
+      stt_model: "tiny"                 # ARMv7-safe default, user can upgrade
+
+    # ── Personality ──
+    # Bender IS the system. Error messages, notifications, setup wizard
+    # guidance — everything speaks in Bender's voice.
+    personality:
+      system_prompt_file: "server/agent.py"  # Bender Rodriguez system prompt
+      error_voice: true                 # System errors spoken in Bender's voice
+      setup_wizard_guide: true          # Bender narrates the first-boot wizard
+      notification_style: "in_character" # "System update available" → "Hey meatbag, I got smarter. Reboot me."
+
     first_boot_setup:
-      # Runs in the setup wizard right after dead man's switch.
-      # Bender introduces himself and the user decides whether to
-      # set up voice access now or skip.
       steps:
         - screen: meet_bender
-          title: "Meet Bender"
+          title: "This is Bender."
           body: >
-            Your device comes with Bender — a voice-first AI assistant
-            that lives on this phone. Talk to it, it does things.
-            It has... personality.
+            I'm the brain of this phone. You talk, I do stuff.
+            I'm also better than you at everything, but we'll get
+            to that later.
+          tts_autoplay: "I'm Bender, baby! And this is MY phone now."
           action: "Set it up / Skip"
 
         - screen: api_key
-          title: "Give Bender a brain"
+          title: "Give me a brain"
           body: >
-            Bender needs an Anthropic API key to think. You can paste
-            one now, or scan a QR code from another device. The key
-            is encrypted and stored locally — it never leaves this phone.
+            I need an Anthropic API key to think. Paste one now,
+            or scan a QR code. The key stays on this device —
+            I don't share. Unlike some robots.
           input: api_key
           input_hint: "sk-ant-..."
           alternatives:
             - label: "Scan QR code"
               action: "open_camera_qr"
               hint: "Open bender/key on another device to generate the code"
-          optional: true               # User can skip and add later from Settings
+          optional: true
 
         - screen: voice_test
-          title: "Let's hear you"
+          title: "Say something, meatbag"
           body: >
-            Bender listens through the microphone and talks back through
-            the speaker. Tap the mic to say something — anything.
+            Tap the mic and talk to me. I'll listen through your
+            microphone and talk back through the speaker. Don't
+            bore me.
           action: "test_mic"
           triggers:
             - request_permission: RECORD_AUDIO
-            - play_tts_sample: "I'm Bender, baby! Please insert liquor."
+            - play_tts_sample: "Good news, everyone! Wait, wrong show. I'm Bender. Deal with it."
           skip_label: "I'll do this later"
 
         - screen: confirm
-          title: "Bender is ready"
+          title: "We're good."
           body: >
-            Open the browser and go to localhost:8080 any time, or say
-            "Hey Bender" if wake-word detection is enabled.
-            You can manage Bender in Settings > Apps > Bender.
+            Long-press the home button or swipe up from the lock screen
+            to talk to me any time. Or just hold the phone and say
+            "Hey Bender" if you turned that on. Now scram.
+          tts_autoplay: "Alright, let's bend some ones and zeros."
           action: "Done"
 
   tor:
@@ -429,21 +462,6 @@ features:
   recommended_apps:
     description: "Pre-installed or recommended FOSS apps"
     pre_installed:
-      - id: bender
-        name: "Bender"
-        package: "org.osmosis.bender"
-        desc: "Voice-first AI companion — speak, the agent acts. Runs locally via Whisper + espeak."
-        source: "https://github.com/thdelmas/bender"
-        system_service: true          # Starts on boot as a background service
-        autostart: false              # User activates on first launch — no surprise background activity
-        permissions:
-          - RECORD_AUDIO              # Whisper STT
-          - INTERNET                  # Claude API (user provides their own key)
-          - FOREGROUND_SERVICE        # Keep agent alive while listening
-        notes: >
-          Bender runs a lightweight local web server. The browser is the UI.
-          API key is encrypted on-device, never leaves. On ARMv7 devices,
-          Whisper uses the tiny model for real-time performance.
       - id: fdroid
         name: "F-Droid"
         package: "org.fdroid.fdroid"

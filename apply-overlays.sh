@@ -403,43 +403,160 @@ INITRC
     echo "  -> IPFS OTA overlay installed."
 fi
 
-# ── 10. Bender (voice-first AI companion) ──
-echo "[10/13] Installing Bender..."
+# ── 10. Bender (native AI layer) ──
+echo "[10/13] Installing Bender as native system component..."
 BENDER_SOURCE="${BENDER_DIR:-$SCRIPT_DIR/../../bender}"
 if [ -d "$BENDER_SOURCE" ]; then
+    # ── 10a. Backend server (Python, runs as system service) ──
     BENDER_TARGET="system/extras/lethe/bender"
     mkdir -p "$BENDER_TARGET"
-    # Copy Bender server, templates, and static assets into the system image.
-    # At runtime, an init service starts Bender on localhost:8080.
     cp "$BENDER_SOURCE/app.py" "$BENDER_TARGET/"
     cp "$BENDER_SOURCE/requirements.txt" "$BENDER_TARGET/"
     cp -r "$BENDER_SOURCE/server" "$BENDER_TARGET/"
     cp -r "$BENDER_SOURCE/templates" "$BENDER_TARGET/"
     cp -r "$BENDER_SOURCE/static" "$BENDER_TARGET/"
+    echo "  -> Backend server copied."
 
-    # Install Bender init service — starts on boot, listens on localhost only.
+    # ── 10b. Native WebView wrapper (system app in /system/app/) ──
+    # A minimal Android app that wraps Bender's localhost UI in a
+    # fullscreen WebView. This makes Bender appear as a native app:
+    # - Shows in launcher with icon
+    # - Shows in recent apps
+    # - Handles the ASSIST intent (long-press home)
+    # - Can be a lock screen shortcut
+    SYSAPP_DIR="system/app/Bender"
+    mkdir -p "$SYSAPP_DIR"
+
+    # AndroidManifest.xml for the WebView wrapper
+    mkdir -p "$SYSAPP_DIR/res/xml"
+    cat > "$SYSAPP_DIR/AndroidManifest.xml" <<'MANIFEST'
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    package="org.osmosis.bender"
+    android:versionCode="1"
+    android:versionName="1.0"
+    android:sharedUserId="android.uid.system">
+
+    <uses-permission android:name="android.permission.INTERNET" />
+    <uses-permission android:name="android.permission.RECORD_AUDIO" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
+
+    <application
+        android:label="Bender"
+        android:icon="@mipmap/ic_bender"
+        android:theme="@android:style/Theme.NoTitleBar.Fullscreen"
+        android:persistent="true">
+
+        <!-- Main activity — WebView wrapper -->
+        <activity
+            android:name=".BenderActivity"
+            android:label="Bender"
+            android:launchMode="singleTask"
+            android:screenOrientation="portrait"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity>
+
+        <!-- Voice assist handler — long-press home triggers Bender -->
+        <activity
+            android:name=".BenderAssistActivity"
+            android:label="Bender"
+            android:launchMode="singleTask"
+            android:theme="@android:style/Theme.Translucent.NoTitleBar"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.ASSIST" />
+                <category android:name="android.intent.category.DEFAULT" />
+            </intent-filter>
+            <intent-filter>
+                <action android:name="android.intent.action.VOICE_COMMAND" />
+                <category android:name="android.intent.category.DEFAULT" />
+            </intent-filter>
+            <intent-filter>
+                <action android:name="android.intent.action.SEARCH_LONG_PRESS" />
+                <category android:name="android.intent.category.DEFAULT" />
+            </intent-filter>
+        </activity>
+
+        <!-- Persistent notification service — always-on quick access -->
+        <service
+            android:name=".BenderNotificationService"
+            android:exported="false">
+        </service>
+
+        <!-- Quick Settings tile -->
+        <service
+            android:name=".BenderTileService"
+            android:label="Bender"
+            android:icon="@mipmap/ic_bender"
+            android:permission="android.permission.BIND_QUICK_SETTINGS_TILE"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.service.quicksettings.action.QS_TILE" />
+            </intent-filter>
+        </service>
+
+        <!-- Boot receiver — start notification service on boot -->
+        <receiver
+            android:name=".BootReceiver"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.BOOT_COMPLETED" />
+            </intent-filter>
+        </receiver>
+
+    </application>
+</manifest>
+MANIFEST
+    echo "  -> AndroidManifest.xml created."
+
+    # Copy icon to mipmap directories
+    if [ -f "$BENDER_SOURCE/static/icon-192.png" ]; then
+        for DPI in mdpi hdpi xhdpi xxhdpi xxxhdpi; do
+            mkdir -p "$SYSAPP_DIR/res/mipmap-$DPI"
+            cp "$BENDER_SOURCE/static/icon-192.png" "$SYSAPP_DIR/res/mipmap-$DPI/ic_bender.png"
+        done
+        echo "  -> App icon installed."
+    fi
+
+    # ── 10c. Init service — backend + default assist registration ──
     INIT_DIR="system/core/rootdir"
     if [ -d "$INIT_DIR" ]; then
         cat > "$INIT_DIR/init.lethe-bender.rc" <<'INITRC'
-# Lethe — Bender voice-first AI companion
-# Starts after boot as a background service on localhost:8080.
-# No network exposure — only reachable from the device itself.
+# Lethe — Bender native AI layer
+# 1. Starts the Python backend on localhost:8080
+# 2. Registers Bender as default assist app (long-press home)
+# 3. Posts persistent notification for quick access
 
 service lethe-bender /system/bin/sh -c "\
     cd /system/extras/lethe/bender && \
-    python3 app.py --host 127.0.0.1 --port 8080"
+    python3 -c 'from app import app; app.run(host=\"127.0.0.1\", port=8080, debug=False)'"
     class late_start
-    user system
-    group system inet
+    user root
+    group root inet
     disabled
-    oneshot
 
 on property:sys.boot_completed=1
     start lethe-bender
+
+    # Set Bender as default assist app (long-press home)
+    exec -- /system/bin/sh -c "\
+        settings put secure assistant org.osmosis.bender/.BenderAssistActivity; \
+        settings put secure voice_interaction_service org.osmosis.bender/.BenderAssistActivity; \
+        log -t lethe-bender 'Registered as default assist app'"
+
+    # Post persistent notification for quick access
+    exec -- /system/bin/sh -c "\
+        am startservice -n org.osmosis.bender/.BenderNotificationService 2>/dev/null; \
+        log -t lethe-bender 'Persistent notification active'"
 INITRC
-        echo "  -> Bender init service installed."
+        echo "  -> Init service installed (backend + assist + notification)."
     fi
-    echo "  -> Bender installed."
+    echo "  -> Bender installed as native system component."
 else
     echo "  -> WARNING: Bender source not found at $BENDER_SOURCE, skipping."
     echo "     Set BENDER_DIR to override or place bender/ alongside OSmosis."
