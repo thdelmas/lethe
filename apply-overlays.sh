@@ -275,8 +275,136 @@ else
     fi
 fi
 
-# ── 8. Bender (voice-first AI companion) ──
-echo "[8/11] Installing Bender..."
+# ── 8. Tor transparent proxy ──
+if [ -f "$OVERLAY_DIR/tor.conf" ]; then
+    echo "[8/13] Installing Tor transparent proxy..."
+    mkdir -p "system/extras/lethe"
+    mkdir -p "system/etc/tor"
+    cp "$OVERLAY_DIR/tor.conf" "system/etc/tor/torrc"
+
+    INIT_DIR="system/core/rootdir"
+    if [ -d "$INIT_DIR" ]; then
+        cat > "$INIT_DIR/init.lethe-tor.rc" <<'INITRC'
+# Lethe — Tor transparent proxy
+# Starts Tor daemon and applies iptables NAT rules to redirect
+# all user app traffic through Tor. No user app traffic bypasses Tor.
+
+service lethe-tor /system/bin/tor -f /system/etc/tor/torrc
+    class main
+    user 9050
+    group 9050 inet net_admin
+    capabilities NET_ADMIN NET_BIND_SERVICE
+    disabled
+
+on post-fs-data
+    # Create Tor data directory on /persist (survives burner wipe)
+    mkdir /persist/lethe/tor 0700 9050 9050
+
+on property:sys.boot_completed=1
+    start lethe-tor
+
+    # Apply transparent proxy iptables rules after Tor starts
+    exec -- /system/bin/sh -c "\
+        sleep 5; \
+        \
+        # Redirect user app DNS (UDP 53) to Tor DNS port \
+        iptables -t nat -A OUTPUT -m owner --uid-owner 10000-99999 -p udp --dport 53 \
+            -j REDIRECT --to-ports 5400; \
+        iptables -t nat -A OUTPUT -m owner --uid-owner 10000-99999 -p tcp --dport 53 \
+            -j REDIRECT --to-ports 5400; \
+        \
+        # Redirect all user app TCP to Tor TransPort \
+        iptables -t nat -A OUTPUT -m owner --uid-owner 10000-99999 -p tcp \
+            -j REDIRECT --to-ports 9040; \
+        \
+        # Drop user app UDP (except DNS, already redirected) — Tor is TCP only \
+        iptables -A OUTPUT -m owner --uid-owner 10000-99999 -p udp ! --dport 53 -j DROP; \
+        \
+        # Allow Tor daemon (UID 9050) direct network access \
+        iptables -A OUTPUT -m owner --uid-owner 9050 -j ACCEPT; \
+        \
+        # Allow IPFS daemon (UID 9051) loopback only (routes through Tor SOCKS) \
+        iptables -A OUTPUT -m owner --uid-owner 9051 -o lo -j ACCEPT; \
+        iptables -A OUTPUT -m owner --uid-owner 9051 -j DROP; \
+        \
+        log -t lethe-tor 'Transparent proxy rules applied'"
+INITRC
+        echo "  -> Tor init service installed."
+    else
+        echo "  -> WARNING: init dir not found, skipping Tor init service."
+    fi
+    echo "  -> Tor overlay installed."
+fi
+
+# ── 9. IPFS OTA update service ──
+if [ -f "$OVERLAY_DIR/ipfs-ota.conf" ]; then
+    echo "[9/13] Installing IPFS OTA update service..."
+    mkdir -p "system/extras/lethe"
+    cp "$OVERLAY_DIR/ipfs-ota.conf" "system/extras/lethe/"
+
+    INIT_DIR="system/core/rootdir"
+    if [ -d "$INIT_DIR" ]; then
+        cat > "$INIT_DIR/init.lethe-ipfs.rc" <<'INITRC'
+# Lethe — IPFS OTA update client
+# Runs a lightweight IPFS node in client-only mode (no DHT serving).
+# All swarm traffic routed through Tor SOCKS proxy.
+# Periodically resolves IPNS channel for signed update manifests.
+
+service lethe-ipfs /system/bin/sh -c "\
+    export IPFS_PATH=/data/lethe/ipfs; \
+    if [ ! -d $IPFS_PATH ]; then \
+        ipfs init --profile=lowpower 2>/dev/null; \
+        ipfs config Routing.Type dhtclient; \
+        ipfs config --json Swarm.DisableNatPortMap true; \
+        ipfs config --json Gateway.NoFetch true; \
+        ipfs config Addresses.Gateway ''; \
+        ipfs config Addresses.API /ip4/127.0.0.1/tcp/5001; \
+        ipfs config --json Swarm.ProxyCommand '[\"connect-proxy\", \"-S\", \"127.0.0.1:9050\"]'; \
+    fi; \
+    ipfs daemon --routing=dhtclient 2>&1 | log -t lethe-ipfs"
+    class late_start
+    user 9051
+    group 9051 inet
+    disabled
+
+service lethe-ota-check /system/bin/sh -c "\
+    while true; do \
+        sleep 21600; \
+        ENABLED=$(getprop persist.lethe.ipfs.enabled); \
+        if [ \"$ENABLED\" != \"true\" ]; then continue; fi; \
+        \
+        export IPFS_PATH=/data/lethe/ipfs; \
+        log -t lethe-ota 'Checking for updates via IPNS...'; \
+        CID=$(ipfs name resolve lethe-updates 2>/dev/null); \
+        if [ -n \"$CID\" ]; then \
+            MANIFEST=$(ipfs cat $CID/manifest.json 2>/dev/null); \
+            if [ -n \"$MANIFEST\" ]; then \
+                log -t lethe-ota \"Update manifest found: $CID\"; \
+                echo \"$MANIFEST\" > /data/lethe/pending-update.json; \
+                am broadcast -a lethe.intent.OTA_AVAILABLE --es cid \"$CID\"; \
+            fi; \
+        else \
+            log -t lethe-ota 'No updates found'; \
+        fi; \
+    done"
+    class late_start
+    oneshot
+    disabled
+
+on property:sys.boot_completed=1
+    mkdir /data/lethe/ipfs 0700 9051 9051
+    start lethe-ipfs
+    start lethe-ota-check
+INITRC
+        echo "  -> IPFS OTA init service installed."
+    else
+        echo "  -> WARNING: init dir not found, skipping IPFS OTA init service."
+    fi
+    echo "  -> IPFS OTA overlay installed."
+fi
+
+# ── 10. Bender (voice-first AI companion) ──
+echo "[10/13] Installing Bender..."
 BENDER_SOURCE="${BENDER_DIR:-$SCRIPT_DIR/../../bender}"
 if [ -d "$BENDER_SOURCE" ]; then
     BENDER_TARGET="system/extras/lethe/bender"
@@ -317,8 +445,8 @@ else
     echo "     Set BENDER_DIR to override or place bender/ alongside OSmosis."
 fi
 
-# ── 9. Build fingerprint ──
-echo "[9/11] Setting Lethe build fingerprint..."
+# ── 11. Build fingerprint ──
+echo "[11/13] Setting Lethe build fingerprint..."
 # Detect per-device base version from manifest (default: 21.0)
 MANIFEST="$SCRIPT_DIR/manifest.yaml"
 BASE_VERSION="21.0"
@@ -337,8 +465,8 @@ fi
 export LETHE_BUILD_DESC="$BUILD_DESC"
 echo "  -> Build: $BUILD_DESC"
 
-# ── 10. Summary ──
-echo "[10/11] Overlay summary..."
+# ── 12. Summary ──
+echo "[12/13] Overlay summary..."
 echo "  Overlays installed:"
 for f in "$OVERLAY_DIR"/*; do
     [ -f "$f" ] && echo "    - $(basename "$f")"

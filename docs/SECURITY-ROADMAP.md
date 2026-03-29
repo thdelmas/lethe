@@ -112,6 +112,39 @@ within days. We can't match that, but we can close the gap.
 
 ---
 
+## Implemented — Tor + IPFS
+
+### Transparent Tor proxy (all user app traffic)
+
+Every user app's TCP traffic is transparently redirected through Tor via
+iptables NAT rules. DNS for user apps resolves through Tor. UDP is dropped
+(Tor is TCP-only — this prevents leaks). Tor runs as a system service
+(UID 9050) independent of any app.
+
+**Components:**
+- `overlays/tor.conf` — Tor daemon config (TransPort 9040, DNSPort 5400)
+- `overlays/firewall-rules.conf` — nftables/iptables enforcing Tor-only
+- `init.lethe-tor.rc` — Starts Tor + applies NAT redirect on boot
+- Orbot pre-installed for bridge configuration UI
+- Tor data on `/persist` — survives burner wipe, circuits rebuild faster
+- Bridge support (obfs4) available in Settings for censored networks
+- Per-app circuit isolation — apps can't correlate each other's traffic
+
+### IPFS OTA updates (signature-verified, Tor-routed)
+
+Firmware updates fetched via IPFS, not HTTP. The device runs a lightweight
+IPFS client (no DHT serving) with all swarm traffic routed through Tor
+SOCKS. Update manifests are signed with Ed25519 and verified on-device.
+
+**Components:**
+- `overlays/ipfs-ota.conf` — IPFS client config + update policy
+- `init.lethe-ipfs.rc` — IPFS daemon + periodic IPNS update checker
+- OSmosis publishes signed manifests to IPNS channel `lethe-updates`
+- Security patches auto-install on reboot; feature updates prompt user
+- Offline updates via .car archives over OSmosis USB
+
+---
+
 ## P3 — Long-term research
 
 ### Scoped storage hardening

@@ -346,11 +346,83 @@ features:
             You can manage Bender in Settings > Apps > Bender.
           action: "Done"
 
+  tor:
+    description: "Transparent Tor proxy — all user app traffic routed through Tor by default"
+    enabled_by_default: true
+    overlay_file: "tor.conf"
+    tor_uid: 9050                       # Dedicated UID for Tor daemon
+    transport_port: 9040                # Transparent proxy port
+    dns_port: 5400                      # Tor DNS resolver
+    socks_port: 9050                    # SOCKS5 for apps that support it (IPFS)
+    data_dir: "/persist/lethe/tor"      # Survives burner wipe
+    features:
+      transparent_proxy: true           # All user app TCP goes through Tor
+      dns_through_tor: true             # User app DNS resolved via Tor
+      udp_leak_prevention: true         # UDP dropped for user apps (Tor = TCP only)
+      circuit_isolation: true           # Per-app Tor circuits (no cross-app correlation)
+      bridge_support: true              # obfs4 bridges available in Settings
+      stream_isolation: true            # Separate circuits per destination
+    enforcement:
+      # The firewall guarantees no user app traffic bypasses Tor.
+      # NAT redirect catches TCP, iptables DROP catches UDP.
+      # Tor daemon itself (UID 9050) has direct network access.
+      # System UIDs get direct access for NTP, DHCP, DNS-over-TLS only.
+      firewall_enforced: true
+      vpn_mode: false                   # Not a VPN — transparent proxy via iptables NAT
+    pre_installed_apps:
+      - id: orbot
+        name: "Orbot"
+        package: "org.torproject.android"
+        desc: "Tor management UI — bridge configuration, circuit viewer"
+        notes: >
+          Orbot is optional UI only. Tor runs as a system service regardless.
+          Orbot provides bridge configuration and circuit visualization.
+    first_boot_setup:
+      steps:
+        - screen: explain
+          title: "Tor Protection"
+          body: >
+            All your apps connect through Tor by default. Your real IP
+            address is hidden from every website and service you use.
+            This is always on — you don't need to do anything.
+          action: "Continue"
+        - screen: bridges
+          title: "Are you in a censored network?"
+          body: >
+            Some countries block Tor. If you're in one, enable bridges
+            to disguise your Tor traffic as normal HTTPS.
+          toggles:
+            - label: "Enable Tor bridges (obfs4)"
+              key: "persist.lethe.tor.bridges"
+              default: false
+          action: "Continue / Skip"
+
+  ipfs_ota:
+    description: "Firmware updates via IPFS — no central server, signature-verified"
+    enabled_by_default: true
+    overlay_file: "ipfs-ota.conf"
+    ipfs_uid: 9051                      # Dedicated UID for IPFS daemon
+    features:
+      ipns_update_channel: true         # Resolve IPNS for update manifests
+      signed_manifests: true            # Ed25519 signature verification
+      tor_routed_swarm: true            # IPFS peers reached through Tor SOCKS
+      client_only: true                 # No DHT serving, no content providing
+      car_offline_updates: true         # Accept .car archives via OSmosis USB
+    update_check:
+      ipns_key: "lethe-updates"         # IPNS name published by OSmosis build server
+      interval_hours: 6                 # Check every 6 hours
+      verify_signature: true            # Reject unsigned or untrusted manifests
+      trust_pubkey: "/system/etc/lethe/update-pubkey.pem"
+    policies:
+      security_patches: "auto"          # Auto-install security patches on reboot
+      feature_updates: "prompt"         # Notify user, they decide
+      rollback_allowed: true            # User can roll back to previous version via OSmosis
+
   osmosis_integration:
     description: "OSmosis tools built into the system"
     features:
       - usb_update: true                # Accept OTA updates via OSmosis USB
-      - ipfs_channel: true              # Check IPFS for firmware updates
+      - ipfs_channel: true              # Check IPFS for firmware updates via ipfs_ota
       - recovery_pairing: true          # OSmosis can boot into recovery remotely
       - backup_agent: true              # Automated NAND backup via OSmosis
 
@@ -376,10 +448,14 @@ features:
         name: "F-Droid"
         package: "org.fdroid.fdroid"
         desc: "Free and open-source app store"
+      - id: orbot
+        name: "Orbot"
+        package: "org.torproject.android"
+        desc: "Tor management UI — bridge config, circuit viewer. Tor runs as system service regardless."
       - id: mull
         name: "Mull Browser"
         package: "us.spotco.fennec_dos"
-        desc: "Privacy-hardened Firefox fork by DivestOS"
+        desc: "Privacy-hardened Firefox fork by DivestOS — all traffic routed through Tor"
       - id: davx5
         name: "DAVx5"
         package: "at.bitfire.davdroid"
