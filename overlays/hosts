@@ -1,0 +1,66 @@
+# Lethe — System-level tracker and ad blocking
+# This file is installed to /system/etc/hosts at build time.
+# Updated weekly from upstream blocklists via Lethe OTA.
+#
+# Sources:
+#   - StevenBlack/hosts (unified hosts + fakenews + gambling + porn optional)
+#   - AdAway default blocklist
+#   - Lethe curated additions (telemetry endpoints)
+#
+# To add exceptions, use the Lethe app or edit /data/local/lethe/hosts-whitelist
+
+127.0.0.1 localhost
+::1 localhost
+
+# ── Google telemetry & tracking ──
+0.0.0.0 connectivitycheck.gstatic.com
+0.0.0.0 www.googleadservices.com
+0.0.0.0 pagead2.googlesyndication.com
+0.0.0.0 googleads.g.doubleclick.net
+0.0.0.0 ad.doubleclick.net
+0.0.0.0 ads.google.com
+0.0.0.0 adservice.google.com
+0.0.0.0 play.googleapis.com
+0.0.0.0 firebase-settings.crashlytics.com
+0.0.0.0 app-measurement.com
+0.0.0.0 analyticsreporting.googleapis.com
+0.0.0.0 clients1.google.com
+0.0.0.0 update.googleapis.com
+0.0.0.0 clientservices.googleapis.com
+
+# ── Facebook tracking ──
+0.0.0.0 graph.facebook.com
+0.0.0.0 pixel.facebook.com
+0.0.0.0 an.facebook.com
+0.0.0.0 ads.facebook.com
+
+# ── Common ad networks ──
+0.0.0.0 ads.mopub.com
+0.0.0.0 sdk.applovin.com
+0.0.0.0 ads.inmobi.com
+0.0.0.0 ads.unity3d.com
+0.0.0.0 app.adjust.com
+0.0.0.0 app.appsflyer.com
+0.0.0.0 events.appsflyer.com
+0.0.0.0 sdk.braze.com
+0.0.0.0 api.amplitude.com
+0.0.0.0 api.mixpanel.com
+0.0.0.0 api.segment.io
+
+# ── Xiaomi telemetry ──
+0.0.0.0 tracking.miui.com
+0.0.0.0 sa.api.intl.miui.com
+0.0.0.0 data.mistat.intl.xiaomi.com
+0.0.0.0 globalapi.ad.xiaomi.com
+
+# ── Samsung telemetry ──
+0.0.0.0 analytics.samsungknox.com
+0.0.0.0 bigdata.ssp.samsung.com
+0.0.0.0 config.samsungads.com
+
+# ── OnePlus/Oppo telemetry ──
+0.0.0.0 dcus.heycloud.com
+0.0.0.0 click.oneplus.com
+
+# NOTE: Full blocklist is fetched at build time from StevenBlack/hosts.
+# This seed file covers the most critical endpoints for offline installs.

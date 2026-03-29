@@ -1,0 +1,434 @@
+# Lethe — L.E.T.H.E. (Logical Erasure & Total History Elimination)
+# Privacy-focused Android fork by OSmosis
+# Based on LineageOS with hardened defaults and debloating.
+#
+# Lethe is NOT a separate build from scratch. It is a set of overlays
+# applied on top of a LineageOS build for a specific device:
+#   1. Debloat: remove tracking, analytics, and unnecessary packages
+#   2. Harden: tighten SELinux policies, restrict network access by default
+#   3. Privacy: DNS-over-TLS, firewall, tracker blocking, sensor permissions
+#   4. OSmosis integration: USB updates, IPFS firmware channel, recovery pairing
+#
+# To add a new device: ensure LineageOS supports the codename, then add
+# the codename to the `devices` list below.
+
+id: lethe
+name: Lethe
+version: "1.0.0"
+base: lineageos
+base_version: "21.0"
+android_version: "14"
+
+description: >
+  Privacy-hardened Android for everyone. Based on LineageOS with
+  aggressive debloating, network hardening, and tracker blocking.
+  Works on 300+ devices — no Google phone required.
+
+# Devices inherit from LineageOS device trees.
+# Each codename listed here gets a Lethe build.
+devices:
+  # Samsung
+  - chagalllte    # Galaxy Tab S 10.5
+  - codename: t03g          # Galaxy Note II (Exynos 4412, ARMv7)
+    base_version: "14.1"     # No official LOS support — unofficial LOS 14.1 is the
+    android_version: "7.1"   # most stable option. LOS 21 beta exists but encryption
+    unofficial: true         # is broken (no FBE on Exynos 4412) and random reboots.
+    notes: >
+      FDE works on Android 7.1 (not on 13+). Kernel 3.4.x limits modern
+      features. Mali-400 GPU caps OpenGL ES at 2.0. Use TWRP for sideload,
+      not Replicant Recovery.
+    disabled_features:        # Features that cannot work on this hardware/base
+      - encryption            # FDE removed in Android 13+, FBE unsupported on Exynos 4412
+                              # but FDE works fine on LOS 14.1 (Android 7.1)
+
+  # Google Pixel
+  - panther       # Pixel 7
+  - cheetah       # Pixel 7 Pro
+  - lynx          # Pixel 7a
+  - shiba         # Pixel 8
+  - husky         # Pixel 8 Pro
+  - akita         # Pixel 8a
+  - caiman        # Pixel 9
+  - komodo        # Pixel 9 Pro
+  - tokay         # Pixel 9 Pro Fold
+
+  # Nothing
+  - spacewar      # Nothing Phone (1)
+  - pong          # Nothing Phone (2)
+  - pacman        # Nothing Phone (2a)
+
+  # Fairphone
+  - FP4           # Fairphone 4
+  - FP5           # Fairphone 5
+
+  # OnePlus
+  - instantnoodlep  # OnePlus 8 Pro
+  - lemonades       # OnePlus 9
+  - martini         # OnePlus 9 Pro
+
+  # Xiaomi
+  - courbet       # Mi 11 Lite 4G
+  - renoir        # Mi 11 Lite 5G
+
+  # Motorola
+  - hawao         # Moto G7 Plus
+  - devon         # Moto G52
+
+  # Sony
+  - pdx206        # Xperia 1 II
+  - pdx215        # Xperia 1 III
+
+features:
+  debloat:
+    description: "Remove analytics, telemetry, and unnecessary system packages"
+    packages_remove:
+      - com.google.android.gms           # Google Play Services
+      - com.google.android.gsf           # Google Services Framework
+      - com.google.android.apps.maps     # Google Maps
+      - com.google.android.youtube       # YouTube
+      - com.google.android.tts           # Google TTS
+      - com.google.android.feedback      # Google Feedback
+      - com.google.android.onetimeinitializer
+      - com.google.android.partnersetup
+      - com.google.android.setupwizard
+      - com.android.vending              # Play Store
+    packages_replace:
+      # Replace Google-dependent components with FOSS alternatives
+      - from: com.android.providers.contacts
+        to: org.sufficientlysecure.keychain  # OpenKeychain
+
+  network_hardening:
+    description: "Lock down network access by default"
+    dns:
+      # Privacy-respecting DNS-over-TLS providers
+      primary: "dns.quad9.net"          # Quad9 — threat blocking, no logging
+      fallback: "dns.mullvad.net"       # Mullvad — no logging, EDNS disabled
+      mode: "strict"                    # Reject cleartext DNS
+    firewall:
+      default_policy: "deny"            # Apps must be granted network access
+      allow_system:
+        - "android.uid.system"
+        - "android.uid.nfc"
+        - "android.uid.bluetooth"
+      vpn_lockdown: true                # Kill network if VPN drops
+    ntp:
+      server: "time.cloudflare.com"     # No Google NTP
+    captive_portal:
+      url: "https://connectivity.grapheneos.org/generate_204"  # No Google check
+
+  tracker_blocking:
+    description: "System-level tracker and ad blocking via hosts file"
+    hosts_sources:
+      - "https://raw.githubusercontent.com/StevenBlack/hosts/master/hosts"
+      - "https://adaway.org/hosts.txt"
+    update_interval_days: 7
+    whitelist: []                        # User can add exceptions
+
+  sensor_permissions:
+    description: "Restrict sensor access (camera, mic, location) per-app"
+    defaults:
+      camera: "ask"                     # Prompt on first use
+      microphone: "ask"
+      location: "ask"
+      body_sensors: "deny"              # Deny by default
+      nearby_devices: "deny"
+      background_location: "deny"       # Never allow background location
+
+  selinux:
+    description: "SELinux in enforcing mode with tightened policies"
+    mode: "enforcing"
+    custom_policies:
+      - "deny untrusted_app self:capability net_raw"
+      - "deny untrusted_app app_data_file:file execute"
+
+  encryption:
+    description: "Full-disk encryption enforced on first boot"
+    fde: true
+    algorithm: "AES-256-XTS"
+
+  burner_mode:
+    description: "Ephemeral device mode — full wipe on every boot by default, configurable after startup"
+    enabled_by_default: true
+    # On-boot behavior: wipe everything before Android userspace starts.
+    # The user can disable this from Settings after boot — the preference
+    # is stored on a persistent partition that survives the wipe cycle.
+    on_boot_wipe:
+      enabled: true                 # DEFAULT ON — every reboot = fresh device
+      user_configurable: true       # User can turn this off in Settings > Privacy > Burner Mode
+      config_partition: "persist"   # Settings stored on /persist, not wiped with /data
+      first_boot_prompt: true       # On first boot, explain burner mode and how to disable it
+    triggers:
+      panic_button: true            # Long-press power 5× to trigger instant wipe
+      scheduled_wipe: false         # Optional: auto-wipe after N days
+      sim_change: false             # Optional: wipe if SIM card is swapped
+      usb_signal: true              # OSmosis can trigger wipe via USB command
+      dead_mans_switch: true        # Missed check-in triggers escalation
+      duress_pin: false             # Fake-unlock PIN that silently wipes
+    wipe_scope:
+      user_data: true               # /data partition — apps, accounts, messages
+      internal_storage: true        # Photos, downloads, documents
+      esim_profiles: true           # Remove all eSIM profiles
+      wifi_credentials: true        # Saved networks
+      bluetooth_pairings: true      # Paired devices
+      clipboard: true               # Clipboard history
+      notification_log: true        # Notification history
+    identity_rotation:
+      randomize_mac: true           # New random MAC address after wipe
+      randomize_android_id: true    # Fresh Android ID on each cycle
+      randomize_device_serial: true # Spoof serial number
+    post_wipe:
+      action: "boot_clean"          # Continue boot into fresh Android session
+      show_decoy: false             # Optional: show factory setup screen instead
+    overlay_file: "burner-mode.conf"
+
+  dead_mans_switch:
+    description: "If you stop checking in, the device assumes the worst"
+    enabled_by_default: false       # First-boot wizard asks — never silently armed
+    overlay_file: "dead-mans-switch.conf"
+    first_boot_setup:
+      # The setup wizard walks the user through these steps in order.
+      # Each step is a screen. The user can skip (leaves feature disabled)
+      # or go back at any point.
+      steps:
+        - screen: explain
+          title: "Dead Man's Switch"
+          body: >
+            If you stop checking in, your device will protect itself.
+            No signal is sent — silence is the trigger. An adversary
+            who powers off the phone or blocks the network still loses.
+          action: "Set it up / Skip"
+
+        - screen: interval
+          title: "How often will you check in?"
+          options:
+            - label: "Twice a day"
+              value: "12h"
+              hint: "High-risk situations"
+            - label: "Once a day"
+              value: "24h"
+              hint: "Recommended"
+              default: true
+            - label: "Every 2 days"
+              value: "48h"
+            - label: "Every 3 days"
+              value: "72h"
+            - label: "Once a week"
+              value: "7d"
+              hint: "Low-risk"
+
+        - screen: passphrase
+          title: "Choose your dead man passphrase"
+          body: >
+            This is separate from your lock PIN. You'll enter it once
+            a day (or however often you chose) to prove you're still
+            in control. Pick something you'll remember under stress.
+          input: passphrase
+          confirm: true             # User types it twice
+
+        - screen: duress_pin
+          title: "Set a duress PIN (optional)"
+          body: >
+            A duress PIN looks like it unlocks your phone normally.
+            Behind the scenes, it starts wiping everything. The person
+            watching sees a home screen. Your data is already gone.
+          input: pin
+          optional: true
+
+        - screen: escalation
+          title: "What happens when you miss a check-in?"
+          body: >
+            After the grace period (4 hours by default), your device
+            escalates in stages. You can still recover at any stage
+            by entering your passphrase.
+          display:
+            - stage: "Missed check-in + grace period"
+              action: "Device locks — passphrase only, no fingerprint"
+            - stage: "+ 1 hour"
+              action: "Full data wipe — same as burner mode"
+            - stage: "+ 2 hours (if enabled)"
+              action: "Brick — device becomes unbootable, OSmosis USB recovery only"
+          toggles:
+            - label: "Enable brick stage (irreversible without OSmosis)"
+              key: "persist.lethe.deadman.stage3.enabled"
+              default: false
+
+        - screen: confirm
+          title: "You're protected"
+          body: >
+            Your first check-in starts now. You'll see a quiet
+            notification that says "Scheduled maintenance pending" —
+            tap it and enter your passphrase. That's it.
+          action: "Done"
+
+    check_in:
+      # The check-in flow at runtime.
+      notification:
+        title: "System update"              # Deliberately bland
+        body: "Scheduled maintenance pending"
+        channel: "system"                   # Uses system notification channel
+        priority: "low"                     # No sound, no vibration
+        persistent: false                   # Can be dismissed (timer still runs)
+      method:
+        # User taps notification → enters passphrase → done.
+        # The passphrase screen looks like a system settings PIN prompt,
+        # nothing that screams "dead man's switch" to an observer.
+        prompt_title: "Enter maintenance code"
+        max_attempts: 3                     # After 3 wrong attempts, lock immediately
+        lockout_on_fail: true
+    escalation:
+      stage1:
+        action: lock
+        delay: "0"                          # Immediate after grace period expires
+        unlock_method: "passphrase_only"    # No fingerprint, no face, no PIN
+      stage2:
+        action: wipe
+        delay: "1h"
+        scope: "full"                       # Same scope as burner_mode.wipe_scope
+      stage3:
+        action: brick
+        enabled: false                      # User must explicitly opt in
+        delay: "2h"
+        overwrite_partitions:
+          - persist
+          - boot
+          - recovery
+        recovery: "osmosis_usb"             # Only way back is OSmosis USB flash
+
+  bender:
+    description: "Voice-first AI companion — Bender Bending Rodriguez"
+    enabled_by_default: true          # Pre-installed, but user chooses to activate
+    source: "https://github.com/thdelmas/bender"
+    package: "org.osmosis.bender"
+    service_port: 8080                # Localhost only
+    first_boot_setup:
+      # Runs in the setup wizard right after dead man's switch.
+      # Bender introduces himself and the user decides whether to
+      # set up voice access now or skip.
+      steps:
+        - screen: meet_bender
+          title: "Meet Bender"
+          body: >
+            Your device comes with Bender — a voice-first AI assistant
+            that lives on this phone. Talk to it, it does things.
+            It has... personality.
+          action: "Set it up / Skip"
+
+        - screen: api_key
+          title: "Give Bender a brain"
+          body: >
+            Bender needs an Anthropic API key to think. You can paste
+            one now, or scan a QR code from another device. The key
+            is encrypted and stored locally — it never leaves this phone.
+          input: api_key
+          input_hint: "sk-ant-..."
+          alternatives:
+            - label: "Scan QR code"
+              action: "open_camera_qr"
+              hint: "Open bender/key on another device to generate the code"
+          optional: true               # User can skip and add later from Settings
+
+        - screen: voice_test
+          title: "Let's hear you"
+          body: >
+            Bender listens through the microphone and talks back through
+            the speaker. Tap the mic to say something — anything.
+          action: "test_mic"
+          triggers:
+            - request_permission: RECORD_AUDIO
+            - play_tts_sample: "I'm Bender, baby! Please insert liquor."
+          skip_label: "I'll do this later"
+
+        - screen: confirm
+          title: "Bender is ready"
+          body: >
+            Open the browser and go to localhost:8080 any time, or say
+            "Hey Bender" if wake-word detection is enabled.
+            You can manage Bender in Settings > Apps > Bender.
+          action: "Done"
+
+  osmosis_integration:
+    description: "OSmosis tools built into the system"
+    features:
+      - usb_update: true                # Accept OTA updates via OSmosis USB
+      - ipfs_channel: true              # Check IPFS for firmware updates
+      - recovery_pairing: true          # OSmosis can boot into recovery remotely
+      - backup_agent: true              # Automated NAND backup via OSmosis
+
+  recommended_apps:
+    description: "Pre-installed or recommended FOSS apps"
+    pre_installed:
+      - id: bender
+        name: "Bender"
+        package: "org.osmosis.bender"
+        desc: "Voice-first AI companion — speak, the agent acts. Runs locally via Whisper + espeak."
+        source: "https://github.com/thdelmas/bender"
+        system_service: true          # Starts on boot as a background service
+        autostart: false              # User activates on first launch — no surprise background activity
+        permissions:
+          - RECORD_AUDIO              # Whisper STT
+          - INTERNET                  # Claude API (user provides their own key)
+          - FOREGROUND_SERVICE        # Keep agent alive while listening
+        notes: >
+          Bender runs a lightweight local web server. The browser is the UI.
+          API key is encrypted on-device, never leaves. On ARMv7 devices,
+          Whisper uses the tiny model for real-time performance.
+      - id: fdroid
+        name: "F-Droid"
+        package: "org.fdroid.fdroid"
+        desc: "Free and open-source app store"
+      - id: mull
+        name: "Mull Browser"
+        package: "us.spotco.fennec_dos"
+        desc: "Privacy-hardened Firefox fork by DivestOS"
+      - id: davx5
+        name: "DAVx5"
+        package: "at.bitfire.davdroid"
+        desc: "CalDAV/CardDAV sync — replaces Google contacts/calendar sync"
+    recommended:
+      - id: signal
+        name: "Signal"
+        package: "org.thoughtcrime.securesms"
+        desc: "Encrypted messaging"
+      - id: newpipe
+        name: "NewPipe"
+        package: "org.schabi.newpipe"
+        desc: "YouTube client without Google account or tracking"
+      - id: osmand
+        name: "OsmAnd+"
+        package: "net.osmand.plus"
+        desc: "Offline maps — no Google Maps dependency"
+      - id: k9mail
+        name: "K-9 Mail"
+        package: "com.fsck.k9"
+        desc: "Open-source email client"
+      - id: aegis
+        name: "Aegis Authenticator"
+        package: "com.beemdevelopment.aegis"
+        desc: "Open-source 2FA app — replaces Google Authenticator"
+      - id: shelter
+        name: "Shelter"
+        package: "net.typeblog.shelter"
+        desc: "Isolate apps in a work profile sandbox"
+
+build:
+  # LineageOS build integration
+  sync_command: "repo sync -c -j$(nproc) --force-sync --no-clone-bundle --no-tags"
+  lunch_prefix: "lineage"
+  overlay_dir: "lethe/overlays"
+  signing_key: "keys/lethe-release.key"
+
+  steps:
+    - name: "Sync LineageOS source tree"
+      command: "repo init -u https://github.com/LineageOS/android.git -b lineage-21.0 --depth=1"
+
+    - name: "Apply Lethe overlays"
+      command: "lethe/apply-overlays.sh"
+
+    - name: "Build for device"
+      command: "source build/envsetup.sh && lunch lineage_{codename}-userdebug && mka bacon"
+
+    - name: "Sign build"
+      command: "lethe/sign-build.sh {codename}"
+
+    - name: "Generate OTA package"
+      command: "lethe/generate-ota.sh {codename}"
