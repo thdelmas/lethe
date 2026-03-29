@@ -1,0 +1,30 @@
+# Build artifacts
+out/
+builds/
+*.zip
+!bootanimation/bootanimation.zip
+
+# Signing keys
+keys/
+*.key
+*.pem
+*.keystore
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# LineageOS source tree (not committed)
+android/
+.repo/
