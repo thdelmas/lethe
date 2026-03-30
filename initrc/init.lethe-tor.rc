@@ -1,0 +1,43 @@
+# Lethe — Tor transparent proxy
+# Starts Tor daemon and applies iptables NAT rules to redirect
+# all user app traffic through Tor. No user app traffic bypasses Tor.
+
+service lethe-tor /system/bin/tor -f /system/etc/tor/torrc
+    class main
+    user 9050
+    group 9050 inet net_admin
+    capabilities NET_ADMIN NET_BIND_SERVICE
+    disabled
+
+on post-fs-data
+    # Create Tor data directory on /persist (survives burner wipe)
+    mkdir /persist/lethe/tor 0700 9050 9050
+
+on property:sys.boot_completed=1
+    start lethe-tor
+
+    # Apply transparent proxy iptables rules after Tor starts
+    exec -- /system/bin/sh -c "\
+        sleep 5; \
+        \
+        # Redirect user app DNS (UDP 53) to Tor DNS port \
+        iptables -t nat -A OUTPUT -m owner --uid-owner 10000-99999 -p udp --dport 53 \
+            -j REDIRECT --to-ports 5400; \
+        iptables -t nat -A OUTPUT -m owner --uid-owner 10000-99999 -p tcp --dport 53 \
+            -j REDIRECT --to-ports 5400; \
+        \
+        # Redirect all user app TCP to Tor TransPort \
+        iptables -t nat -A OUTPUT -m owner --uid-owner 10000-99999 -p tcp \
+            -j REDIRECT --to-ports 9040; \
+        \
+        # Drop user app UDP (except DNS, already redirected) — Tor is TCP only \
+        iptables -A OUTPUT -m owner --uid-owner 10000-99999 -p udp ! --dport 53 -j DROP; \
+        \
+        # Allow Tor daemon (UID 9050) direct network access \
+        iptables -A OUTPUT -m owner --uid-owner 9050 -j ACCEPT; \
+        \
+        # Allow IPFS daemon (UID 9051) loopback only (routes through Tor SOCKS) \
+        iptables -A OUTPUT -m owner --uid-owner 9051 -o lo -j ACCEPT; \
+        iptables -A OUTPUT -m owner --uid-owner 9051 -j DROP; \
+        \
+        log -t lethe-tor 'Transparent proxy rules applied'"

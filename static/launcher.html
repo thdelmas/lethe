@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<!--
+  LETHE — Void Launcher
+  One page IS the home screen + conversation. One WebView. One entity.
+  Works offline. Works without agent (clock + mascot + gestures).
+
+  Avatar tiers (user-selectable in Settings, auto-detected by default):
+    3d       — WebGL GLB model (new devices)
+    2d       — PNG with CSS transforms + particles (old devices)
+    static   — just the PNG, no animation (ultra low-end)
+-->
+<html lang="en">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no"/>
+  <title>LETHE</title>
+  <link rel="stylesheet" href="launcher.css"/>
+</head>
+
+<body>
+  <!-- ══════ HOME SCREEN ══════ -->
+  <div class="home" id="home">
+    <div class="clock">
+      <div class="clock-hours" id="clock-h">00</div>
+      <span class="clock-dot"></span>
+      <div class="clock-minutes" id="clock-m">00</div>
+      <div class="clock-date" id="clock-date"></div>
+    </div>
+
+    <div class="home-mascot" id="home-mascot">
+      <!-- 3D: WebGL canvas (hidden if not 3d tier) -->
+      <canvas id="mascot-canvas" class="mascot-layer mascot-3d"></canvas>
+
+      <!-- 2D: animated WebP (pre-rendered 3D) + glow ring -->
+      <div class="mascot-layer mascot-2d" style="display:none">
+        <div class="glow-ring"></div>
+        <img src="mascot-idle.webp" alt="LETHE" draggable="false" class="mascot-2d-img" id="mascot-2d-anim"/>
+      </div>
+
+      <!-- Static: just the image, no animation -->
+      <img src="mascot.png" alt="LETHE" draggable="false"
+           class="mascot-layer mascot-static" style="display:none"/>
+    </div>
+
+    <div class="home-hint" id="hint">tap the guardian</div>
+  </div>
+
+  <!-- ══════ CHAT (slides up) ══════ -->
+  <div class="chat" id="chat">
+    <div class="chat-mascot">
+      <canvas id="chat-mascot-canvas" class="chat-3d"></canvas>
+      <img src="mascot.png" alt="LETHE" draggable="false"
+           class="chat-2d" style="display:none"/>
+    </div>
+    <div class="chat-status" id="status"></div>
+    <div class="transcript" id="transcript"></div>
+    <div class="input-area">
+      <textarea class="input-field" id="input" placeholder="Talk to LETHE..."
+                rows="1" autocomplete="off"></textarea>
+      <button class="btn btn-mic" id="btn-mic" aria-label="Voice">&#x1f399;</button>
+      <button class="btn btn-send" id="btn-send" disabled aria-label="Send">&#x25B6;</button>
+    </div>
+  </div>
+
+  <!-- Tier selection: auto-detect, user-overridable in Settings -->
+  <script src="mascot-tier.js"></script>
+
+  <!-- 3D tier loads Three.js only if needed -->
+  <script>
+    if (window.letheTier === '3d') {
+      document.write('<script src="three.min.js"><\/script>');
+      document.write('<script src="GLTFLoader.js"><\/script>');
+    }
+  </script>
+
+  <script src="launcher.js"></script>
+
+  <!-- 3D renderer only runs if tier is 3d -->
+  <script>
+    if (window.letheTier === '3d') {
+      document.write('<script src="mascot-3d-renderer.js"><\/script>');
+    }
+  </script>
+</body>
+</html>

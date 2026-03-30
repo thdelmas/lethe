@@ -1,0 +1,77 @@
+# Lethe — Unified first-boot wizard
+#
+# Sequences all feature setup screens into a single onboarding flow.
+# Individual features define their own screens in manifest.yaml —
+# this file controls the ORDER and GROUPING shown to the user.
+#
+# Design principles:
+#   1. Essential choices first, advanced features later
+#   2. Every screen has a Skip — no choice is forced
+#   3. Progressive disclosure: basics → privacy → protection → agent
+#   4. Total screens: ~8 (under 3 minutes)
+#   5. LETHE speaks in-character throughout ("I" = the system)
+
+enabled: true
+skip_all_option: true          # "Skip setup" link on first screen
+progress_indicator: "dots"     # Minimal dot indicator, no step counter
+
+# ── Phase 1: Meet LETHE ──
+# One screen. Sets the tone. No decisions required.
+phases:
+  - id: welcome
+    screens:
+      - ref: "features.agent.first_boot_setup.steps[0]"    # "LETHE" intro
+        required: false
+
+  # ── Phase 2: Essentials ──
+  # Connectivity and intelligence. Most users want these.
+  - id: essentials
+    screens:
+      - ref: "features.tor.first_boot_setup.steps[0]"      # Tor explanation
+        required: false
+      - ref: "features.tor.first_boot_setup.steps[1]"      # Bridges (censored network?)
+        required: false
+      - ref: "features.agent.first_boot_setup.steps[1]"    # API key
+        required: false
+
+  # ── Phase 3: Protection ──
+  # Burner mode and dead man's switch. Needs careful explanation.
+  - id: protection
+    intro_screen:
+      title: "Protection"
+      body: >
+        The next screens configure how aggressively this device
+        protects itself. These features are powerful — take a moment
+        to understand each one. You can change everything later in
+        Settings > Privacy.
+    screens:
+      - ref: "features.burner_mode.first_boot_setup"        # Burner mode explain + toggle
+        summary_card:                                        # Show current state as a card
+          enabled_text: "Every reboot wipes everything"
+          disabled_text: "Data persists across reboots"
+        required: false
+      - ref: "features.dead_mans_switch.first_boot_setup.steps[0]"  # DMS explain
+        required: false
+      - ref: "features.dead_mans_switch.first_boot_setup.steps[1]"  # DMS interval
+        depends_on: "persist.lethe.deadman.enabled=true"
+      - ref: "features.dead_mans_switch.first_boot_setup.steps[2]"  # DMS passphrase
+        depends_on: "persist.lethe.deadman.enabled=true"
+      - ref: "features.dead_mans_switch.first_boot_setup.steps[3]"  # DMS duress PIN
+        depends_on: "persist.lethe.deadman.enabled=true"
+
+  # ── Phase 4: Voice (optional) ──
+  - id: voice
+    screens:
+      - ref: "features.agent.first_boot_setup.steps[2]"    # Voice test
+        required: false
+
+  # ── Phase 5: Done ──
+  - id: ready
+    screens:
+      - ref: "features.agent.first_boot_setup.steps[3]"    # "Ready"
+
+# Settings deeplink — every wizard choice is changeable later.
+post_wizard:
+  show_settings_hint: true
+  hint_text: "Everything you just chose lives in Settings > Privacy."
+  hint_duration_ms: 4000

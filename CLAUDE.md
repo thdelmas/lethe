@@ -13,9 +13,26 @@ overlays/               Config files baked into system image
   burner-mode.conf        Ephemeral wipe-on-boot settings
   dead-mans-switch.conf   Missed check-in escalation config
   hosts                   Tracker/ad blocking hosts file
-  theme-lethe.conf        Dark red UI theme
-bootanimation/          Boot animation generator + ZIP
-docs/                   Internal docs (security roadmap, etc.)
+  theme-lethe.conf        Teal-on-black UI theme + lockscreen + minimalism props
+  launcher.conf           Void launcher — minimalist gesture-driven home screen
+initrc/                 Android init.rc templates (copied to source tree at build time)
+  init.lethe-burner.rc   Burner mode early-init wipe service
+  init.lethe-deadman.rc  Dead man's switch boot-time enforcement
+  init.lethe-tor.rc      Tor transparent proxy + iptables rules
+  init.lethe-ipfs.rc     IPFS OTA update daemon
+  init.lethe-agent.rc    LETHE agent backend + assist registration
+bootanimation/          Boot animation generator, wallpaper generator, ZIP
+static/                 Agent WebView UI assets
+  mascot.css              Mascot 2D layer animations (idle, listening, thinking, speaking, alert)
+  mascot-3d.css           3D transforms, body movement, parallax depth, particles, expressions
+  mascot-interact.js      Gyroscope parallax, eye gaze tracking, touch reactions, ambient awareness
+  launcher.html           Void launcher — clock, mascot, gestures, chat. One page IS the OS.
+  launcher.css            Launcher styles — home screen, clock, mascot, chat panel
+  launcher.js             Launcher logic — clock, views, chat, provider routing, gestures
+  mascot-home.html        (deprecated — merged into launcher.html)
+  conversation.html       (deprecated — merged into launcher.html)
+docs/                   Internal docs, extracted configs (agent.yaml, wizard, roadmap)
+  mascot-layers.md        SVG layer spec for tracing mascot.png into animatable SVG
 ```
 
 ## Conventions
@@ -43,5 +60,6 @@ docs/                   Internal docs (security roadmap, etc.)
 - Overlay-based, not a fork. We never modify LineageOS source directly.
 - Burner mode ON by default. User disables it, not enables it.
 - Dead man's switch OFF by default. First-boot wizard asks explicitly.
-- Bender AI companion embedded as system service (localhost:8080).
+- LETHE is both the OS and the agent — no separate AI app. Package: org.osmosis.lethe.agent. System service on localhost:8080.
+- The agent backend source lives in bender/ but is installed as LETHE (not Bender). Use AGENT_DIR or BENDER_DIR to locate it.
 - ADB secure by default (ro.adb.secure=1) — see docs/SECURITY-ROADMAP.md P0.

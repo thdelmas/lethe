@@ -1,0 +1,50 @@
+# Lethe — IPFS OTA update client
+# Runs a lightweight IPFS node in client-only mode (no DHT serving).
+# All swarm traffic routed through Tor SOCKS proxy.
+# Periodically resolves IPNS channel for signed update manifests.
+
+service lethe-ipfs /system/bin/sh -c "\
+    export IPFS_PATH=/data/lethe/ipfs; \
+    if [ ! -d $IPFS_PATH ]; then \
+        ipfs init --profile=lowpower 2>/dev/null; \
+        ipfs config Routing.Type dhtclient; \
+        ipfs config --json Swarm.DisableNatPortMap true; \
+        ipfs config --json Gateway.NoFetch true; \
+        ipfs config Addresses.Gateway ''; \
+        ipfs config Addresses.API /ip4/127.0.0.1/tcp/5001; \
+        ipfs config --json Swarm.ProxyCommand '[\"connect-proxy\", \"-S\", \"127.0.0.1:9050\"]'; \
+    fi; \
+    ipfs daemon --routing=dhtclient 2>&1 | log -t lethe-ipfs"
+    class late_start
+    user 9051
+    group 9051 inet
+    disabled
+
+service lethe-ota-check /system/bin/sh -c "\
+    while true; do \
+        sleep 21600; \
+        ENABLED=$(getprop persist.lethe.ipfs.enabled); \
+        if [ \"$ENABLED\" != \"true\" ]; then continue; fi; \
+        \
+        export IPFS_PATH=/data/lethe/ipfs; \
+        log -t lethe-ota 'Checking for updates via IPNS...'; \
+        CID=$(ipfs name resolve lethe-updates 2>/dev/null); \
+        if [ -n \"$CID\" ]; then \
+            MANIFEST=$(ipfs cat $CID/manifest.json 2>/dev/null); \
+            if [ -n \"$MANIFEST\" ]; then \
+                log -t lethe-ota \"Update manifest found: $CID\"; \
+                echo \"$MANIFEST\" > /data/lethe/pending-update.json; \
+                am broadcast -a lethe.intent.OTA_AVAILABLE --es cid \"$CID\"; \
+            fi; \
+        else \
+            log -t lethe-ota 'No updates found'; \
+        fi; \
+    done"
+    class late_start
+    oneshot
+    disabled
+
+on property:sys.boot_completed=1
+    mkdir /data/lethe/ipfs 0700 9051 9051
+    start lethe-ipfs
+    start lethe-ota-check

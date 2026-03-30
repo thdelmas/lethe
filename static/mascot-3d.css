@@ -1,0 +1,465 @@
+/* LETHE Mascot — 3D transforms, body movement, and expressions
+ *
+ * Loaded AFTER mascot.css. Adds CSS 3D perspective depth to the
+ * layered SVG, body movement per conversation state, and emotional
+ * expression overlays. No WebGL — pure CSS transforms.
+ *
+ * HTML structure expected:
+ *   <div class="mascot-stage">
+ *     <svg class="lethe-mascot mascot-state-idle">...</svg>
+ *   </div>
+ */
+
+/* ═══════════════════════════════════════════
+   3D Stage — perspective and layer depth
+   ═══════════════════════════════════════════ */
+
+.mascot-stage {
+  perspective: 800px;
+  perspective-origin: 50% 45%;
+  transform-style: preserve-3d;
+  position: relative;                    /* Anchor for particles */
+  overflow: visible;
+}
+
+.lethe-mascot {
+  transform-style: preserve-3d;
+  transform-origin: 50% 48%;           /* Pivot at chest center */
+  /* Gyroscope + gaze driven via JS → CSS custom properties */
+  --gyro-x: 0deg;
+  --gyro-y: 0deg;
+  --gaze-x: 0px;
+  --gaze-y: 0px;
+  --ambient-brightness: 1;
+  --ambient-hue: 0deg;
+}
+
+/* Each SVG layer sits at a different Z-plane.
+ * Higher Z = more parallax shift on body rotation. */
+#body      { transform: translateZ(0px); }
+#moss      { transform: translateZ(2px); }
+#cracks    { transform: translateZ(6px); }
+#chest_orb { transform: translateZ(12px); }
+#eyes      { transform: translateZ(16px); }
+#antennae  { transform: translateZ(20px); }
+
+/* ── Gyroscope parallax ──
+ * JS sets --gyro-x and --gyro-y on .lethe-mascot.
+ * The .gyro-active class enables it (only when DeviceOrientation fires). */
+.gyro-active.lethe-mascot {
+  transform: rotateX(var(--gyro-x)) rotateY(var(--gyro-y));
+  transition: transform 0.15s ease-out;
+}
+
+/* ── Eye gaze tracking ──
+ * JS sets --gaze-x and --gaze-y from touch/mouse position.
+ * Eyes follow the user's finger across the screen. */
+.gaze-active #eyes {
+  transform: translate(var(--gaze-x), var(--gaze-y)) translateZ(16px);
+  transition: transform 0.1s ease-out;
+}
+
+/* ── Ambient system awareness ──
+ * JS sets --ambient-brightness (0-1) from battery level
+ * and --ambient-hue shift from time-of-day. */
+.ambient-active #cracks path {
+  filter: brightness(var(--ambient-brightness))
+          hue-rotate(var(--ambient-hue));
+}
+
+.ambient-active #chest_orb {
+  filter: brightness(var(--ambient-brightness))
+          hue-rotate(var(--ambient-hue));
+}
+
+.ambient-active #eyes ellipse,
+.ambient-active #eyes circle {
+  filter: brightness(var(--ambient-brightness))
+          hue-rotate(var(--ambient-hue));
+}
+
+/* ── Touch reaction ──
+ * Brief flinch when user taps the mascot. */
+.touch-flinch {
+  animation: flinch 0.3s ease !important;
+}
+
+@keyframes flinch {
+  0%   { transform: scale(1) rotateX(0); }
+  30%  { transform: scale(0.96) rotateX(2deg); }
+  60%  { transform: scale(1.02) rotateX(-1deg); }
+  100% { transform: scale(1) rotateX(0); }
+}
+
+
+/* ═══════════════════════════════════════════
+   3D Keyframes — body movement
+   ═══════════════════════════════════════════ */
+
+@keyframes body-sway {
+  0%, 100% { transform: rotateY(-1.5deg) rotateZ(-0.5deg); }
+  50%      { transform: rotateY(1.5deg) rotateZ(0.5deg); }
+}
+
+@keyframes body-breathe-3d {
+  0%, 100% { transform: rotateX(0.5deg) translateZ(0); }
+  50%      { transform: rotateX(-0.5deg) translateZ(2px); }
+}
+
+@keyframes head-tilt {
+  0%, 100% { transform: rotateZ(-1deg) rotateY(-2deg) translateZ(16px); }
+  33%      { transform: rotateZ(0.5deg) rotateY(1deg) translateZ(16px); }
+  66%      { transform: rotateZ(1deg) rotateY(2deg) translateZ(16px); }
+}
+
+@keyframes lean-forward {
+  0%   { transform: rotateX(0deg); }
+  100% { transform: rotateX(4deg) translateZ(6px); }
+}
+
+@keyframes lean-back {
+  0%   { transform: rotateX(0deg); }
+  100% { transform: rotateX(-3deg) translateZ(-4px); }
+}
+
+@keyframes nod {
+  0%, 100% { transform: rotateX(0deg) translateZ(16px); }
+  25%      { transform: rotateX(4deg) translateZ(14px); }
+  50%      { transform: rotateX(-1deg) translateZ(17px); }
+}
+
+@keyframes head-turn {
+  0%, 100% { transform: rotateY(0deg) translateZ(16px); }
+  50%      { transform: rotateY(6deg) translateZ(15px); }
+}
+
+
+/* ═══════════════════════════════════════════
+   Expression keyframes
+   ═══════════════════════════════════════════ */
+
+@keyframes eye-squint {
+  0%, 100% { transform: scaleY(1); }
+  50%      { transform: scaleY(0.7); }
+}
+
+@keyframes eye-look-around {
+  0%, 100% { transform: translateX(0); }
+  25%      { transform: translateX(3px); }
+  75%      { transform: translateX(-3px); }
+}
+
+@keyframes orb-warm-pulse {
+  0%, 100% { transform: scale(1); opacity: 0.6; filter: brightness(1); }
+  50%      { transform: scale(1.06); opacity: 0.85; filter: brightness(1.2); }
+}
+
+@keyframes antenna-curious {
+  0%   { transform: rotate(0deg); }
+  40%  { transform: rotate(12deg); }
+  100% { transform: rotate(8deg); }
+}
+
+
+/* ═══════════════════════════════════════════
+   State 3D body movements
+   Applied alongside the layer animations in mascot.css
+   ═══════════════════════════════════════════ */
+
+/* IDLE — gentle sway + breathing depth */
+.mascot-state-idle .lethe-mascot {
+  animation: body-sway 8s ease-in-out infinite,
+             body-breathe-3d 6s ease-in-out infinite;
+}
+
+.mascot-state-idle #eyes {
+  animation: head-tilt 12s ease-in-out infinite;
+}
+
+/* LISTENING — leans toward user */
+.mascot-state-listening .lethe-mascot {
+  animation: lean-forward 0.5s ease forwards;
+}
+
+/* THINKING — head dips, eyes shift down-left */
+.mascot-state-thinking .lethe-mascot {
+  animation: lean-forward 0.4s ease forwards;
+  transform: rotateX(2deg);
+}
+
+.mascot-state-thinking #eyes {
+  transform: translateX(-2px) translateY(2px) translateZ(16px);
+  transition: transform 0.4s ease;
+}
+
+/* SPEAKING — upright with confident sway */
+.mascot-state-speaking .lethe-mascot {
+  animation: body-sway 4s ease-in-out infinite;
+}
+
+/* ALERT — braces back defensively */
+.mascot-state-alert .lethe-mascot {
+  animation: lean-back 0.3s ease forwards;
+}
+
+
+/* ═══════════════════════════════════════════
+   Expression: CURIOUS
+   Head tilts, eyes widen, antenna perks.
+   ═══════════════════════════════════════════ */
+
+.mascot-expr-curious .lethe-mascot {
+  transform: rotateZ(3deg) rotateY(4deg);
+  transition: transform 0.4s ease;
+}
+
+.mascot-expr-curious #eyes {
+  animation: head-turn 2s ease-in-out infinite;
+}
+
+.mascot-expr-curious #eyes ellipse,
+.mascot-expr-curious #eyes circle {
+  transform: scale(1.12);
+  transition: transform 0.3s ease;
+}
+
+.mascot-expr-curious #antennae > g:first-child {
+  animation: antenna-curious 0.5s ease forwards;
+}
+
+.mascot-expr-curious #antennae > g:nth-child(2) {
+  transform: rotate(-4deg);
+  transition: transform 0.4s ease;
+}
+
+.mascot-expr-curious #chest_orb {
+  animation: orb-warm-pulse 2s ease-in-out infinite;
+}
+
+
+/* ═══════════════════════════════════════════
+   Expression: AMUSED
+   Slight lean back, eyes squint, warm glow.
+   ═══════════════════════════════════════════ */
+
+.mascot-expr-amused .lethe-mascot {
+  animation: lean-back 0.3s ease forwards;
+}
+
+.mascot-expr-amused #eyes ellipse,
+.mascot-expr-amused #eyes circle {
+  animation: eye-squint 0.6s ease forwards;
+  filter: drop-shadow(0 0 8px #22e8a0);
+}
+
+.mascot-expr-amused #cracks path {
+  --pulse-max: 0.6;
+  --pulse-min: 0.3;
+  animation: bio-pulse 2s ease-in-out infinite;
+}
+
+.mascot-expr-amused #chest_orb {
+  animation: orb-warm-pulse 3s ease-in-out infinite;
+}
+
+.mascot-expr-amused #antennae > g {
+  --sway: 3deg;
+  animation: antenna-sway 2.5s ease-in-out infinite;
+}
+
+
+/* ═══════════════════════════════════════════
+   Expression: CONCERNED
+   Lean forward, eyes dim, veins slow.
+   ═══════════════════════════════════════════ */
+
+.mascot-expr-concerned .lethe-mascot {
+  animation: lean-forward 0.4s ease forwards;
+  transform: rotateZ(-1deg);
+}
+
+.mascot-expr-concerned #eyes ellipse,
+.mascot-expr-concerned #eyes circle {
+  opacity: 0.5;
+  filter: drop-shadow(0 0 2px #22e8a0);
+}
+
+.mascot-expr-concerned #cracks path {
+  --pulse-max: 0.25;
+  --pulse-min: 0.12;
+  animation: bio-pulse 5s ease-in-out infinite;
+}
+
+.mascot-expr-concerned #chest_orb {
+  animation: orb-breathe 4s ease-in-out infinite;
+  opacity: 0.4;
+}
+
+.mascot-expr-concerned #antennae > g {
+  transform: rotate(-6deg);
+  transition: transform 0.5s ease;
+}
+
+.mascot-expr-concerned #antennae > g:nth-child(2) {
+  transform: rotate(6deg);
+}
+
+
+/* ═══════════════════════════════════════════
+   Expression: PROUD
+   Stands tall, full radiance, orb radiant.
+   ═══════════════════════════════════════════ */
+
+.mascot-expr-proud .lethe-mascot {
+  animation: lean-back 0.5s ease forwards;
+}
+
+.mascot-expr-proud #eyes ellipse,
+.mascot-expr-proud #eyes circle {
+  opacity: 1;
+  filter: drop-shadow(0 0 12px #22e8a0);
+  transform: scale(1.05);
+  transition: all 0.4s ease;
+}
+
+.mascot-expr-proud #cracks path {
+  --pulse-max: 0.8;
+  --pulse-min: 0.5;
+  animation: bio-pulse 2.5s ease-in-out infinite;
+}
+
+.mascot-expr-proud #chest_orb {
+  animation: orb-radiate 1.5s ease-in-out infinite;
+  opacity: 1;
+  filter: drop-shadow(0 0 16px #22e8a0);
+}
+
+.mascot-expr-proud #antennae > g {
+  --perk-angle: 10deg;
+  animation: antenna-perk 0.4s ease forwards;
+}
+
+.mascot-expr-proud #antennae > g:nth-child(2) {
+  --perk-angle: -10deg;
+}
+
+
+/* ═══════════════════════════════════════════
+   3D Micro-expressions
+   Body movement overlays on brief events.
+   ═══════════════════════════════════════════ */
+
+.micro-message-received .lethe-mascot {
+  animation: nod 0.5s ease;
+}
+
+.micro-tracker-blocked .lethe-mascot {
+  animation: head-turn 0.8s ease;
+}
+
+.micro-nod .lethe-mascot {
+  animation: nod 0.6s ease;
+}
+
+.micro-nod #eyes ellipse,
+.micro-nod #eyes circle {
+  animation: eye-squint 0.3s ease;
+}
+
+.micro-surprise .lethe-mascot {
+  animation: lean-back 0.2s ease, lean-forward 0.3s ease 0.2s;
+}
+
+.micro-surprise #eyes ellipse,
+.micro-surprise #eyes circle {
+  animation: eye-widen 0.5s ease;
+  filter: drop-shadow(0 0 10px #22e8a0);
+}
+
+.micro-surprise #antennae > g {
+  --perk-angle: 15deg;
+  animation: antenna-perk 0.3s ease;
+}
+
+
+/* ═══════════════════════════════════════════
+   Particle sparks — teal motes from the cracks
+   Pure CSS. 6 elements, staggered, GPU-composited.
+   ═══════════════════════════════════════════ */
+
+.mascot-particles {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  overflow: hidden;
+}
+
+.spark {
+  position: absolute;
+  width: 3px;
+  height: 3px;
+  border-radius: 50%;
+  background: #22e8a0;
+  opacity: 0;
+  filter: blur(0.5px);
+  will-change: transform, opacity;
+  animation: spark-float var(--spark-dur, 4s) ease-in-out infinite;
+  animation-delay: var(--spark-delay, 0s);
+  left: var(--spark-x, 50%);
+  bottom: var(--spark-y, 30%);
+}
+
+@keyframes spark-float {
+  0%   { opacity: 0; transform: translateY(0) translateX(0) scale(0.5); }
+  15%  { opacity: 0.7; }
+  50%  { opacity: 0.4; transform: translateY(-40px) translateX(var(--spark-drift, 8px)) scale(1); }
+  100% { opacity: 0; transform: translateY(-80px) translateX(var(--spark-drift, 8px)) scale(0.3); }
+}
+
+/* 6 sparks with staggered positions and timing */
+.spark:nth-child(1) { --spark-x: 35%; --spark-y: 40%; --spark-dur: 3.5s; --spark-delay: 0s;   --spark-drift: 6px; }
+.spark:nth-child(2) { --spark-x: 55%; --spark-y: 35%; --spark-dur: 4.2s; --spark-delay: 0.8s; --spark-drift: -8px; }
+.spark:nth-child(3) { --spark-x: 42%; --spark-y: 55%; --spark-dur: 3.8s; --spark-delay: 1.5s; --spark-drift: 10px; }
+.spark:nth-child(4) { --spark-x: 60%; --spark-y: 50%; --spark-dur: 4.5s; --spark-delay: 2.2s; --spark-drift: -5px; }
+.spark:nth-child(5) { --spark-x: 48%; --spark-y: 25%; --spark-dur: 3.2s; --spark-delay: 3.0s; --spark-drift: 12px; }
+.spark:nth-child(6) { --spark-x: 38%; --spark-y: 60%; --spark-dur: 4.0s; --spark-delay: 3.8s; --spark-drift: -10px; }
+
+/* Alert state: sparks turn red */
+.mascot-state-alert ~ .mascot-particles .spark {
+  background: #ff4444;
+}
+
+/* Sleep state: no sparks */
+.mascot-state-sleep ~ .mascot-particles .spark {
+  animation: none;
+  opacity: 0;
+}
+
+/* Proud expression: extra bright sparks */
+.mascot-expr-proud ~ .mascot-particles .spark {
+  width: 4px;
+  height: 4px;
+  filter: blur(0.5px) drop-shadow(0 0 4px #22e8a0);
+}
+
+
+/* ═══════════════════════════════════════════
+   Reduced motion — disable all 3D
+   ═══════════════════════════════════════════ */
+
+@media (prefers-reduced-motion: reduce) {
+  .mascot-stage { perspective: none; }
+
+  .lethe-mascot {
+    transform: none !important;
+    animation: none !important;
+  }
+
+  #body, #moss, #cracks, #chest_orb, #eyes, #antennae {
+    transform: none !important;
+  }
+
+  .spark { animation: none !important; opacity: 0 !important; }
+  .gyro-active.lethe-mascot { transform: none !important; }
+  .gaze-active #eyes { transform: none !important; }
+}

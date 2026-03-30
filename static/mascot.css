@@ -1,0 +1,457 @@
+/* LETHE Mascot — Animated conversation presence
+ *
+ * CSS animations for the layered mascot SVG.
+ * States are applied as classes on the SVG root: .mascot-state-{name}
+ * Each state cascades animations to child layer groups.
+ *
+ * 3D transforms, body movement, and expressions are in mascot-3d.css.
+ *
+ * Colors:
+ *   Teal:  #22e8a0 (healthy / active)
+ *   Red:   #ff4444 (alert / threat)
+ *   Stone: #2a2a28 (body)
+ */
+
+/* ═══════════════════════════════════════════
+   Base — always-on defaults
+   ═══════════════════════════════════════════ */
+
+.lethe-mascot {
+  width: 100%;
+  max-height: 40vh;
+  transition: max-height 0.4s ease;
+}
+
+.lethe-mascot.speaking {
+  max-height: 35vh;
+}
+
+/* Layer defaults — everything starts dim and still */
+#cracks path {
+  stroke: #22e8a0;
+  fill: none;
+  opacity: 0.3;
+  transition: opacity 0.4s ease, stroke 0.4s ease;
+}
+
+#chest_orb {
+  opacity: 0.5;
+  transition: opacity 0.4s ease;
+}
+
+#eyes ellipse,
+#eyes circle {
+  fill: #22e8a0;
+  opacity: 0.8;
+  transition: opacity 0.3s ease, fill 0.4s ease;
+}
+
+#eye-left-lid,
+#eye-right-lid {
+  transform: scaleY(0);
+  transform-origin: center;
+  transition: transform 0.15s ease;
+}
+
+#antennae {
+  transition: transform 0.6s ease;
+}
+
+#antennae > g {
+  transform-origin: bottom center;
+}
+
+
+/* ═══════════════════════════════════════════
+   Keyframes
+   ═══════════════════════════════════════════ */
+
+/* ── Breathing / pulse ── */
+@keyframes bio-pulse {
+  0%, 100% { opacity: var(--pulse-max, 0.5); }
+  50%      { opacity: var(--pulse-min, 0.2); }
+}
+
+@keyframes orb-breathe {
+  0%, 100% { transform: scale(1); opacity: 0.5; }
+  50%      { transform: scale(1.04); opacity: 0.65; }
+}
+
+/* ── Eye blink ── */
+@keyframes eye-blink {
+  0%, 90%, 100% { transform: scaleY(0); }
+  95%           { transform: scaleY(1); }
+}
+
+@keyframes eye-blink-slow {
+  0%, 85%, 100% { transform: scaleY(0); }
+  92%           { transform: scaleY(1); }
+}
+
+/* ── Antenna sway ── */
+@keyframes antenna-sway {
+  0%, 100% { transform: rotate(calc(-1 * var(--sway, 2deg))); }
+  50%      { transform: rotate(var(--sway, 2deg)); }
+}
+
+@keyframes antenna-perk {
+  0%   { transform: rotate(0deg); }
+  100% { transform: rotate(var(--perk-angle, 8deg)); }
+}
+
+/* ── Listening — orb reactive pulse ── */
+@keyframes orb-listen {
+  0%, 100% { transform: scale(1); opacity: 0.6; }
+  25%      { transform: scale(1.06); opacity: 0.8; }
+  50%      { transform: scale(0.98); opacity: 0.55; }
+  75%      { transform: scale(1.03); opacity: 0.7; }
+}
+
+/* ── Thinking — inward vein flow ── */
+@keyframes vein-flow-in {
+  0%   { stroke-dashoffset: 0; opacity: 0.4; }
+  50%  { opacity: 0.8; }
+  100% { stroke-dashoffset: -100%; opacity: 0.4; }
+}
+
+@keyframes orb-churn {
+  0%   { transform: scale(1) rotate(0deg); opacity: 0.7; }
+  50%  { transform: scale(1.05) rotate(3deg); opacity: 0.9; }
+  100% { transform: scale(1) rotate(0deg); opacity: 0.7; }
+}
+
+/* ── Speaking — outward radiate ── */
+@keyframes vein-flow-out {
+  0%   { stroke-dashoffset: 0; opacity: 0.5; }
+  50%  { opacity: 0.9; }
+  100% { stroke-dashoffset: 100%; opacity: 0.5; }
+}
+
+@keyframes orb-radiate {
+  0%, 100% { transform: scale(1); opacity: 0.7; }
+  30%      { transform: scale(1.08); opacity: 1; }
+  60%      { transform: scale(0.96); opacity: 0.6; }
+}
+
+/* ── Alert — urgent pulse ── */
+@keyframes vein-flare {
+  0%, 100% { opacity: 0.4; stroke: #ff4444; }
+  50%      { opacity: 1; stroke: #ff6666; }
+}
+
+@keyframes orb-urgent {
+  0%, 100% { transform: scale(1); opacity: 0.8; }
+  25%      { transform: scale(1.1); opacity: 1; }
+  75%      { transform: scale(0.95); opacity: 0.7; }
+}
+
+@keyframes eye-alert-pulse {
+  0%, 100% { opacity: 0.9; }
+  50%      { opacity: 1; }
+}
+
+/* ── Micro-expressions ── */
+@keyframes eye-widen {
+  0%   { transform: scale(1); }
+  30%  { transform: scale(1.15); }
+  100% { transform: scale(1); }
+}
+
+@keyframes orb-ping {
+  0%   { transform: scale(1); opacity: 0.6; }
+  20%  { transform: scale(1.12); opacity: 1; }
+  100% { transform: scale(1); opacity: 0.6; }
+}
+
+@keyframes vein-ripple {
+  0%   { opacity: 0.3; }
+  30%  { opacity: 0.9; }
+  100% { opacity: 0.3; }
+}
+
+
+/* ═══════════════════════════════════════════
+   State: IDLE
+   Calm. Slow breathing. Occasional blink.
+   ═══════════════════════════════════════════ */
+
+.mascot-state-idle #cracks path {
+  --pulse-max: 0.4;
+  --pulse-min: 0.2;
+  animation: bio-pulse 3.5s ease-in-out infinite;
+}
+
+.mascot-state-idle #chest_orb {
+  animation: orb-breathe 6s ease-in-out infinite;
+}
+
+.mascot-state-idle #eye-left-lid,
+.mascot-state-idle #eye-right-lid {
+  animation: eye-blink 4s ease infinite;
+}
+
+.mascot-state-idle #antennae > g {
+  --sway: 2deg;
+  animation: antenna-sway 5s ease-in-out infinite;
+}
+
+.mascot-state-idle #antennae > g:nth-child(2) {
+  animation-delay: -1.5s;
+}
+
+
+/* ═══════════════════════════════════════════
+   State: LISTENING
+   Attentive. Brighter veins. Orb reactive.
+   ═══════════════════════════════════════════ */
+
+.mascot-state-listening #cracks path {
+  --pulse-max: 0.7;
+  --pulse-min: 0.4;
+  animation: bio-pulse 1.8s ease-in-out infinite;
+}
+
+.mascot-state-listening #chest_orb {
+  animation: orb-listen 1.5s ease-in-out infinite;
+}
+
+.mascot-state-listening #eyes ellipse,
+.mascot-state-listening #eyes circle {
+  opacity: 1;
+  filter: drop-shadow(0 0 6px #22e8a0);
+}
+
+.mascot-state-listening #eye-left-lid,
+.mascot-state-listening #eye-right-lid {
+  /* No blinking while listening — full attention */
+  animation: none;
+  transform: scaleY(0);
+}
+
+.mascot-state-listening #antennae > g {
+  --perk-angle: 8deg;
+  animation: antenna-perk 0.4s ease forwards;
+}
+
+.mascot-state-listening #antennae > g:nth-child(2) {
+  --perk-angle: -8deg;
+}
+
+
+/* ═══════════════════════════════════════════
+   State: THINKING
+   Processing. Veins flow inward to chest.
+   ═══════════════════════════════════════════ */
+
+.mascot-state-thinking #cracks path {
+  stroke-dasharray: 8 4;
+  animation: vein-flow-in 1.2s linear infinite;
+}
+
+.mascot-state-thinking #cracks-torso path {
+  animation-duration: 0.9s;
+}
+
+.mascot-state-thinking #chest_orb {
+  animation: orb-churn 0.8s ease-in-out infinite;
+  opacity: 0.85;
+}
+
+.mascot-state-thinking #eyes ellipse,
+.mascot-state-thinking #eyes circle {
+  opacity: 0.6;
+}
+
+.mascot-state-thinking #antennae > g {
+  animation: none;
+  transform: rotate(0deg);
+}
+
+
+/* ═══════════════════════════════════════════
+   State: SPEAKING
+   Energy radiates outward. Veins bright.
+   ═══════════════════════════════════════════ */
+
+.mascot-state-speaking #cracks path {
+  stroke-dasharray: 8 4;
+  animation: vein-flow-out 1s linear infinite;
+  opacity: 0.7;
+}
+
+.mascot-state-speaking #cracks-torso path {
+  animation-duration: 0.7s;
+}
+
+.mascot-state-speaking #chest_orb {
+  animation: orb-radiate 0.6s ease-in-out infinite;
+  opacity: 0.9;
+}
+
+.mascot-state-speaking #eyes ellipse,
+.mascot-state-speaking #eyes circle {
+  opacity: 1;
+  filter: drop-shadow(0 0 4px #22e8a0);
+}
+
+.mascot-state-speaking #eye-left-lid,
+.mascot-state-speaking #eye-right-lid {
+  animation: eye-blink-slow 6s ease infinite;
+}
+
+.mascot-state-speaking #antennae > g {
+  --sway: 4deg;
+  animation: antenna-sway 3s ease-in-out infinite;
+}
+
+.mascot-state-speaking #antennae > g:nth-child(2) {
+  animation-delay: -0.8s;
+}
+
+
+/* ═══════════════════════════════════════════
+   State: ALERT
+   Threat. Red bioluminescence. Urgent pulse.
+   ═══════════════════════════════════════════ */
+
+.mascot-state-alert #cracks path {
+  stroke: #ff4444;
+  animation: vein-flare 0.5s ease-in-out infinite;
+}
+
+.mascot-state-alert #chest_orb {
+  animation: orb-urgent 0.4s ease-in-out infinite;
+}
+
+.mascot-state-alert #chest_orb circle,
+.mascot-state-alert #chest_orb ellipse,
+.mascot-state-alert #chest_orb path {
+  stroke: #ff4444;
+  fill: #ff444420;
+}
+
+.mascot-state-alert #eyes ellipse,
+.mascot-state-alert #eyes circle {
+  fill: #ff4444;
+  opacity: 1;
+  filter: drop-shadow(0 0 10px #ff4444);
+  animation: eye-alert-pulse 0.5s ease infinite;
+}
+
+.mascot-state-alert #antennae > g {
+  animation: none;
+  transform: rotate(12deg);
+}
+
+.mascot-state-alert #antennae > g:nth-child(2) {
+  transform: rotate(-12deg);
+}
+
+
+/* ═══════════════════════════════════════════
+   State: SLEEP
+   Minimal power. Almost dark.
+   ═══════════════════════════════════════════ */
+
+.mascot-state-sleep #cracks path {
+  --pulse-max: 0.1;
+  --pulse-min: 0.04;
+  animation: bio-pulse 8s ease-in-out infinite;
+}
+
+.mascot-state-sleep #chest_orb {
+  opacity: 0;
+  animation: none;
+}
+
+.mascot-state-sleep #eyes ellipse,
+.mascot-state-sleep #eyes circle {
+  opacity: 0;
+}
+
+.mascot-state-sleep #eye-left-lid,
+.mascot-state-sleep #eye-right-lid {
+  transform: scaleY(1);
+  animation: none;
+}
+
+.mascot-state-sleep #antennae > g {
+  animation: none;
+  transform: rotate(0deg);
+}
+
+
+/* ═══════════════════════════════════════════
+   Micro-expression overlays
+   Play once via JS: element.classList.add('micro-*')
+   Remove class after animation completes.
+   ═══════════════════════════════════════════ */
+
+.micro-message-received #eyes ellipse,
+.micro-message-received #eyes circle {
+  animation: eye-widen 0.4s ease;
+}
+
+.micro-message-received #chest_orb {
+  animation: orb-ping 0.4s ease;
+}
+
+.micro-tracker-blocked #eyes ellipse {
+  animation: eye-widen 0.3s ease;
+}
+
+.micro-tor-rebuilt #cracks path {
+  animation: vein-ripple 1s ease;
+}
+
+
+/* ═══════════════════════════════════════════
+   Responsive
+   ═══════════════════════════════════════════ */
+
+@media (max-width: 360px) {
+  .lethe-mascot {
+    max-height: 25vh;
+  }
+  .lethe-mascot.speaking {
+    max-height: 20vh;
+  }
+}
+
+@media (orientation: landscape) {
+  .lethe-mascot {
+    max-height: 60vh;
+    max-width: 30vw;
+    float: left;
+    margin-right: 1rem;
+  }
+}
+
+
+/* ═══════════════════════════════════════════
+   Reduced motion — static fallbacks
+   ═══════════════════════════════════════════ */
+
+@media (prefers-reduced-motion: reduce) {
+  .lethe-mascot,
+  .lethe-mascot * {
+    animation: none !important;
+    transition-duration: 0.01ms !important;
+  }
+
+  /* Static glow — no animation, just base opacity */
+  #cracks path { opacity: 0.35; }
+  #chest_orb { opacity: 0.5; }
+  #eyes ellipse, #eyes circle { opacity: 0.9; }
+  #eye-left-lid, #eye-right-lid { transform: scaleY(0); }
+
+  /* Alert state still uses color change (no motion) */
+  .mascot-state-alert #cracks path { stroke: #ff4444; opacity: 0.6; }
+  .mascot-state-alert #eyes ellipse,
+  .mascot-state-alert #eyes circle { fill: #ff4444; }
+
+  /* Sleep dims everything */
+  .mascot-state-sleep #cracks path { opacity: 0.08; }
+  .mascot-state-sleep #eyes ellipse,
+  .mascot-state-sleep #eyes circle { opacity: 0; }
+}

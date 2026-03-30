@@ -1,23 +1,12 @@
 # Lethe — L.E.T.H.E. (Logical Erasure & Total History Elimination)
-# Privacy-focused Android fork by OSmosis
-# Based on LineageOS with hardened defaults and debloating.
-#
-# Lethe is NOT a separate build from scratch. It is a set of overlays
-# applied on top of a LineageOS build for a specific device:
-#   1. Debloat: remove tracking, analytics, and unnecessary packages
-#   2. Harden: tighten SELinux policies, restrict network access by default
-#   3. Privacy: DNS-over-TLS, firewall, tracker blocking, sensor permissions
-#   4. OSmosis integration: USB updates, IPFS firmware channel, recovery pairing
-#
-# To add a new device: ensure LineageOS supports the codename, then add
-# the codename to the `devices` list below.
+# Privacy-hardened Android overlay on LineageOS. See CLAUDE.md for conventions.
 
 id: lethe
 name: Lethe
-version: "1.0.0"
+version: "1.1.0"
 base: lineageos
-base_version: "21.0"
-android_version: "14"
+base_version: "22.1"
+android_version: "15"
 
 description: >
   Privacy-hardened Android for everyone. Based on LineageOS with
@@ -30,9 +19,9 @@ devices:
   # Samsung
   - chagalllte    # Galaxy Tab S 10.5
   - codename: t03g          # Galaxy Note II (Exynos 4412, ARMv7)
-    base_version: "14.1"     # No official LOS support — unofficial LOS 14.1 is the
-    android_version: "7.1"   # most stable option. LOS 21 beta exists but encryption
-    unofficial: true         # is broken (no FBE on Exynos 4412) and random reboots.
+    base_version: "14.1"     # No official LOS 22.1 support — unofficial LOS 14.1 is
+    android_version: "7.1"   # the most stable option. Newer LOS builds exist but FBE
+    unofficial: true         # is broken on Exynos 4412 and random reboots persist.
     notes: >
       FDE works on Android 7.1 (not on 13+). Kernel 3.4.x limits modern
       features. Mali-400 GPU caps OpenGL ES at 2.0. Use TWRP for sideload,
@@ -96,6 +85,74 @@ features:
       # Replace Google-dependent components with FOSS alternatives
       - from: com.android.providers.contacts
         to: org.sufficientlysecure.keychain  # OpenKeychain
+      - from: com.android.launcher3           # Trebuchet (LineageOS launcher)
+        to: org.osmosis.lethe.void            # Void — Lethe minimal launcher
+
+  launcher:
+    description: "Void — minimalist launcher. Clock on void. Text-only app drawer. Gesture-driven."
+    overlay_file: "launcher.conf"
+    package: "org.osmosis.lethe.void"
+    type: "system_app"
+    system_app_path: "/system/app/VoidLauncher"
+    replaces: "com.android.launcher3"         # Removes Trebuchet
+    home_screen:
+      # Wallpaper + breathing clock + living mascot. Nothing else.
+      pages: 1
+      dock: false
+      widgets: false
+      search_bar: false
+      clock:
+        layout: "stacked"
+        separator: "dot"                     # Teal dot, bio-pulse animation
+        position: "center_lower_third"
+        date_format: "EEEE · d MMMM"
+        typography: { hours_weight: 200, hours_size: "72sp", date_weight: 400, date_size: "11sp", date_tracking: "0.18em", date_uppercase: true }
+      mascot:
+        # LETHE mascot on the home screen — tap to talk.
+        enabled: true
+        position: "below_clock"
+        size: "64dp"
+        tap_action: "open_lethe_agent"
+        webview: "static/launcher.html"     # Unified: clock + mascot + chat
+        opacity: 0.85
+        glow: true
+        idle_animations: true
+        ambient_awareness: true
+    app_drawer:
+      trigger: "swipe_up"
+      style: "text_list"                     # No icons — app names only
+      columns: 1                             # Single column, left-aligned
+      sort: "alphabetical"
+      search: "swipe_up_again"               # Second swipe-up opens keyboard
+      accent_initial: true                   # First letter of each app in teal
+      section_headers: true                  # Alphabetical dividers (shown with 12+ apps)
+      fast_scroll: true                      # Right-edge letter index for quick jumping
+    gestures:
+      swipe_up: "open_drawer"
+      swipe_down: "expand_notifications"
+      double_tap: "screen_off"
+      long_press: "lethe_agent"               # Invoke LETHE agent
+    notifications:
+      style: "embers"                        # Faint red dots at top edge, no badges
+      max_visible: 5
+    first_run:
+      tutorial: false                        # Hints appear progressively instead
+      hints:
+        - text: "swipe up"
+          gesture: swipe_up
+          position: bottom_center
+        - text: "swipe down for notifications"
+          gesture: swipe_down
+          position: top_center
+        - text: "double-tap to sleep"
+          gesture: double_tap
+          position: center
+        - text: "tap the guardian"
+          gesture: tap_mascot
+          position: below_clock
+      hint_delay_ms: 5000
+      hint_fade_ms: 2000
+      gesture_help_in_settings: true
 
   network_hardening:
     description: "Lock down network access by default"
@@ -149,9 +206,6 @@ features:
   burner_mode:
     description: "Ephemeral device mode — full wipe on every boot by default, configurable after startup"
     enabled_by_default: true
-    # On-boot behavior: wipe everything before Android userspace starts.
-    # The user can disable this from Settings after boot — the preference
-    # is stored on a persistent partition that survives the wipe cycle.
     on_boot_wipe:
       enabled: true                 # DEFAULT ON — every reboot = fresh device
       user_configurable: true       # User can turn this off in Settings > Privacy > Burner Mode
@@ -186,9 +240,6 @@ features:
     enabled_by_default: false       # First-boot wizard asks — never silently armed
     overlay_file: "dead-mans-switch.conf"
     first_boot_setup:
-      # The setup wizard walks the user through these steps in order.
-      # Each step is a screen. The user can skip (leaves feature disabled)
-      # or go back at any point.
       steps:
         - screen: explain
           title: "Dead Man's Switch"
@@ -261,7 +312,6 @@ features:
           action: "Done"
 
     check_in:
-      # The check-in flow at runtime.
       notification:
         title: "System update"              # Deliberately bland
         body: "Scheduled maintenance pending"
@@ -269,9 +319,6 @@ features:
         priority: "low"                     # No sound, no vibration
         persistent: false                   # Can be dismissed (timer still runs)
       method:
-        # User taps notification → enters passphrase → done.
-        # The passphrase screen looks like a system settings PIN prompt,
-        # nothing that screams "dead man's switch" to an observer.
         prompt_title: "Enter maintenance code"
         max_attempts: 3                     # After 3 wrong attempts, lock immediately
         lockout_on_fail: true
@@ -294,90 +341,10 @@ features:
           - recovery
         recovery: "osmosis_usb"             # Only way back is OSmosis USB flash
 
-  bender:
-    description: "Bender — the voice of LETHE. Native AI layer, not an app."
-    type: "system_component"            # Not an app — part of the OS
-    enabled_by_default: true
-    source: "https://github.com/thdelmas/bender"
-    service_port: 8080
-
-    # ── System integration ──
-    # Bender is the default assistant on LETHE. It replaces Google Assistant.
-    # Long-press home, swipe up from corner, or "Hey Bender" triggers it.
-    integration:
-      default_assist: true              # Long-press home → Bender
-      lockscreen_shortcut: true         # Swipe-up shortcut on lock screen
-      persistent_notification: true     # Always-on notification for quick access
-      quick_settings_tile: true         # Tile in notification shade pull-down
-      webview_wrapper: true             # Native Activity wrapper (not a browser tab)
-      system_app_path: "/system/app/Bender"  # Installed as system app in /system
-
-    # ── Voice activation ──
-    voice:
-      wake_word: "Hey Bender"           # Offline wake-word via Porcupine/Snowboy
-      wake_word_enabled: false          # Off by default — user enables in Settings
-      tts_engine: "espeak"              # System TTS — deep gruff voice
-      tts_params:
-        pitch: 2
-        speed: 160
-        voice: "en+m7"
-      stt_engine: "whisper"             # Server-side STT via Whisper
-      stt_model: "tiny"                 # ARMv7-safe default, user can upgrade
-
-    # ── Personality ──
-    # Bender IS the system. Error messages, notifications, setup wizard
-    # guidance — everything speaks in Bender's voice.
-    personality:
-      system_prompt_file: "server/agent.py"  # Bender Rodriguez system prompt
-      error_voice: true                 # System errors spoken in Bender's voice
-      setup_wizard_guide: true          # Bender narrates the first-boot wizard
-      notification_style: "in_character" # "System update available" → "Hey meatbag, I got smarter. Reboot me."
-
-    first_boot_setup:
-      steps:
-        - screen: meet_bender
-          title: "This is Bender."
-          body: >
-            I'm the brain of this phone. You talk, I do stuff.
-            I'm also better than you at everything, but we'll get
-            to that later.
-          tts_autoplay: "I'm Bender, baby! And this is MY phone now."
-          action: "Set it up / Skip"
-
-        - screen: api_key
-          title: "Give me a brain"
-          body: >
-            I need an Anthropic API key to think. Paste one now,
-            or scan a QR code. The key stays on this device —
-            I don't share. Unlike some robots.
-          input: api_key
-          input_hint: "sk-ant-..."
-          alternatives:
-            - label: "Scan QR code"
-              action: "open_camera_qr"
-              hint: "Open bender/key on another device to generate the code"
-          optional: true
-
-        - screen: voice_test
-          title: "Say something, meatbag"
-          body: >
-            Tap the mic and talk to me. I'll listen through your
-            microphone and talk back through the speaker. Don't
-            bore me.
-          action: "test_mic"
-          triggers:
-            - request_permission: RECORD_AUDIO
-            - play_tts_sample: "Good news, everyone! Wait, wrong show. I'm Bender. Deal with it."
-          skip_label: "I'll do this later"
-
-        - screen: confirm
-          title: "We're good."
-          body: >
-            Long-press the home button or swipe up from the lock screen
-            to talk to me any time. Or just hold the phone and say
-            "Hey Bender" if you turned that on. Now scram.
-          tts_autoplay: "Alright, let's bend some ones and zeros."
-          action: "Done"
+  # LETHE agent — personality, voice, integration, and first-boot screens.
+  # Full definition in docs/agent.yaml (extracted for line-length compliance).
+  agent:
+    config: "docs/agent.yaml"
 
   tor:
     description: "Transparent Tor proxy — all user app traffic routed through Tor by default"
@@ -504,6 +471,11 @@ features:
         package: "net.typeblog.shelter"
         desc: "Isolate apps in a work profile sandbox"
 
+# ── First-boot wizard ──
+# Unified onboarding flow defined in docs/first-boot-wizard.yaml.
+# References feature screens above and sequences them into phases.
+first_boot_wizard_config: "docs/first-boot-wizard.yaml"
+
 build:
   # LineageOS build integration
   sync_command: "repo sync -c -j$(nproc) --force-sync --no-clone-bundle --no-tags"
@@ -513,13 +485,13 @@ build:
 
   steps:
     - name: "Sync LineageOS source tree"
-      command: "repo init -u https://github.com/LineageOS/android.git -b lineage-21.0 --depth=1"
+      command: "repo init -u https://github.com/LineageOS/android.git -b lineage-22.1 --depth=1"
 
     - name: "Apply Lethe overlays"
       command: "lethe/apply-overlays.sh"
 
     - name: "Build for device"
-      command: "source build/envsetup.sh && lunch lineage_{codename}-userdebug && mka bacon"
+      command: "source build/envsetup.sh && lunch lineage_{codename}-user && mka bacon"
 
     - name: "Sign build"
       command: "lethe/sign-build.sh {codename}"

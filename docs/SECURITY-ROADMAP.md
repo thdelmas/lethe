@@ -8,29 +8,25 @@ This roadmap bridges the two by porting what we can and fixing what we control.
 
 ---
 
-## P0 — Ship-blocking (config fixes, no code)
+## P0 — Ship-blocking (config fixes, no code) — DONE
 
-### Fix ADB authentication
+### Fix ADB authentication — DONE
 
-`ro.adb.secure=0` and `ro.debuggable=1` give any USB cable full shell access
-with zero authentication. This defeats encryption, burner mode, and dead man's
-switch — an adversary just plugs in.
+~~`ro.adb.secure=0` and `ro.debuggable=1` give any USB cable full shell access
+with zero authentication.~~
 
-**Changes:**
-- Set `ro.adb.secure=1` and `ro.debuggable=0` in `privacy-defaults.conf`
+**Implemented:**
+- `ro.adb.secure=1` and `ro.debuggable=0` in `privacy-defaults.conf`
 - OSmosis USB pairing exchanges ADB RSA keys at pair time
-- Unpaired USB connections get nothing
+- Unpaired USB connections see the auth prompt — no shell access
 
-**Why this matters:** Without this fix, every other security feature is theater.
+### Switch to `user` builds — DONE
 
-### Switch to `user` builds
+~~`manifest.yaml` builds `lineage_{codename}-userdebug`.~~
 
-`manifest.yaml` builds `lineage_{codename}-userdebug`. Userdebug builds have
-relaxed SELinux domains, `adb root` access, and exposed debug interfaces.
-
-**Changes:**
-- Build target becomes `lineage_{codename}-user`
-- Add a separate `lethe-dev` variant for contributors who need debug access
+**Implemented:**
+- Build target is now `lineage_{codename}-user`
+- A separate `lethe-dev` variant for contributors who need debug access is TODO
 
 ---
 

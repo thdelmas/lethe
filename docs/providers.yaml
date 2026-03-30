@@ -1,0 +1,189 @@
+# LETHE — LLM Provider Routing
+# Referenced from docs/agent.yaml
+#
+# LETHE does NOT hardcode a single LLM endpoint. It routes requests
+# to the best available model based on:
+#   1. The TASK type (chat, code, vision, transcription, embedding)
+#   2. Which PROVIDERS are configured (API keys present, reachable)
+#   3. Which MODELS the user has enabled per provider
+#   4. Current CONNECTIVITY (offline → local only, online → cloud ok)
+#
+# User configures providers in Settings > LETHE > Intelligence.
+
+providers:
+  local:
+    type: "local"
+    engine: "llama.cpp"
+    endpoint: "http://127.0.0.1:8080"
+    requires_internet: false
+    requires_api_key: false
+    models_dir: "/data/lethe/models"
+    models:
+      - id: "qwen3-0.6b"
+        file: "qwen3-0.6b-q4_k_m.gguf"
+        download_url: "https://huggingface.co/Qwen/Qwen3-0.6B-GGUF/resolve/main/qwen3-0.6b-q4_k_m.gguf"
+        size_mb: 450
+        min_ram_mb: 600
+        arch: ["armv7", "arm64", "x86_64"]
+        tasks: ["chat"]
+        context_window: 4096
+        notes: "Qwen 3 — better reasoning than Qwen 2.5 at same size. Fits 2GB RAM."
+      - id: "qwen3-1.7b"
+        file: "qwen3-1.7b-q4_k_m.gguf"
+        download_url: "https://huggingface.co/Qwen/Qwen3-1.7B-GGUF/resolve/main/qwen3-1.7b-q4_k_m.gguf"
+        size_mb: 1100
+        min_ram_mb: 1400
+        arch: ["arm64", "x86_64"]
+        tasks: ["chat", "summarize", "reasoning"]
+        context_window: 8192
+        notes: "Qwen 3 — strong local reasoning. Recommended for 3GB+ RAM."
+      - id: "whisper-tiny"
+        file: "ggml-tiny.bin"
+        download_url: "https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-tiny.bin"
+        size_mb: 75
+        min_ram_mb: 200
+        arch: ["armv7", "arm64", "x86_64"]
+        tasks: ["transcription"]
+      - id: "whisper-base"
+        file: "ggml-base.bin"
+        download_url: "https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-base.bin"
+        size_mb: 150
+        min_ram_mb: 300
+        arch: ["armv7", "arm64", "x86_64"]
+        tasks: ["transcription"]
+
+  anthropic:
+    type: "cloud"
+    api_format: "anthropic"
+    endpoint: "https://api.anthropic.com"
+    requires_internet: true
+    requires_api_key: true
+    api_key_setting: "persist.lethe.provider.anthropic.key"
+    models:
+      - id: "claude-opus-4-6"
+        tasks: ["chat", "code", "reasoning", "vision", "summarize"]
+        context_window: 1000000
+      - id: "claude-sonnet-4-6"
+        tasks: ["chat", "code", "reasoning", "vision", "summarize"]
+        context_window: 200000
+      - id: "claude-haiku-4-5-20251001"
+        tasks: ["chat", "summarize"]
+        context_window: 200000
+
+  openrouter:
+    type: "cloud"
+    api_format: "openai"
+    endpoint: "https://openrouter.ai/api/v1"
+    requires_internet: true
+    requires_api_key: true
+    api_key_setting: "persist.lethe.provider.openrouter.key"
+    extra_headers:
+      HTTP-Referer: "https://osmosis.dev"
+      X-Title: "LETHE"
+    models:
+      - id: "anthropic/claude-opus-4-6"
+        tasks: ["chat", "code", "reasoning", "vision", "summarize"]
+        context_window: 1000000
+      - id: "anthropic/claude-sonnet-4-6"
+        tasks: ["chat", "code", "reasoning", "vision", "summarize"]
+        context_window: 200000
+      - id: "qwen/qwen3-72b"
+        tasks: ["chat", "code", "reasoning", "summarize"]
+        context_window: 131072
+      - id: "meta-llama/llama-4-maverick"
+        tasks: ["chat", "reasoning", "vision", "summarize"]
+        context_window: 1048576
+      - id: "google/gemini-2.5-pro"
+        tasks: ["chat", "code", "reasoning", "vision", "summarize"]
+        context_window: 1000000
+
+  custom:
+    type: "cloud"
+    api_format: "openai"
+    endpoint_setting: "persist.lethe.provider.custom.endpoint"
+    requires_internet: true
+    requires_api_key: false
+    api_key_setting: "persist.lethe.provider.custom.key"
+    models: []
+
+# ── Task types ──
+tasks:
+  chat:
+    desc: "General conversation"
+    priority: ["local", "cloud"]
+    fallback_message: >
+      I can hear you, but my thinking is limited to what runs
+      on this device right now.
+  code:
+    desc: "Code generation, debugging, refactoring"
+    priority: ["cloud"]
+    required_models: ["claude-opus-4-6", "claude-sonnet-4-6"]
+    fallback_message: >
+      Code tasks need a more capable model. Add an Anthropic
+      or OpenRouter key in Settings > LETHE > Intelligence.
+  reasoning:
+    desc: "Complex analysis, planning, multi-step logic"
+    priority: ["cloud"]
+    fallback_message: >
+      This needs deeper thinking than I can do locally.
+      Connect me to a cloud provider.
+  vision:
+    desc: "Image understanding, screenshot analysis"
+    priority: ["cloud"]
+    required_models: ["claude-opus-4-6", "claude-sonnet-4-6", "google/gemini-2.5-pro"]
+    fallback_message: >
+      I cannot see images without a vision-capable model.
+  transcription:
+    desc: "Speech-to-text"
+    priority: ["local"]
+    required_models: ["whisper-tiny", "whisper-base"]
+    fallback_message: >
+      I need a Whisper model to hear you. Download one
+      in Settings > LETHE > Voice.
+  summarize:
+    desc: "Summarize text, articles, conversations"
+    priority: ["local", "cloud"]
+
+# ── Routing logic ──
+routing:
+  connectivity_check:
+    url: "https://connectivity.grapheneos.org/generate_204"
+    timeout_ms: 5000
+    cache_ttl_s: 30
+  offline_behavior: "local_only"
+  offline_greeting: "I am running on my own. Private but limited."
+  online_greeting: "Connected. Full capabilities available."
+
+# ── Settings UI ──
+settings_ui:
+  sections:
+    - title: "Providers"
+      desc: "Connect LETHE to AI services"
+      items:
+        - provider: "anthropic"
+          label: "Anthropic"
+          input: "api_key"
+          hint: "sk-ant-..."
+        - provider: "openrouter"
+          label: "OpenRouter"
+          input: "api_key"
+          hint: "sk-or-..."
+        - provider: "custom"
+          label: "Custom endpoint"
+          input: "url"
+          hint: "https://my-server.com/v1"
+    - title: "Local models"
+      desc: "Download models to run offline"
+      items:
+        - model: "qwen3-0.6b"
+          label: "Qwen 3 (0.6B) — basic chat"
+          size: "450 MB"
+        - model: "qwen3-1.7b"
+          label: "Qwen 3 (1.7B) — chat + reasoning"
+          size: "1.1 GB"
+          min_ram: "3 GB"
+        - model: "whisper-base"
+          label: "Whisper Base — voice input"
+          size: "150 MB"
+    - title: "Task routing"
+      desc: "Which model handles what"

@@ -1,0 +1,162 @@
+# LETHE Device Tier System
+#
+# Every device gets a tier based on hardware capability.
+# Tier determines: avatar mode, local model selection, animation budget,
+# feature availability, and performance targets.
+#
+# Three tiers — named after root depth, not "quality."
+# Even the shallowest root keeps the plant alive.
+#
+# User can always override avatar tier in Settings > LETHE > Appearance.
+# Feature flags can be toggled individually regardless of tier.
+
+# ═══════════════════════════════════════
+# Tier definitions
+# ═══════════════════════════════════════
+
+tiers:
+  shallow:
+    # Old devices, limited hardware. Still fully functional.
+    # LETHE runs, protects, and communicates — just lighter.
+    desc: "Devices with ≤2GB RAM, ARMv7 or early ARM64, weak GPU"
+    avatar: "static"                     # PNG only, no animation overhead
+    avatar_options: ["static", "2d"]     # User can try 2d if they want
+    local_models: ["qwen3-0.6b"]         # Only the smallest model fits
+    animation_fps: 0                     # No animation by default
+    particles: false
+    gyroscope_parallax: false
+    webgl: false
+    tor: true                            # Privacy features always available
+    ipfs_ota: true
+    agent: true
+    burner_mode: true
+    performance:
+      clock_update_interval_ms: 30000    # Every 30s to save CPU
+      agent_check_interval_ms: 60000     # Check backend every 60s
+      chat_max_history: 20               # Keep memory light
+
+  taproot:
+    # Mid-range devices. Good enough for the full experience with
+    # some budget-consciousness.
+    desc: "Devices with 3-6GB RAM, modern ARM64, mid-range GPU"
+    avatar: "2d"                         # Animated PNG, CSS transforms
+    avatar_options: ["static", "2d", "3d"]
+    local_models: ["qwen3-0.6b", "qwen3-1.7b"]
+    animation_fps: 30
+    particles: true
+    particle_count: 3
+    gyroscope_parallax: true
+    webgl: true                          # Available but not default avatar
+    tor: true
+    ipfs_ota: true
+    agent: true
+    burner_mode: true
+    performance:
+      clock_update_interval_ms: 10000
+      agent_check_interval_ms: 30000
+      chat_max_history: 50
+
+  deeproot:
+    # Flagships. Full experience, no compromises.
+    desc: "Devices with ≥8GB RAM, flagship SoC, strong GPU"
+    avatar: "3d"                         # Full WebGL GLB model
+    avatar_options: ["static", "2d", "3d"]
+    local_models: ["qwen3-0.6b", "qwen3-1.7b", "qwen3-4b"]
+    animation_fps: 60
+    particles: true
+    particle_count: 6
+    gyroscope_parallax: true
+    webgl: true
+    tor: true
+    ipfs_ota: true
+    agent: true
+    burner_mode: true
+    performance:
+      clock_update_interval_ms: 10000
+      agent_check_interval_ms: 15000
+      chat_max_history: 200
+
+# ═══════════════════════════════════════
+# Device → tier mapping
+# ═══════════════════════════════════════
+# Each device is assigned a tier at build time based on known specs.
+# Runtime detection in mascot-tier.js can override avatar mode.
+
+device_tiers:
+  # ── Shallow ──
+  t03g:        { tier: "shallow", ram_mb: 2048,  gpu: "Mali-400 MP",         gles: "2.0", arch: "armv7"  }
+  chagalllte:  { tier: "shallow", ram_mb: 3072,  gpu: "Mali-T628 MP6",      gles: "3.1", arch: "arm64" }
+  codina:      { tier: "shallow", ram_mb: 1024,  gpu: "Mali-400 MP",         gles: "2.0", arch: "armv7"  }
+
+  # ── Taproot ──
+  hawao:       { tier: "taproot", ram_mb: 4096,  gpu: "Adreno 616",         gles: "3.2", arch: "arm64" }
+  devon:       { tier: "taproot", ram_mb: 4096,  gpu: "Adreno 619",         gles: "3.2", arch: "arm64" }
+  courbet:     { tier: "taproot", ram_mb: 6144,  gpu: "Adreno 619",         gles: "3.2", arch: "arm64" }
+  renoir:      { tier: "taproot", ram_mb: 6144,  gpu: "Adreno 642L",        gles: "3.2", arch: "arm64" }
+  spacewar:    { tier: "taproot", ram_mb: 8192,  gpu: "Adreno 642L",        gles: "3.2", arch: "arm64" }
+  pong:        { tier: "taproot", ram_mb: 8192,  gpu: "Adreno 740",         gles: "3.2", arch: "arm64" }
+  pacman:      { tier: "taproot", ram_mb: 8192,  gpu: "Adreno 644",         gles: "3.2", arch: "arm64" }
+  FP4:         { tier: "taproot", ram_mb: 6144,  gpu: "Adreno 619",         gles: "3.2", arch: "arm64" }
+  FP5:         { tier: "taproot", ram_mb: 8192,  gpu: "Adreno 644",         gles: "3.2", arch: "arm64" }
+  sunfish:     { tier: "taproot", ram_mb: 6144,  gpu: "Adreno 618",         gles: "3.2", arch: "arm64" }  # Pixel 4a
+  pdx206:      { tier: "taproot", ram_mb: 8192,  gpu: "Adreno 650",         gles: "3.2", arch: "arm64" }
+
+  # ── Deeproot ──
+  panther:     { tier: "deeproot", ram_mb: 8192,  gpu: "Mali-G710 MP7",     gles: "3.2", arch: "arm64" }
+  cheetah:     { tier: "deeproot", ram_mb: 12288, gpu: "Mali-G710 MP7",     gles: "3.2", arch: "arm64" }
+  lynx:        { tier: "deeproot", ram_mb: 8192,  gpu: "Mali-G710 MP7",     gles: "3.2", arch: "arm64" }
+  shiba:       { tier: "deeproot", ram_mb: 8192,  gpu: "Mali-G715 MP7",     gles: "3.2", arch: "arm64" }
+  husky:       { tier: "deeproot", ram_mb: 12288, gpu: "Mali-G715 MP7",     gles: "3.2", arch: "arm64" }
+  akita:       { tier: "deeproot", ram_mb: 8192,  gpu: "Mali-G715 MP7",     gles: "3.2", arch: "arm64" }
+  caiman:      { tier: "deeproot", ram_mb: 12288, gpu: "Mali-G715 MC10",    gles: "3.2", arch: "arm64" }
+  komodo:      { tier: "deeproot", ram_mb: 16384, gpu: "Mali-G715 MC10",    gles: "3.2", arch: "arm64" }
+  tokay:       { tier: "deeproot", ram_mb: 16384, gpu: "Mali-G715 MC10",    gles: "3.2", arch: "arm64" }
+  instantnoodlep: { tier: "deeproot", ram_mb: 12288, gpu: "Adreno 650",    gles: "3.2", arch: "arm64" }
+  lemonades:   { tier: "deeproot", ram_mb: 8192,  gpu: "Adreno 660",       gles: "3.2", arch: "arm64" }
+  martini:     { tier: "deeproot", ram_mb: 12288, gpu: "Adreno 660",       gles: "3.2", arch: "arm64" }
+  pdx215:      { tier: "deeproot", ram_mb: 12288, gpu: "Adreno 660",       gles: "3.2", arch: "arm64" }
+
+# ═══════════════════════════════════════
+# Runtime detection fallback
+# ═══════════════════════════════════════
+# If the device codename isn't in the map above (unknown device,
+# custom build), runtime detection kicks in.
+#
+# The heuristic in mascot-tier.js + device-detect.js:
+#   1. Query navigator.deviceMemory (if available)
+#   2. Query navigator.hardwareConcurrency (CPU cores)
+#   3. Probe WebGL GPU renderer string
+#   4. Assign tier:
+#      - memory < 3 OR cores < 4 OR weak GPU → shallow
+#      - memory < 8 AND not weak GPU          → taproot
+#      - memory >= 8 AND strong GPU           → deeproot
+
+runtime_detection:
+  shallow_if:
+    memory_gb_lt: 3
+    cores_lt: 4
+    gpu_blocklist: ["mali-4", "adreno 2", "adreno 30", "sgx 5", "powervr sgx"]
+  taproot_if:
+    memory_gb_lt: 8
+  deeproot_if:
+    memory_gb_gte: 8
+    gpu_allowlist: ["adreno 6", "adreno 7", "mali-g7", "mali-g6", "xclipse"]
+
+# ═══════════════════════════════════════
+# GLB model LOD
+# ═══════════════════════════════════════
+# Multiple versions of the mascot for different tiers.
+# Generated from the same source model at different decimation ratios.
+
+mascot_lod:
+  high:
+    file: "mascot-high.glb"
+    verts: 19000                         # Simplified from 755K original
+    size_kb: 3000
+    tier: "deeproot"
+  low:
+    file: "mascot-low.glb"
+    verts: 5000                          # Further decimated for mid-range
+    size_kb: 800
+    tier: "taproot"
+  # shallow tier uses mascot.png (2D), no GLB needed

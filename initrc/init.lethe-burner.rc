@@ -1,0 +1,37 @@
+# Lethe burner mode — early-init wipe service
+# Runs before zygote. Reads config from /persist partition.
+
+on early-init
+    # Mount persist partition to read burner mode preference
+    mount ext4 /dev/block/bootdevice/by-name/persist /persist nosuid nodev noatime
+
+on post-fs-data
+    # Check burner mode toggle (stored on /persist, survives wipe)
+    exec -- /system/bin/sh -c "\
+        ENABLED=$(getprop persist.lethe.burner.enabled); \
+        if [ \"$ENABLED\" = \"true\" ]; then \
+            log -t lethe-burner 'Burner mode active — wiping user data'; \
+            rm -rf /data/app /data/data /data/user /data/user_de /data/misc/wifi /data/misc/bluedroid; \
+            rm -rf /data/media/0/*; \
+            rm -rf /data/system/notification_log; \
+            settings put secure android_id $(cat /dev/urandom | tr -dc 'a-f0-9' | head -c 16); \
+            log -t lethe-burner 'Wipe complete — booting clean session'; \
+        else \
+            log -t lethe-burner 'Burner mode disabled — normal boot'; \
+        fi"
+
+service lethe-mac-rotate /system/bin/sh -c "\
+    ENABLED=$(getprop persist.lethe.burner.enabled); \
+    if [ \"$ENABLED\" = \"true\" ]; then \
+        MAC=$(cat /dev/urandom | tr -dc 'a-f0-9' | head -c 12 | sed 's/../&:/g;s/:$//'); \
+        ip link set wlan0 down; \
+        ip link set wlan0 address $MAC; \
+        ip link set wlan0 up; \
+        log -t lethe-burner \"MAC rotated to $MAC\"; \
+    fi"
+    class late_start
+    oneshot
+    disabled
+
+on property:sys.boot_completed=1
+    start lethe-mac-rotate
