@@ -22,15 +22,17 @@ The mascot is the user's main way to interact with LETHE. This tests whether the
 
 ## 3.2 — Interacting With the Guardian
 
-1. Tap the mascot — does it react? (Warmup animation, eyes open, lean forward)
-2. Say something — does the speaking animation play while LETHE responds?
-3. After the conversation, does the mascot settle back to idle?
-4. Leave the phone alone for a minute — does the mascot eventually "sleep"?
-5. Pick the phone back up — does it "wake up"?
+1. Tap the mascot — does it react? (Wave, walk, or run animation — varies each tap)
+2. Tap several times — do you see variety? (At least 2 different animations in 5 taps)
+3. Say something — does the speaking animation play while LETHE responds?
+4. After the conversation, does the mascot settle back to idle? (50% chance of a post-reply animation)
+5. Leave the phone alone for 2+ minutes — does the mascot start fidgeting? (walk/run)
+6. Leave it 5+ minutes — does it go sleepy?
+7. Touch the mascot while sleepy/asleep — does it play the warm-up animation?
 
-**Pass:** The mascot feels responsive to what you're doing. Transitions are smooth, not jarring.
+**Pass:** The mascot feels responsive to what you're doing. Animations match context (calm → fidget → sleep). Transitions are smooth, not jarring. All animations stay green (no mood color bleed).
 
-**Fail examples:** Tap the mascot and nothing visible changes. Speaking animation plays 5 seconds after the response. Mascot gets stuck in one state.
+**Fail examples:** Tap the mascot and nothing visible changes. Same animation every tap. Speaking animation plays 5 seconds after the response. Mascot gets stuck in one state. Animation plays in wrong color (red/blue when mood is green).
 
 ---
 

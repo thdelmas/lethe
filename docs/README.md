@@ -12,7 +12,7 @@ LETHE agent personality, safety constraints, LLM routing, and onboarding.
 Hardware tiers, mascot visuals, competitive positioning.
 
 - [device-tiers.yaml](design/device-tiers.yaml) — Shallow/taproot/deeproot tiers, 40+ device mappings
-- [mascot-layers.md](design/mascot-layers.md) — SVG layer decomposition, animation states, 60fps target
+- [mascot-layers.md](design/mascot-layers.md) — SVG layer decomposition, animation states, 3D/FBX retargeting pipeline, context-aware animation pools
 - [competitive-gaps.md](design/competitive-gaps.md) — Gap analysis vs 2026 AI agents (P0-P3 priorities)
 
 ## security/

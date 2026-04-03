@@ -208,6 +208,69 @@ LETHE IS the phone. It feels its own state:
 Staggered timing, random horizontal drift. No JS frame loop — pure
 CSS `@keyframes`. Turn red during alert state, disabled during sleep.
 
+## 3D model + Mixamo FBX pipeline
+
+On taproot/deeproot tiers, the mascot uses a skeletal 3D model
+(`mascot-taproot.glb`, 12MB) rendered via Three.js. Animations are
+embedded in the GLB (39 bones, 117 tracks per clip).
+
+### Adding Mixamo animations
+
+Mixamo FBX files can be retargeted onto the LETHE skeleton at runtime.
+The rigs differ in bone naming, rest pose, and proportions (Mixamo is
+a tall skinny humanoid, LETHE is a small stocky golem).
+
+**Retargeting strategy** (in `mascot-3d-renderer.js`):
+- Torso, legs, head, clavicles: delta-from-rest (extract rotation
+  change from Mixamo rest pose, apply to LETHE rest pose)
+- Upper arms, forearms, hands: world-rotation copy (bone local axes
+  differ too much for delta approach)
+- Position tracks: skipped (proportions differ)
+
+**Bone mapping** (FBXLoader strips the colon from `mixamorig:` prefix):
+
+| Mixamo | LETHE |
+|--------|-------|
+| mixamorigHips | Hip |
+| mixamorigSpine | Waist |
+| mixamorigSpine1/2 | Spine01/02 |
+| mixamorigNeck | NeckTwist01 |
+| mixamorigHead | Head |
+| mixamorigLeft/RightShoulder | L/R_Clavicle |
+| mixamorigLeft/RightArm | L/R_Upperarm |
+| mixamorigLeft/RightForeArm | L/R_Forearm |
+| mixamorigLeft/RightHand | L/R_Hand |
+| mixamorigLeft/RightUpLeg | L/R_Thigh |
+| mixamorigLeft/RightLeg | L/R_Calf |
+| mixamorigLeft/RightFoot | L/R_Foot |
+
+### Recording to 2D WebM
+
+For shallow/taproot tiers, 3D animations are pre-rendered to WebM
+videos using Puppeteer + the recording pipeline:
+
+1. Download FBX from Mixamo ("Without Skin" to save space)
+2. Place in `static/`
+3. Record: open `record-video-test.html?fbx=YourAnim.fbx&speed=0.5&mood=green`
+4. Encode frames to WebM via `encode-webm.html`
+5. Output: `mascot-{name}-green.webm` (480x480, VP8, ~1.5MB)
+6. Add to `animByContext` in `launcher.js`
+
+### Context-aware animation pools
+
+Animations are selected by context without LLM dependency:
+
+| Context | Trigger | Pool |
+|---------|---------|------|
+| calm | Idle <2min | waving, walk |
+| fidgeting | Idle 2-5min | walk, run |
+| sleepy | Idle >5min | slow idle |
+| tap | User taps mascot | waving, walk, run |
+| wake | Touch during sleep | warm_up |
+| replied | After LLM response (50%) | waving, walk |
+
+Per-animation playback speed is supported (e.g. run at 0.6x).
+
 ## Performance constraints
 
 - Target: 60fps on Snapdragon 425 (Moto G7 Plus, lowest-spec device).
