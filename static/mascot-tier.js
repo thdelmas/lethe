@@ -59,7 +59,7 @@
     deeproot: {
       animFps: 60, particles: 6, gyroscope: true,
       clockInterval: 10000, agentCheck: 15000, chatHistory: 200,
-      glbFile: 'mascot-deeproot.glb'    // 14MB, 159K verts, 12 bone anims, 4096px
+      glbFile: 'lethe-3d.glb'            // Full model, 12 bone anims
     },
     taproot: {
       animFps: 30, particles: 3, gyroscope: true,
@@ -78,6 +78,12 @@
   // ═══════════ APPLY ═══════════
 
   applyAvatar(avatarMode);
+
+  // Force override (set in HTML before this script loads)
+  if (window.letheTierForce) {
+    avatarMode = window.letheTierForce;
+    applyAvatar(avatarMode);
+  }
 
   // Export
   window.letheTier = avatarMode;        // Backwards compat for launcher.html

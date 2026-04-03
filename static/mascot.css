@@ -271,12 +271,14 @@
 /* ═══════════════════════════════════════════
    State: SPEAKING
    Energy radiates outward. Veins bright.
+   --speech-amplitude (0-1) set by mascot-emotion.js
    ═══════════════════════════════════════════ */
 
 .mascot-state-speaking #cracks path {
   stroke-dasharray: 8 4;
   animation: vein-flow-out 1s linear infinite;
-  opacity: 0.7;
+  opacity: calc(0.5 + var(--speech-amplitude, 0) * 0.4);
+  filter: brightness(calc(1 + var(--speech-amplitude, 0) * 0.4));
 }
 
 .mascot-state-speaking #cracks-torso path {
@@ -285,7 +287,9 @@
 
 .mascot-state-speaking #chest_orb {
   animation: orb-radiate 0.6s ease-in-out infinite;
-  opacity: 0.9;
+  opacity: calc(0.7 + var(--speech-amplitude, 0) * 0.3);
+  filter: brightness(calc(1 + var(--speech-amplitude, 0) * 0.5))
+          drop-shadow(0 0 calc(var(--speech-amplitude, 0) * 12px) #22e8a0);
 }
 
 .mascot-state-speaking #eyes ellipse,

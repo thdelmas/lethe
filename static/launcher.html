@@ -31,10 +31,12 @@
       <!-- 3D: WebGL canvas (hidden if not 3d tier) -->
       <canvas id="mascot-canvas" class="mascot-layer mascot-3d"></canvas>
 
-      <!-- 2D: animated WebP (pre-rendered 3D) + glow ring -->
+      <!-- 2D: canvas-driven video with crossfade -->
       <div class="mascot-layer mascot-2d" style="display:none">
         <div class="glow-ring"></div>
-        <img src="mascot-idle.webp" alt="LETHE" draggable="false" class="mascot-2d-img" id="mascot-2d-anim"/>
+        <canvas id="mascot-canvas-2d" class="mascot-2d-img"></canvas>
+        <video id="vid-a" muted playsinline style="position:fixed;top:-9999px;left:-9999px;width:1px;height:1px"></video>
+        <video id="vid-b" muted playsinline style="position:fixed;top:-9999px;left:-9999px;width:1px;height:1px"></video>
       </div>
 
       <!-- Static: just the image, no animation -->
@@ -43,6 +45,57 @@
     </div>
 
     <div class="home-hint" id="hint">tap the guardian</div>
+  </div>
+
+  <!-- ══════ DEV PANEL (long-press clock to open) ══════ -->
+  <div class="dev-panel" id="dev-panel" style="display:none">
+    <div class="dev-header">
+      <span>LETHE Dev Panel</span>
+      <button id="dev-close" class="dev-btn">&times;</button>
+    </div>
+    <div class="dev-section">
+      <label>Animation</label>
+      <select id="dev-anim">
+        <option value="idle">0: idle (60s)</option>
+        <option value="warmup">1: warmup (8s)</option>
+        <option value="thinking">2: thinking (12s)</option>
+        <option value="listening">3: listening (10s)</option>
+        <option value="speaking">4: speaking (10s)</option>
+        <option value="nod">5: nod (3s)</option>
+        <option value="deny">6: deny (3s)</option>
+        <option value="wave">7: wave (4s)</option>
+        <option value="alert">8: alert (2.5s)</option>
+        <option value="confirm">9: confirm (3s)</option>
+        <option value="sleep">10: sleep (5s)</option>
+        <option value="wake">11: wake (4s)</option>
+      </select>
+    </div>
+    <div class="dev-section">
+      <label>Speed: <span id="dev-speed-val">1.0x</span></label>
+      <input type="range" id="dev-speed" min="0.1" max="3" step="0.1" value="1"/>
+    </div>
+    <div class="dev-section">
+      <label>Rotation: <span id="dev-rot-val">285&deg;</span></label>
+      <input type="range" id="dev-rot" min="0" max="360" step="5" value="285"/>
+    </div>
+    <div class="dev-section">
+      <label>Mood</label>
+      <select id="dev-mood">
+        <option value="green">green (calm)</option>
+        <option value="blue">blue (thinking)</option>
+        <option value="yellow">yellow (alert)</option>
+        <option value="red">red (error)</option>
+      </select>
+    </div>
+    <div class="dev-section">
+      <label>Tier: <span id="dev-tier-info">—</span></label>
+      <div class="dev-row">
+        <button class="dev-btn" data-tier="3d">3D</button>
+        <button class="dev-btn" data-tier="2d">2D</button>
+        <button class="dev-btn" data-tier="static">Static</button>
+      </div>
+    </div>
+    <div class="dev-info" id="dev-info"></div>
   </div>
 
   <!-- ══════ CHAT (slides up) ══════ -->
@@ -63,6 +116,7 @@
   </div>
 
   <!-- Tier selection: auto-detect, user-overridable in Settings -->
+  <script>window.letheTierForce = '2d';</script> <!-- TEMP: force 2D video for testing -->
   <script src="mascot-tier.js"></script>
 
   <!-- 3D tier loads Three.js only if needed -->
@@ -73,6 +127,8 @@
     }
   </script>
 
+  <script src="sprite-player.js"></script>
+  <script src="mascot-emotion.js"></script>
   <script src="launcher.js"></script>
 
   <!-- 3D renderer only runs if tier is 3d -->

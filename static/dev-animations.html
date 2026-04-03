@@ -1,0 +1,320 @@
+<!DOCTYPE html>
+<html><head>
+<meta charset="utf-8"/>
+<title>LETHE Animation Dev Panel</title>
+<style>
+  * { margin: 0; box-sizing: border-box; }
+  body { background: #080808; color: #dcc8c0; font-family: 'JetBrains Mono', monospace; }
+  .layout { display: flex; height: 100vh; flex-wrap: wrap; }
+  .viewport { flex: 1; min-width: 200px; min-height: 250px; position: relative; }
+  canvas { display: block; width: 100%; height: 100%; }
+  .sidebar {
+    width: 280px; min-width: 200px; padding: 0.8rem; overflow-y: auto;
+    background: #0a0a0a; border-left: 1px solid #1a3a2a;
+    font-size: 12px;
+  }
+  @media (max-width: 600px) {
+    .layout { flex-direction: column; }
+    .viewport { height: 50vh; }
+    .sidebar { width: 100%; height: 50vh; border-left: none; border-top: 1px solid #1a3a2a; }
+  }
+  h2 { color: #22e8a0; font-size: 14px; margin-bottom: 1rem; }
+  .anim-list { list-style: none; padding: 0; }
+  .anim-list li {
+    padding: 0.6rem 0.8rem; margin-bottom: 4px;
+    background: #111; border: 1px solid #1a3a2a; border-radius: 4px;
+    cursor: pointer; font-size: 12px; display: flex; justify-content: space-between;
+  }
+  .anim-list li:hover { border-color: #22e8a0; }
+  .anim-list li.active { background: #1a3a2a; border-color: #22e8a0; }
+  .anim-list li .dur { color: #3a5840; }
+  .controls { margin-top: 1rem; }
+  .controls label {
+    display: block; color: #22e8a0; font-size: 11px;
+    text-transform: uppercase; margin: 0.8rem 0 0.3rem;
+  }
+  .controls input[type="range"] { width: 100%; }
+  .controls .val { color: #3a5840; float: right; }
+  .info {
+    margin-top: 1rem; padding: 0.5rem; background: #080808;
+    border: 1px solid #1a3a2a; border-radius: 4px;
+    font-size: 11px; color: #3a5840; white-space: pre-wrap;
+  }
+  .mood-btns { display: flex; gap: 4px; flex-wrap: wrap; }
+  .mood-btns button {
+    padding: 4px 10px; background: #111; color: #22e8a0;
+    border: 1px solid #1a3a2a; border-radius: 4px;
+    font-family: inherit; font-size: 11px; cursor: pointer;
+  }
+  .mood-btns button:hover { border-color: #22e8a0; }
+  .mood-btns button.active { background: #1a3a2a; }
+  .time-bar {
+    margin-top: 0.5rem; height: 4px; background: #111;
+    border-radius: 2px; overflow: hidden;
+  }
+  .time-bar .fill { height: 100%; background: #22e8a0; transition: width 0.1s; }
+</style>
+</head>
+<body>
+<div class="layout">
+  <div class="viewport" id="viewport"></div>
+  <div class="sidebar">
+    <h2>LETHE Animation Dev Panel</h2>
+
+    <ul class="anim-list" id="anim-list"></ul>
+    <div class="time-bar"><div class="fill" id="time-fill"></div></div>
+
+    <div class="controls">
+      <label>Speed <span class="val" id="speed-val">1.0x</span></label>
+      <input type="range" id="speed" min="0.05" max="3" step="0.05" value="1"/>
+
+      <label>Rotation <span class="val" id="rot-val">285°</span></label>
+      <input type="range" id="rot" min="0" max="360" step="5" value="285"/>
+
+      <label>Mood</label>
+      <div class="mood-btns" id="mood-btns">
+        <button data-mood="green" class="active" style="color:#22e8a0">green</button>
+        <button data-mood="blue" style="color:#44aaff">blue</button>
+        <button data-mood="yellow" style="color:#ffaa22">yellow</button>
+        <button data-mood="red" style="color:#ff4444">red</button>
+        <button data-mood="purple" style="color:#8844cc">purple</button>
+        <button data-mood="white" style="color:#cccccc">white</button>
+      </div>
+    </div>
+
+    <div class="info" id="info">Loading model...</div>
+  </div>
+</div>
+
+<script src="three.min.js"></script>
+<script src="GLTFLoader.js"></script>
+<script>
+var viewport = document.getElementById('viewport');
+var W = viewport.clientWidth, H = viewport.clientHeight;
+
+var renderer = new THREE.WebGLRenderer({ antialias: true, alpha: false });
+renderer.setSize(W, H);
+renderer.setClearColor(0x080808, 1);
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure = 1.3;
+viewport.appendChild(renderer.domElement);
+
+var scene = new THREE.Scene();
+var camera = new THREE.PerspectiveCamera(35, W / H, 0.01, 50);
+
+scene.add(new THREE.AmbientLight(0x222222, 0.8));
+var key = new THREE.DirectionalLight(0xffffff, 1.2);
+key.position.set(2, 3, 2); scene.add(key);
+var fill = new THREE.DirectionalLight(0x22e8a0, 0.4);
+fill.position.set(-2, 1, -1); scene.add(fill);
+var rim = new THREE.PointLight(0x22e8a0, 0.6, 5);
+rim.position.set(0, -0.2, 0.8); scene.add(rim);
+
+// Inner lights — positioned inside the body to illuminate cracks from within
+var orbLight = new THREE.PointLight(0x22e8a0, 2.0, 0.8);  // strong, short range
+scene.add(orbLight);
+var coreLight = new THREE.PointLight(0x22e8a0, 1.5, 0.6);  // second light lower in torso
+scene.add(coreLight);
+var headLight = new THREE.PointLight(0x22e8a0, 1.0, 0.4);  // eyes/head cracks
+scene.add(headLight);
+
+// Ground grid
+var gridHelper = new THREE.GridHelper(2, 20, 0x1a3a2a, 0x0f1f15);
+gridHelper.position.y = 0.001;
+gridHelper.material.transparent = true;
+gridHelper.material.opacity = 0.4;
+scene.add(gridHelper);
+
+var mixer = null;
+var currentAction = null;
+var animations = [];
+var modelScene = null;
+var crackMaterials = [];
+var currentSpeed = 1;
+var currentRot = 285;
+
+// Mood = CSS filter overlay on the base teal inner glow
+var moods = {
+  green:  { hueShift: 0,    saturate: 1.0, brightness: 1.0 },   // base teal — idle, calm, success
+  blue:   { hueShift: 50,   saturate: 1.3, brightness: 1.2 },   // blue — active, listening, thinking
+  yellow: { hueShift: 240,  saturate: 1.5, brightness: 1.4 },   // amber — warning, alert, notification
+  red:    { hueShift: 200,  saturate: 1.8, brightness: 1.3 },   // red — error, critical, denied
+  purple: { hueShift: 120,  saturate: 0.6, brightness: 0.7 },   // purple — sleep, dormant
+  white:  { hueShift: 0,    saturate: 0.1, brightness: 1.3 }    // desaturated — boot, initializing
+};
+var currentMood = moods.calm;
+
+var loader = new THREE.GLTFLoader();
+loader.load('mascot-taproot.glb', function(gltf) {
+  modelScene = gltf.scene;
+  modelScene.rotation.y = currentRot * Math.PI / 180;
+
+  var box = new THREE.Box3().setFromObject(modelScene);
+  var center = box.getCenter(new THREE.Vector3());
+  var size = box.getSize(new THREE.Vector3());
+  modelScene.position.x = -center.x;
+  modelScene.position.z = -center.z;
+  modelScene.position.y = -box.min.y;
+
+  camera.position.set(0, size.y * 0.45, size.x * 4.5);
+  camera.lookAt(0, size.y * 0.4, 0);
+
+  orbLight.position.set(0, size.y * 0.55, 0.02);   // chest/orb area
+  coreLight.position.set(0, size.y * 0.35, 0.02);  // belly/torso
+  headLight.position.set(0, size.y * 0.80, 0.02);  // head/eyes
+
+  // Don't touch material emissive — all meshes share one material/texture.
+  // Mood changes only affect light sources (orbLight, rim), not the mesh itself.
+  // The texture already has the cracks/glow baked in — lights illuminate them.
+
+  scene.add(modelScene);
+
+  animations = gltf.animations;
+  mixer = new THREE.AnimationMixer(modelScene);
+
+  // Load saved name mapping from localStorage
+  var nameMap = {};
+  try { nameMap = JSON.parse(localStorage.getItem('lethe_anim_names') || '{}'); } catch(e) {}
+
+  // Build animation list
+  var list = document.getElementById('anim-list');
+  animations.forEach(function(clip, i) {
+    var li = document.createElement('li');
+    var savedName = nameMap[i] || '';
+    var displayName = savedName || clip.name;
+    var named = savedName ? '✅' : '❓';
+    li.innerHTML = '<span class="anim-label">' + named + ' ' + i + ': ' + displayName + '</span>' +
+      '<span class="dur">' + clip.duration.toFixed(1) + 's</span>';
+    li.addEventListener('click', function() {
+      playAnim(i);
+      document.querySelectorAll('.anim-list li').forEach(function(el) {
+        el.classList.remove('active');
+      });
+      li.classList.add('active');
+    });
+    li.addEventListener('dblclick', function() {
+      var current = nameMap[i] || '';
+      var newName = prompt('Name for animation ' + i + ':', current);
+      if (newName !== null) {
+        nameMap[i] = newName;
+        localStorage.setItem('lethe_anim_names', JSON.stringify(nameMap));
+        var label = li.querySelector('.anim-label');
+        label.textContent = '✅ ' + i + ': ' + newName;
+      }
+    });
+    list.appendChild(li);
+  });
+
+  // Export button
+  var exportBtn = document.createElement('button');
+  exportBtn.className = 'dev-btn';
+  exportBtn.style.marginTop = '0.5rem';
+  exportBtn.style.width = '100%';
+  exportBtn.textContent = 'Export name mapping';
+  exportBtn.addEventListener('click', function() {
+    var mapped = Object.keys(nameMap).length;
+    var json = JSON.stringify(nameMap, null, 2);
+    navigator.clipboard.writeText(json).then(function() {
+      exportBtn.textContent = 'Copied! (' + mapped + '/97)';
+      setTimeout(function() { exportBtn.textContent = 'Export name mapping'; }, 2000);
+    });
+  });
+  list.parentNode.insertBefore(exportBtn, list.nextSibling);
+
+  // Play first by default
+  playAnim(0);
+  document.querySelector('.anim-list li').classList.add('active');
+
+  document.getElementById('info').textContent =
+    animations.length + ' animations\n' +
+    gltf.scene.children.length + ' root nodes\n' +
+    (gltf.scene.userData || '');
+});
+
+function playAnim(idx) {
+  if (!mixer || idx >= animations.length) return;
+  if (currentAction) currentAction.stop();
+  currentAction = mixer.clipAction(animations[idx]);
+  currentAction.setLoop(THREE.LoopRepeat);
+  currentAction.reset().play();
+  updateInfo(idx);
+}
+
+function updateInfo(idx) {
+  var clip = animations[idx];
+  var tracks = clip.tracks.map(function(t) {
+    return t.name.split('.').pop() + ' (' + t.times.length + ' keys)';
+  });
+  document.getElementById('info').textContent =
+    'Animation ' + idx + ': ' + clip.name + '\n' +
+    'Duration: ' + clip.duration.toFixed(2) + 's\n' +
+    'Tracks: ' + clip.tracks.length + '\n' +
+    tracks.join('\n');
+}
+
+// Speed
+document.getElementById('speed').addEventListener('input', function() {
+  currentSpeed = parseFloat(this.value);
+  document.getElementById('speed-val').textContent = currentSpeed.toFixed(2) + 'x';
+});
+
+// Rotation
+document.getElementById('rot').addEventListener('input', function() {
+  currentRot = parseFloat(this.value);
+  document.getElementById('rot-val').textContent = currentRot + '°';
+  if (modelScene) modelScene.rotation.y = currentRot * Math.PI / 180;
+});
+
+// Mood buttons
+document.querySelectorAll('#mood-btns button').forEach(function(btn) {
+  btn.addEventListener('click', function() {
+    document.querySelectorAll('#mood-btns button').forEach(function(b) {
+      b.classList.remove('active');
+    });
+    btn.classList.add('active');
+    currentMood = moods[btn.getAttribute('data-mood')] || moods.calm;
+    // Apply CSS filter to the canvas — shifts the teal hue to mood color
+    var canvas = renderer.domElement;
+    canvas.style.filter =
+      'hue-rotate(' + currentMood.hueShift + 'deg) ' +
+      'saturate(' + currentMood.saturate + ') ' +
+      'brightness(' + currentMood.brightness + ')';
+    canvas.style.transition = 'filter 0.8s ease';
+  });
+});
+
+// Resize
+window.addEventListener('resize', function() {
+  W = viewport.clientWidth; H = viewport.clientHeight;
+  camera.aspect = W / H; camera.updateProjectionMatrix();
+  renderer.setSize(W, H);
+});
+
+var clock = new THREE.Clock();
+function animate() {
+  requestAnimationFrame(animate);
+  var dt = clock.getDelta();
+  var t = clock.getElapsedTime();
+
+  if (mixer) mixer.update(dt * currentSpeed);
+
+  // Inner glow: gentle pulse at constant teal — CSS filter shifts the color
+  var glow = 0.5 + 0.5 * Math.sin(t * Math.PI / 7.5);
+  orbLight.intensity = 2.0 * (0.7 + 0.15 * glow);
+  coreLight.intensity = 1.5 * (0.7 + 0.15 * glow);
+  headLight.intensity = 1.0 * (0.7 + 0.15 * glow);
+
+  // Time bar
+  if (currentAction) {
+    var fill = document.getElementById('time-fill');
+    var progress = (currentAction.time % currentAction.getClip().duration) /
+      currentAction.getClip().duration * 100;
+    fill.style.width = progress + '%';
+  }
+
+  renderer.render(scene, camera);
+}
+animate();
+</script>
+</body>
+</html>

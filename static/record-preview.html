@@ -11,66 +11,91 @@
 <script src="three.min.js"></script>
 <script src="GLTFLoader.js"></script>
 <script>
-  var W = 360, H = 480;
+  var W = 480, H = 480;
   var params = new URLSearchParams(location.search);
   var renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
   renderer.setSize(W, H);
   renderer.setClearColor(0x000000, 0);
   renderer.toneMapping = THREE.ACESFilmicToneMapping;
-  renderer.toneMappingExposure = 1.3;
+  renderer.toneMappingExposure = 2.0;
   document.body.appendChild(renderer.domElement);
+
+  // Mood CSS filter — whole character shifts tone including moss
+  var moodFilters = {
+    green:  'hue-rotate(-60deg) saturate(2.0) brightness(1.3) contrast(1.0)',
+    blue:   'hue-rotate(-30deg) saturate(1.5) brightness(1.3) contrast(1.0)',
+    yellow: 'hue-rotate(160deg) saturate(2.5) brightness(1.5) contrast(1.0)',
+    red:    'hue-rotate(-180deg) saturate(2.5) brightness(1.3) contrast(1.0)',
+    purple: 'hue-rotate(80deg) saturate(1.5) brightness(1.0) contrast(1.0)',
+    white:  'hue-rotate(0deg) saturate(0.1) brightness(1.5) contrast(1.0)'
+  };
+  var moodParam = params.get('mood') || 'green';
+  if (moodFilters[moodParam]) {
+    renderer.domElement.style.filter = moodFilters[moodParam];
+  }
 
   var scene = new THREE.Scene();
   var camera = new THREE.PerspectiveCamera(35, W / H, 0.01, 50);
-  camera.position.set(0, 0.05, 3.0);
-  camera.lookAt(0, 0.05, 0);
 
-  scene.add(new THREE.AmbientLight(0x222222, 0.8));
-  var key = new THREE.DirectionalLight(0xffffff, 1.2);
-  key.position.set(2, 3, 2);
-  scene.add(key);
-  var fill = new THREE.DirectionalLight(0x22e8a0, 0.4);
-  fill.position.set(-2, 1, -1);
-  scene.add(fill);
-  var rim = new THREE.PointLight(0x22e8a0, 0.6, 5);
-  rim.position.set(0, -0.2, 0.8);
-  scene.add(rim);
+  // Scene lighting
+  scene.add(new THREE.AmbientLight(0x444444, 1.0));
+  var keyLight = new THREE.DirectionalLight(0xffffff, 1.5);
+  keyLight.position.set(2, 3, 2);
+  scene.add(keyLight);
+  var fillLight = new THREE.DirectionalLight(0xcccccc, 0.8);
+  fillLight.position.set(-2, 1, -1);
+  scene.add(fillLight);
+  var rimLight = new THREE.PointLight(0x22e8a0, 0.6, 5);
+  rimLight.position.set(0, -0.2, 0.8);
+  scene.add(rimLight);
+
+  // Inner lights — teal base, CSS filter shifts the color
+  var orbLight = new THREE.PointLight(0x22e8a0, 2.0, 0.8);
+  scene.add(orbLight);
+  var coreLight = new THREE.PointLight(0x22e8a0, 1.5, 0.6);
+  scene.add(coreLight);
+  var headLight = new THREE.PointLight(0x22e8a0, 1.0, 0.4);
+  scene.add(headLight);
 
   var mixers = [];
   var loader = new THREE.GLTFLoader();
-  loader.load('mascot-taproot.glb', function(gltf) {
-    var rotDeg = parseFloat(params.get('rot') || '110');
+  loader.load('lethe-3d.glb', function(gltf) {
+    var rotDeg = parseFloat(params.get('rot') || '285');
     gltf.scene.rotation.y = rotDeg * Math.PI / 180;
 
-    // Auto-center the model
+    // Center model
     var box = new THREE.Box3().setFromObject(gltf.scene);
     var center = box.getCenter(new THREE.Vector3());
-    gltf.scene.position.sub(center);
-    gltf.scene.position.y += (box.max.y - box.min.y) * 0.05; // slight upward nudge
+    var size = box.getSize(new THREE.Vector3());
+    gltf.scene.position.x = -center.x;
+    gltf.scene.position.z = -center.z;
+    gltf.scene.position.y = -box.min.y;
+
+    var maxDim = Math.max(size.x, size.y, size.z);
+    window._camDist = maxDim * 3.0;
+    window._camY = size.y * 0.45;
+    window._lookY = size.y * 0.4;
+    window._orbit = params.get('orbit') === '1';
+    camera.position.set(0, window._camY, window._camDist);
+    camera.lookAt(0, window._lookY, 0);
+
+    // Position inner lights
+    orbLight.position.set(0, size.y * 0.55, 0.02);
+    coreLight.position.set(0, size.y * 0.35, 0.02);
+    headLight.position.set(0, size.y * 0.80, 0.02);
 
     scene.add(gltf.scene);
 
+    // Animation
     if (gltf.animations.length > 0) {
       var mixer = new THREE.AnimationMixer(gltf.scene);
       mixers.push(mixer);
-      var animIdx = parseInt(params.get('anim') || '2');
+      var animIdx = parseInt(params.get('anim') || '0');
       if (animIdx >= 0 && animIdx < gltf.animations.length) {
         var action = mixer.clipAction(gltf.animations[animIdx]);
         action.setLoop(THREE.LoopRepeat);
         action.play();
       }
-    }
-
-    // Glow mode: pulse emissive teal for listening/processing anims
-    if (params.get('glow') === '1') {
-      gltf.scene.traverse(function(child) {
-        if (child.isMesh && child.material) {
-          child.material.emissive = new THREE.Color(0x22e8a0);
-          child.material.emissiveIntensity = 0;
-          window._glowMaterials = window._glowMaterials || [];
-          window._glowMaterials.push(child.material);
-        }
-      });
     }
 
     window._modelLoaded = true;
@@ -81,13 +106,25 @@
     requestAnimationFrame(animate);
     var dt = clock.getDelta();
     var t = clock.getElapsedTime();
-    for (var i = 0; i < mixers.length; i++) mixers[i].update(dt);
-    if (window._glowMaterials) {
-      var intensity = 0.15 + 0.25 * Math.sin(t * 2.5);
-      for (var j = 0; j < window._glowMaterials.length; j++) {
-        window._glowMaterials[j].emissiveIntensity = intensity;
-      }
+    var speed = parseFloat(params.get('speed') || '1');
+    for (var i = 0; i < mixers.length; i++) mixers[i].update(dt * speed);
+
+    // Inner glow pulse — gentle 15s cycle
+    var glow = 0.5 + 0.5 * Math.sin(t * Math.PI / 7.5);
+    orbLight.intensity = 2.0 * (0.7 + 0.15 * glow);
+    coreLight.intensity = 1.5 * (0.7 + 0.15 * glow);
+    headLight.intensity = 1.0 * (0.7 + 0.15 * glow);
+
+    // Camera orbit for dance animations
+    if (window._orbit && window._camDist) {
+      var orbitSpeed = parseFloat(params.get('orbitSpeed') || '0.3');
+      var angle = t * orbitSpeed;
+      camera.position.x = Math.sin(angle) * window._camDist;
+      camera.position.z = Math.cos(angle) * window._camDist;
+      camera.position.y = window._camY;
+      camera.lookAt(0, window._lookY, 0);
     }
+
     renderer.render(scene, camera);
   }
   animate();

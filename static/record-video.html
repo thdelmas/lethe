@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html><head><meta charset="utf-8"/>
+<style>*{margin:0}body{background:#080808;overflow:hidden}</style>
+</head><body>
+<script src="three.min.js"></script>
+<script src="GLTFLoader.js"></script>
+<script>
+var params = new URLSearchParams(location.search);
+var renderer = new THREE.WebGLRenderer({antialias:false, alpha:false});
+renderer.setSize(480,480);
+renderer.setClearColor(0x080808,1);
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure = 2.0;
+document.body.appendChild(renderer.domElement);
+var scene = new THREE.Scene();
+var camera = new THREE.PerspectiveCamera(35,1,0.01,50);
+scene.add(new THREE.AmbientLight(0x444444,1.0));
+var kl=new THREE.DirectionalLight(0xffffff,1.5);kl.position.set(2,3,2);scene.add(kl);
+var fl=new THREE.DirectionalLight(0xcccccc,0.8);fl.position.set(-2,1,-1);scene.add(fl);
+var ol=new THREE.PointLight(0x22e8a0,2.0,0.8);scene.add(ol);
+var cl=new THREE.PointLight(0x22e8a0,1.5,0.6);scene.add(cl);
+var hl=new THREE.PointLight(0x22e8a0,1.0,0.4);scene.add(hl);
+var mixer;
+var loader=new THREE.GLTFLoader();
+loader.load('mascot-taproot.glb',function(gltf){
+  gltf.scene.rotation.y=285*Math.PI/180;
+  var box=new THREE.Box3().setFromObject(gltf.scene);
+  var c=box.getCenter(new THREE.Vector3());
+  var s=box.getSize(new THREE.Vector3());
+  gltf.scene.position.set(-c.x,-box.min.y,-c.z);
+  camera.position.set(0,s.y*0.45,s.x*2.5);
+  camera.lookAt(0,s.y*0.4,0);
+  ol.position.set(0,s.y*0.55,0.02);
+  cl.position.set(0,s.y*0.35,0.02);
+  hl.position.set(0,s.y*0.80,0.02);
+  scene.add(gltf.scene);
+  mixer=new THREE.AnimationMixer(gltf.scene);
+  var animIdx=parseInt(params.get('anim')||'24');
+  if(animIdx<gltf.animations.length){
+    var act=mixer.clipAction(gltf.animations[animIdx]);act.play();
+  }
+  window._ready=true;
+});
+var clock=new THREE.Clock();
+function animate(){
+  requestAnimationFrame(animate);
+  var dt=clock.getDelta();var t=clock.getElapsedTime();
+  var speed=parseFloat(params.get('speed')||'0.3');
+  if(mixer)mixer.update(dt*speed);
+  var g=0.5+0.5*Math.sin(t*Math.PI/7.5);
+  ol.intensity=2.0*(0.7+0.15*g);cl.intensity=1.5*(0.7+0.15*g);hl.intensity=1.0*(0.7+0.15*g);
+  renderer.render(scene,camera);
+}
+animate();
+</script>
+</body></html>

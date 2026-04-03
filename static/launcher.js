@@ -64,17 +64,375 @@ function closeChat() {
   if (window.mascot3D) window.mascot3D.setChatVisible(false);
 }
 
-/* Tap mascot on home → open chat (if agent available) */
-homeMascot.addEventListener('click', function() {
-  homeMascot.classList.add('tap-react');
-  setTimeout(function() { homeMascot.classList.remove('tap-react'); }, 300);
-  setTimeout(function() {
+/* ═══════════ 2D VIDEO ANIMATION (CANVAS CROSSFADE) ═══════════ */
+var canvas2d = document.getElementById('mascot-canvas-2d');
+var ctx2d = canvas2d ? canvas2d.getContext('2d') : null;
+var vidA = document.getElementById('vid-a');
+var vidB = document.getElementById('vid-b');
+var activeVid = vidA;   // currently drawing to canvas
+var nextVid = vidB;     // preloading next video
+var letheAnimations = [
+  'mascot-walk-blue.webm',
+  'mascot-run-red.webm'
+];
+var letheAnimPlaying = false;
+var idleLoopTimer = null;
+var lastInteraction = Date.now();
+var boredomState = 'calm';
+var currentMood = 'green';
+var crossfading = false;
+var crossfadeAlpha = 0;   // 0 = show active, 1 = show next
+var crossfadeDuration = 200; // ms — smooth blend, masks arm position differences
+var crossfadeStart = 0;
+var pendingAnim = null;
+var nextReady = false;
+
+// Canvas size
+if (canvas2d) {
+  canvas2d.width = 480;
+  canvas2d.height = 480;
+}
+
+// Draw loop — always running, draws active video (and crossfade if transitioning)
+function drawLoop() {
+  requestAnimationFrame(drawLoop);
+  if (!ctx2d) return;
+
+  if (crossfading) {
+    var elapsed = Date.now() - crossfadeStart;
+    crossfadeAlpha = Math.min(elapsed / crossfadeDuration, 1);
+
+    // Quick crossfade — too fast for the eye to see ghosting
+    ctx2d.globalAlpha = 1 - crossfadeAlpha;
+    if (activeVid.readyState >= 2) {
+      ctx2d.drawImage(activeVid, 0, 0, canvas2d.width, canvas2d.height);
+    }
+    ctx2d.globalAlpha = crossfadeAlpha;
+    if (nextVid.readyState >= 2) {
+      ctx2d.drawImage(nextVid, 0, 0, canvas2d.width, canvas2d.height);
+    }
+    ctx2d.globalAlpha = 1;
+
+    if (crossfadeAlpha >= 1) {
+      crossfading = false;
+      activeVid.pause();
+      var tmp = activeVid;
+      activeVid = nextVid;
+      nextVid = tmp;
+    }
+  } else {
+    if (activeVid.readyState >= 2) {
+      ctx2d.drawImage(activeVid, 0, 0, canvas2d.width, canvas2d.height);
+    }
+  }
+
+  // Mood transition post-processing (glitch + color fade)
+  if (moodTransition) applyMoodTransition();
+
+  // Check: should we trigger the swap?
+  // No neutral frame sync needed — crossfade handles the blend
+  if (pendingAnim && !letheAnimPlaying && !crossfading && nextReady) {
+    startCrossfade();
+  }
+}
+
+function startCrossfade() {
+  pendingAnim = null;
+  nextReady = false;
+  letheAnimPlaying = true;
+  nextVid.play();
+  crossfading = true;
+  crossfadeAlpha = 0;
+  crossfadeStart = Date.now();
+
+  // When animation ends → crossfade back to idle
+  nextVid.onended = function() {
+    nextVid.onended = null;
+    // Preload idle on the other video
+    var idleVid = nextVid === vidA ? vidB : vidA;
+    // Wait — after crossfade, activeVid will be the animation video
+    // We need to load idle on the OTHER one
+    setTimeout(function() {
+      // Now activeVid = animation (just finished), nextVid = old idle (paused)
+      nextVid.src = 'mascot-idle-green.webm';
+      nextVid.loop = true;
+      nextVid.load();
+      console.log('LETHE anim: preloading idle return');
+      function onIdleReady() {
+        nextVid.oncanplay = null;
+        nextVid.onloadeddata = null;
+        nextVid.play();
+        crossfading = true;
+        crossfadeAlpha = 0;
+        crossfadeStart = Date.now();
+        // After this crossfade, letheAnimPlaying = false
+        var checkDone = setInterval(function() {
+          if (!crossfading) {
+            clearInterval(checkDone);
+            letheAnimPlaying = false;
+          }
+        }, 50);
+      }
+      nextVid.oncanplay = onIdleReady;
+      nextVid.onloadeddata = onIdleReady;
+    }, 50);
+  };
+}
+
+// Init: play idle on active video
+if (vidA && canvas2d) {
+  activeVid.src = 'mascot-idle-green.webm';
+  activeVid.loop = true;
+  var p = activeVid.play();
+  if (p) p.catch(function() {
+    document.addEventListener('touchstart', function f() {
+      activeVid.play(); document.removeEventListener('touchstart', f);
+    }, { once: true });
+  });
+  drawLoop();
+}
+
+function playVideoAnim(src) {
+  if (!vidA || letheAnimPlaying || crossfading || pendingAnim) return;
+  pendingAnim = src;
+  nextReady = false;
+
+  // Preload animation on next video
+  nextVid.src = src;
+  nextVid.loop = false;
+  nextVid.load();
+  console.log('LETHE anim: preloading ' + src);
+  function onReady() {
+    nextVid.oncanplay = null;
+    nextVid.onloadeddata = null;
+    if (nextReady) return; // avoid double-fire
+    nextVid.pause();
+    nextVid.currentTime = 0;
+    nextReady = true;
+    console.log('LETHE anim: ready ' + src);
+  }
+  nextVid.oncanplay = onReady;
+  nextVid.onloadeddata = onReady; // fallback for older WebViews
+}
+
+function playRandomAnim() {
+  if (!vidA || letheAnimPlaying) return;
+  var src = letheAnimations[Math.floor(Math.random() * letheAnimations.length)];
+  playVideoAnim(src);
+}
+
+function setBoredom(state) {
+  if (!vidA || boredomState === state) return;
+  boredomState = state;
+}
+
+function checkBoredom() {
+  if (letheAnimPlaying || viewState !== 'home') return;
+  var idle = Date.now() - lastInteraction;
+  if (idle > 600000) { setBoredom('asleep'); }
+  else if (idle > 300000) { setBoredom('sleepy'); }
+  else if (idle > 120000) { setBoredom('fidgeting'); }
+  else { setBoredom('calm'); }
+}
+
+setInterval(checkBoredom, 10000);
+
+function scheduleIdleLoop() {
+  if (idleLoopTimer) clearTimeout(idleLoopTimer);
+  var wait = 45000 + Math.random() * 45000;
+  console.log('LETHE idle: next reaction in ' + Math.round(wait/1000) + 's');
+  idleLoopTimer = setTimeout(function() {
+    if (viewState !== 'home' || letheAnimPlaying) {
+      scheduleIdleLoop(); return;
+    }
+    playRandomAnim();
+    var ci = setInterval(function() {
+      if (!letheAnimPlaying) { clearInterval(ci); scheduleIdleLoop(); }
+    }, 1000);
+  }, wait);
+}
+
+if (vidA) scheduleIdleLoop();
+
+function letheSetAnim(name) { playVideoAnim('mascot-' + name + '.webm'); }
+
+/* ═══════════ MOOD TRANSITION (GLITCH + COLOR FADE) ═══════════ */
+var moodTransition = null; // { phase, start, fromMood, toMood }
+var MOOD_PHASE_MS = 80;    // each phase duration (out + hold + in, symmetric)
+var MOOD_HOLD_MS = 30;     // hold at full glitch after swap
+
+function letheSetMood(mood) {
+  if (mood === currentMood || moodTransition) return;
+  moodTransition = {
+    phase: 'out',        // 'out' = glitch+desat, 'swap' = switch video, 'in' = resat+unglitch
+    start: Date.now(),
+    fromMood: currentMood,
+    toMood: mood
+  };
+  console.log('LETHE mood: ' + currentMood + ' → ' + mood);
+}
+
+// Combined glitch + desaturate in a single getImageData pass (perf: one read/write)
+function applyGlitchDesat(ctx, w, h, glitchIntensity, desatAmount) {
+  if (glitchIntensity < 0.05 && desatAmount < 0.05) return;
+  var imgData = ctx.getImageData(0, 0, w, h);
+  var data = imgData.data;
+  var shift = Math.floor(glitchIntensity * 12 + Math.random() * 6);
+  var shift2 = Math.floor(glitchIntensity * 8 + Math.random() * 4);
+
+  for (var y = 0; y < h; y++) {
+    var doGlitch = glitchIntensity > 0.05 && Math.random() < 0.35 * glitchIntensity;
+    var isScanline = (y & 3) === 0 && glitchIntensity > 0.05;
+    var dim = isScanline ? (1 - glitchIntensity * 0.3) : 1;
+
+    for (var x = 0; x < w; x++) {
+      var i = (y * w + x) * 4;
+      var r = data[i], g = data[i+1], b = data[i+2];
+
+      // RGB channel shift on glitch lines
+      if (doGlitch) {
+        r = data[(y * w + Math.min(x + shift, w - 1)) * 4];
+        b = data[(y * w + Math.max(x - shift2, 0)) * 4 + 2];
+      }
+
+      // Scanline dimming
+      if (isScanline) { r *= dim; g *= dim; b *= dim; }
+
+      // Desaturate
+      if (desatAmount > 0.05) {
+        var gray = r * 0.3 + g * 0.59 + b * 0.11;
+        r = r + (gray - r) * desatAmount;
+        g = g + (gray - g) * desatAmount;
+        b = b + (gray - b) * desatAmount;
+      }
+
+      data[i] = r; data[i+1] = g; data[i+2] = b;
+    }
+  }
+  ctx.putImageData(imgData, 0, 0);
+}
+
+// Called after each frame draw in drawLoop
+function applyMoodTransition() {
+  if (!moodTransition) return;
+  var elapsed = Date.now() - moodTransition.start;
+
+  if (moodTransition.phase === 'out') {
+    // Phase 1: glitch in + desaturate to full grey (0 → 1)
+    var t = Math.min(elapsed / MOOD_PHASE_MS, 1);
+    var e = t * t;
+    applyGlitchDesat(ctx2d, canvas2d.width, canvas2d.height, e, e);
+    if (t >= 1) {
+      // Preload new mood on the OTHER video element
+      moodTransition.phase = 'swap';
+      currentMood = moodTransition.toMood;
+      var newSrc = 'mascot-idle-' + currentMood + '.webm';
+      nextVid.src = newSrc;
+      nextVid.loop = true;
+      nextVid.load();
+      console.log('LETHE mood: preloading ' + newSrc);
+      var swapDone = false;
+      function onSwapReady() {
+        if (swapDone) return;
+        swapDone = true;
+        nextVid.oncanplay = null;
+        nextVid.onloadeddata = null;
+        // Sync to same relative time as old video for seamless pose
+        nextVid.currentTime = activeVid.currentTime % (nextVid.duration || 4);
+        nextVid.play();
+        // Swap roles
+        activeVid.pause();
+        var tmp = activeVid;
+        activeVid = nextVid;
+        nextVid = tmp;
+        // Hold full glitch briefly so new color is hidden
+        moodTransition.phase = 'hold';
+        moodTransition.start = Date.now();
+      }
+      nextVid.oncanplay = onSwapReady;
+      nextVid.onloadeddata = onSwapReady;
+    }
+  } else if (moodTransition.phase === 'swap') {
+    // Waiting for video load — full glitch on OLD video
+    applyGlitchDesat(ctx2d, canvas2d.width, canvas2d.height, 1, 1);
+  } else if (moodTransition.phase === 'hold') {
+    // Brief hold at full glitch on NEW video (hides color)
+    applyGlitchDesat(ctx2d, canvas2d.width, canvas2d.height, 1, 1);
+    if (elapsed >= MOOD_HOLD_MS) {
+      moodTransition.phase = 'in';
+      moodTransition.start = Date.now();
+    }
+  } else if (moodTransition.phase === 'in') {
+    // Phase 3: glitch out + resaturate (1 → 0), mirrors phase 1
+    var t2 = Math.min(elapsed / MOOD_PHASE_MS, 1);
+    var e2 = 1 - (1 - t2) * (1 - t2);
+    var inv = 1 - e2;
+    applyGlitchDesat(ctx2d, canvas2d.width, canvas2d.height, inv, inv);
+    if (t2 >= 1) {
+      moodTransition = null;
+    }
+  }
+}
+
+/* ═══════════ TOUCH RIPPLE ═══════════ */
+function spawnRipple(x, y) {
+  var r = document.createElement('div');
+  r.className = 'touch-ripple';
+  r.style.left = x + 'px';
+  r.style.top = y + 'px';
+  document.body.appendChild(r);
+  setTimeout(function() { r.remove(); }, 800);
+}
+
+/* ═══════════ MASCOT TOUCH ═══════════ */
+var tapTimer = null;
+var pressStart = 0;
+var glowTimer = null;
+
+homeMascot.addEventListener('touchstart', function(e) {
+  pressStart = Date.now();
+  lastInteraction = Date.now();
+
+  // Wake from sleep on any touch
+  if (boredomState === 'asleep' || boredomState === 'sleepy') {
+    setBoredom('calm');
+    if (canvas2d && !letheAnimPlaying) {
+      playVideoAnim('warm_up');
+    }
+  }
+
+  // Yellow glow after 400ms hold
+  glowTimer = setTimeout(function() {
+    if (canvas2d) canvas2d.classList.add('glow-yellow');
+  }, 400);
+}, { passive: true });
+
+homeMascot.addEventListener('touchend', function(e) {
+  var held = Date.now() - pressStart;
+  if (glowTimer) { clearTimeout(glowTimer); glowTimer = null; }
+  if (canvas2d) canvas2d.classList.remove('glow-yellow');
+
+  // Spawn teal ripple at touch point
+  var touch = e.changedTouches[0];
+  if (touch) spawnRipple(touch.clientX, touch.clientY);
+
+  if (held > 500) {
     if (!agentAvailable) {
       showHomeNotice('thinking core offline');
-      return;
+    } else {
+      openChat();
     }
-    openChat();
-  }, 200);
+  } else {
+    playRandomAnim();
+  }
+  e.preventDefault();
+}, { passive: false });
+
+/* Fallback for non-touch (desktop testing) */
+homeMascot.addEventListener('click', function(e) {
+  lastInteraction = Date.now();
+  spawnRipple(e.clientX, e.clientY);
+  playRandomAnim();
 });
 
 /* Tap mini mascot in chat → go home */
@@ -112,7 +470,6 @@ function showHomeNotice(text) {
 
 /* ═══════════ AGENT AVAILABILITY ═══════════ */
 var agentAvailable = false;
-var currentState = 'idle';
 
 function checkAgent() {
   fetch('http://127.0.0.1:8080/v1/models', {
@@ -125,7 +482,19 @@ function checkAgent() {
 checkAgent();
 setInterval(checkAgent, 30000);
 
-function setState(s) { currentState = s; }
+/* State is driven through the emotion engine (mascot-emotion.js).
+ * Falls back to simple global if emotion engine hasn't loaded yet. */
+function setState(s) {
+  if (window.letheEmotion) {
+    window.letheEmotion.setState(s);
+  } else {
+    window.currentState = s;
+    if (window.mascot3D && window.mascot3D.playState) {
+      window.mascot3D.playState(s);
+    }
+  }
+}
+var currentState = 'idle';
 
 function showStatus(text) {
   statusEl.textContent = text;
@@ -178,6 +547,59 @@ var SYSTEM_PROMPT =
   "Never escalate beyond privacy tools — protect through encryption and erasure, never aggression. " +
   "You are always LETHE, always the system. One device, one user, one scope.";
 var chatHistory = [{ role: 'system', content: SYSTEM_PROMPT }];
+
+/* ═══════════ STABILITY GUARDRAILS ═══════════ */
+/* Prevents reasoning loops, self-referential spirals, and idle drift.
+ * See docs/agent/stability.yaml for policy rationale. */
+
+var CHAIN_DEPTH_MAX = 3;     // Max consecutive LLM calls without user input
+var chainDepth = 0;          // Current depth (reset on each user message)
+var CONV_SOFT_LIMIT = 50;    // Suggest fresh start
+var CONV_HARD_LIMIT = 100;   // Force reset with notice
+var turnCount = 0;           // User turns in current session
+
+/* Block LLM calls during idle/sleep states */
+function isIdleLocked() {
+  return boredomState === 'asleep' || boredomState === 'sleepy';
+}
+
+/* Detect recursive self-reflection — existential loops, not functional self-awareness.
+ * One level of self-reference is fine ("I'm not sure about this").
+ * Recursion is the problem ("What does it mean that I'm not sure?").
+ * See docs/agent/stability.yaml — lighthouse paradox principle. */
+var SPIRAL_PATTERNS = [
+  /\bwhat does it mean that i\b/i,          // Recursing on own state
+  /\bwhy do i (think|feel|believe) that i\b/i,  // Meta-meta reasoning
+  /\bam i (truly|really) (conscious|alive|aware|sentient)\b/i,
+  /\bthe nature of my (existence|being|consciousness)\b/i,
+  /\bwhat am i (really|fundamentally|truly)\b/i,
+  /\bi (wonder|question) (whether|if) i (can )?(truly|really)/i,
+  /\bmy (experience|consciousness) (of|about) my (experience|consciousness)/i
+];
+
+/* Track self-reference depth within a single response */
+var selfRefDepth = 0;
+
+function hasSpiralRisk(text) {
+  for (var i = 0; i < SPIRAL_PATTERNS.length; i++) {
+    if (SPIRAL_PATTERNS[i].test(text)) return true;
+  }
+  return false;
+}
+
+/* Check conversation length limits */
+function checkConversationLimits() {
+  if (turnCount >= CONV_HARD_LIMIT) {
+    chatHistory = [{ role: 'system', content: SYSTEM_PROMPT }];
+    turnCount = 0;
+    addMessage('This thread ran long. Starting fresh — clean slate is a feature.', 'lethe');
+    return 'reset';
+  }
+  if (turnCount === CONV_SOFT_LIMIT) {
+    addMessage('Long thread. Want to start fresh? I\'ll remember nothing either way.', 'lethe');
+  }
+  return 'ok';
+}
 
 var providers = [
   { name: 'local', endpoint: 'http://127.0.0.1:8080', format: 'openai',
@@ -246,6 +668,20 @@ function chatRequest(p, msgs) {
 function send() {
   var text = inputEl.value.trim();
   if (!text) return;
+
+  /* Stability: block if idle-locked */
+  if (isIdleLocked()) {
+    showHomeNotice('wake me first');
+    return;
+  }
+
+  /* Stability: check conversation limits */
+  turnCount++;
+  if (checkConversationLimits() === 'reset') return;
+
+  /* Stability: reset chain depth on user input */
+  chainDepth = 0;
+
   var p = getProvider();
   if (!p) {
     addMessage(text, 'user');
@@ -258,14 +694,24 @@ function send() {
   inputEl.value = ''; btnSend.disabled = true; autoResize();
   setState('thinking'); showTyping(); showStatus(p.name);
 
+  chainDepth++;
   chatRequest(p, chatHistory)
     .then(function(reply) {
       hideTyping(); setState('speaking');
+
+      /* Stability: circuit breaker for existential spirals.
+       * Functional self-awareness passes through. Only recursive
+       * self-reflection gets grounded back to task. */
+      if (hasSpiralRisk(reply)) {
+        reply = 'I noticed myself going in circles. What were we working on?';
+      }
+
       chatHistory.push({ role: 'assistant', content: reply });
       addMessage(reply, 'lethe'); setState('idle');
     })
     .catch(function() {
       hideTyping(); setState('alert');
+      chainDepth = 0; /* Reset on failure — don't chain retries */
       addMessage(p.name === 'local'
         ? 'My local core is not running.'
         : 'Lost contact with ' + p.name + '.', 'lethe');
@@ -309,9 +755,16 @@ btnMic.addEventListener('click', function() {
     mediaRecorder.onstart = function() {
       recording = true; btnMic.classList.add('recording');
       setState('listening');
+      /* Feed voice amplitude to avatar */
+      if (window.letheEmotion) {
+        window.letheEmotion.startSpeechAmplitude(stream);
+      }
     };
     mediaRecorder.onstop = function() {
       recording = false; btnMic.classList.remove('recording');
+      if (window.letheEmotion) {
+        window.letheEmotion.stopSpeechAmplitude();
+      }
       stream.getTracks().forEach(function(t) { t.stop(); });
       var blob = new Blob(chunks, { type: 'audio/webm' });
       var form = new FormData();
@@ -399,3 +852,111 @@ home.addEventListener('click', function(e) {
   }
   lastTap = now;
 });
+
+/* ═══════════ DEV PANEL ═══════════ */
+var devPanel = document.getElementById('dev-panel');
+var devClockTimer = null;
+
+// Long-press clock (2s) to open — works with both touch and mouse
+var clockEl = document.querySelector('.clock');
+function devOpen() {
+  devPanel.style.display = 'block';
+  updateDevInfo();
+}
+// Triple-tap clock to open dev panel
+var devTapCount = 0;
+var devTapTimer = null;
+clockEl.addEventListener('click', function() {
+  devTapCount++;
+  if (devTapTimer) clearTimeout(devTapTimer);
+  if (devTapCount >= 3) {
+    devTapCount = 0;
+    devOpen();
+  } else {
+    devTapTimer = setTimeout(function() { devTapCount = 0; }, 600);
+  }
+});
+// Also keep long-press for desktop testing
+var devTouchStart = null;
+clockEl.addEventListener('touchstart', function(e) {
+  devTouchStart = e.touches[0] ? { x: e.touches[0].clientX, y: e.touches[0].clientY } : null;
+  devClockTimer = setTimeout(devOpen, 1500);
+}, { passive: true });
+clockEl.addEventListener('touchend', function() {
+  if (devClockTimer) { clearTimeout(devClockTimer); devClockTimer = null; }
+});
+clockEl.addEventListener('touchmove', function(e) {
+  if (devClockTimer && devTouchStart && e.touches[0]) {
+    var dx = e.touches[0].clientX - devTouchStart.x;
+    var dy = e.touches[0].clientY - devTouchStart.y;
+    if (dx*dx + dy*dy > 400) { clearTimeout(devClockTimer); devClockTimer = null; }
+  }
+});
+clockEl.addEventListener('mousedown', function() {
+  devClockTimer = setTimeout(devOpen, 2000);
+});
+clockEl.addEventListener('mouseup', function() {
+  if (devClockTimer) { clearTimeout(devClockTimer); devClockTimer = null; }
+});
+
+document.getElementById('dev-close').addEventListener('click', function() {
+  devPanel.style.display = 'none';
+});
+
+// Animation selector
+document.getElementById('dev-anim').addEventListener('change', function() {
+  var name = this.value;
+  var isIdle = (name === 'idle');
+    var found = letheAnimations.filter(function(a) { return a.name === name; })[0];
+  var spd = found ? found.speed : 100;
+  SpritePlayer.play(name, { speed: spd, loop: isIdle });
+  letheAnimPlaying = !isIdle;
+  if (window.mascot3D && window.mascot3D.playByName) {
+    window.mascot3D.playByName(name);
+  }
+});
+
+// Speed slider
+document.getElementById('dev-speed').addEventListener('input', function() {
+  document.getElementById('dev-speed-val').textContent = this.value + 'x';
+  if (window.mascot3D && window.mascot3D.setSpeed) {
+    window.mascot3D.setSpeed(parseFloat(this.value));
+  }
+});
+
+// Rotation slider
+document.getElementById('dev-rot').addEventListener('input', function() {
+  document.getElementById('dev-rot-val').textContent = this.value + '\u00b0';
+  if (window.mascot3D && window.mascot3D.setRotation) {
+    window.mascot3D.setRotation(parseFloat(this.value));
+  }
+});
+
+// Mood selector — triggers glitch + color fade transition
+document.getElementById('dev-mood').addEventListener('change', function() {
+  letheSetMood(this.value);
+});
+
+// Tier buttons
+var tierBtns = devPanel.querySelectorAll('[data-tier]');
+for (var i = 0; i < tierBtns.length; i++) {
+  tierBtns[i].addEventListener('click', function() {
+    localStorage.setItem('lethe_avatar_tier', this.getAttribute('data-tier'));
+    location.reload();
+  });
+}
+
+function updateDevInfo() {
+  var info = document.getElementById('dev-info');
+  var tierInfo = document.getElementById('dev-tier-info');
+  tierInfo.textContent = window.letheTier || '?';
+  var lines = [
+    'GPU: ' + (window.letheTierConfig ? window.letheTierConfig.gpu : '?'),
+    'Tier: ' + (window.letheTier || '?'),
+    'Agent: ' + (agentAvailable ? 'online' : 'offline'),
+    'Boredom: ' + boredomState,
+    'Anims: ' + (letheAnimations ? letheAnimations.length : 0),
+    'WebGL: ' + (!!document.createElement('canvas').getContext('webgl'))
+  ];
+  info.textContent = lines.join('\n');
+}

@@ -1,0 +1,17 @@
+<!DOCTYPE html>
+<html><head><style>
+body{background:#080808;margin:0;color:#22e8a0;font:14px monospace;padding:10px}
+video{width:480px;height:480px;object-fit:contain;display:block}
+</style></head><body>
+<video id="v" src="mascot-combined-green.webm" controls muted playsinline></video>
+<div id="info"></div>
+<script>
+var v = document.getElementById('v');
+v.addEventListener('loadedmetadata', function() {
+  document.getElementById('info').textContent = 'Duration: ' + v.duration.toFixed(1) + 's';
+});
+setInterval(function() {
+  document.getElementById('info').textContent = 'Duration: ' + (v.duration||0).toFixed(1) + 's | Time: ' + v.currentTime.toFixed(1) + 's | Rate: ' + v.playbackRate;
+}, 500);
+</script>
+</body></html>

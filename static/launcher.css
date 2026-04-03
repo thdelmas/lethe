@@ -72,8 +72,8 @@ html, body {
 /* ── Mascot container ── */
 .home-mascot {
   position: relative;
-  width: 70vw; height: 55vh;
-  max-width: 360px; max-height: 480px;
+  width: 85vw; height: 85vw;
+  max-width: 480px; max-height: 480px;
   margin-top: 1rem; cursor: pointer;
 }
 
@@ -90,18 +90,49 @@ html, body {
 
 .mascot-2d-img {
   width: 100%; height: 100%; object-fit: contain;
+  background: #080808;
+  border-radius: 8px;
   filter: drop-shadow(0 0 16px rgba(34, 232, 160, 0.12));
+  transition: filter 0.3s ease, transform 0.12s ease;
+  position: relative; z-index: 3;
+}
+video.mascot-video {
+  background: #080808;
+  -webkit-appearance: none;
+  pointer-events: none;
+  position: absolute;
+  top: 0; left: 0;
+  transition: opacity 0.3s ease;
+}
+video.mascot-video::-webkit-media-controls {
+  display: none !important;
+}
+video.mascot-video::-webkit-media-controls-enclosure {
+  display: none !important;
 }
 
-@keyframes home-sway {
-  0%, 100% { transform: rotateY(-1.5deg) rotateZ(-0.5deg); }
-  50%      { transform: rotateY(1.5deg) rotateZ(0.5deg); }
-}
-@keyframes home-breathe {
-  0%, 100% { transform: scale(1); }
-  50%      { transform: scale(1.02); }
+/* ── Anticipation: micro-crouch before reactions ── */
+.mascot-2d-img.anticipate {
+  transform: scale(0.97) translateY(2px);
+  transition: transform 0.1s ease-in;
 }
 
+/* ── Yellow glow on long press ── */
+.mascot-2d-img.glow-yellow {
+  filter: drop-shadow(0 0 30px rgba(255, 215, 0, 0.8))
+          drop-shadow(0 0 60px rgba(255, 215, 0, 0.4))
+          brightness(1.3) saturate(0.7) sepia(0.4);
+  animation: yellow-pulse 0.6s ease-in-out infinite;
+}
+
+@keyframes yellow-pulse {
+  0%, 100% { filter: drop-shadow(0 0 30px rgba(255, 215, 0, 0.8)) brightness(1.3) sepia(0.4); }
+  50%      { filter: drop-shadow(0 0 50px rgba(255, 215, 0, 1.0)) brightness(1.5) sepia(0.6); }
+}
+
+/* Heartbeat and ground glow are baked into the 3D recordings */
+
+/* ── Glow ring behind mascot ── */
 .mascot-2d .glow-ring {
   position: absolute; inset: -10%; border-radius: 50%;
   background: radial-gradient(circle, rgba(34,232,160,0.06) 0%, transparent 65%);
@@ -113,6 +144,7 @@ html, body {
   50%      { opacity: 1; }
 }
 
+/* ── Sparks rising from cracks ── */
 .mascot-2d .spark {
   position: absolute;
   width: 2px; height: 2px; border-radius: 50%;
@@ -124,6 +156,42 @@ html, body {
   0%   { opacity: 0; transform: translateY(0) scale(0.5); }
   15%  { opacity: 0.5; }
   100% { opacity: 0; transform: translateY(-35px) translateX(var(--drift)) scale(0.2); }
+}
+
+/* ── Touch ripple ── */
+.touch-ripple {
+  position: fixed;
+  width: 0; height: 0;
+  border: 1px solid rgba(34, 232, 160, 0.4);
+  border-radius: 50%;
+  transform: translate(-50%, -50%);
+  animation: ripple-out 0.8s ease-out forwards;
+  pointer-events: none;
+  z-index: 50;
+}
+
+@keyframes ripple-out {
+  0%   { width: 0; height: 0; opacity: 0.8; }
+  100% { width: 200px; height: 200px; opacity: 0; }
+}
+
+/* ── Boredom states ── */
+.mascot-2d-img.fidgeting {
+  animation: fidget 2s ease-in-out infinite;
+}
+
+@keyframes fidget {
+  0%, 100% { transform: none; }
+  20%  { transform: translateX(1px) rotateZ(0.3deg); }
+  40%  { transform: translateX(-1px) rotateZ(-0.2deg); }
+  60%  { transform: translateY(-1px); }
+  80%  { transform: translateX(0.5px) rotateZ(0.1deg); }
+}
+
+.mascot-2d-img.sleepy {
+  filter: drop-shadow(0 0 10px rgba(34, 232, 160, 0.06)) brightness(0.85);
+  transform: translateY(3px) rotateZ(1deg);
+  transition: all 3s ease;
 }
 
 /* ── Static tier: just the image ── */
@@ -236,9 +304,58 @@ html, body {
    ═════════════════════════════════════ */
 @media (prefers-reduced-motion: reduce) {
   .home-mascot img, .clock-dot, .glow-ring, .spark,
-  .message, .typing-indicator span {
+  .message, .typing-indicator span, .orb-heartbeat,
+  .ground-glow, .touch-ripple {
     animation: none !important;
   }
   .chat, .home { transition-duration: 0.01ms; }
   .clock-dot { opacity: 0.6; }
+}
+
+/* ═════════════════════════════════════
+   DEV PANEL
+   ═════════════════════════════════════ */
+.dev-panel {
+  position: fixed; inset: 0;
+  background: rgba(8,8,8,0.95);
+  z-index: 9999;
+  padding: 1rem;
+  overflow-y: auto;
+  font-size: 13px;
+  color: var(--text);
+}
+.dev-header {
+  display: flex; justify-content: space-between; align-items: center;
+  font-size: 15px; font-weight: bold; color: var(--accent);
+  margin-bottom: 1rem; padding-bottom: 0.5rem;
+  border-bottom: 1px solid #1a3a2a;
+}
+.dev-section {
+  margin-bottom: 1rem;
+}
+.dev-section label {
+  display: block; color: var(--accent); font-size: 11px;
+  text-transform: uppercase; letter-spacing: 0.05em;
+  margin-bottom: 0.3rem;
+}
+.dev-section select, .dev-section input[type="range"] {
+  width: 100%; padding: 0.4rem;
+  background: #111; color: var(--text); border: 1px solid #1a3a2a;
+  border-radius: 4px; font-family: var(--font); font-size: 12px;
+}
+.dev-row {
+  display: flex; gap: 0.5rem; margin-top: 0.3rem;
+}
+.dev-btn {
+  padding: 0.4rem 0.8rem;
+  background: #111; color: var(--accent); border: 1px solid #1a3a2a;
+  border-radius: 4px; font-family: var(--font); font-size: 12px;
+  cursor: pointer;
+}
+.dev-btn:active { background: #1a3a2a; }
+.dev-info {
+  margin-top: 1rem; padding: 0.5rem;
+  background: #0a0a0a; border: 1px solid #1a3a2a;
+  border-radius: 4px; font-size: 11px;
+  color: var(--text-dim); white-space: pre-wrap;
 }

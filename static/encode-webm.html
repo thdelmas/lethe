@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html><head><style>body{background:#080808;margin:0}</style></head>
+<body>
+<canvas id="c" width="480" height="480"></canvas>
+<script>
+var canvas = document.getElementById('c');
+var ctx = canvas.getContext('2d');
+var FPS = 16;
+var FRAMES = 96;
+var stream = canvas.captureStream(0);
+var rec = new MediaRecorder(stream, {mimeType:'video/webm;codecs=vp8',videoBitsPerSecond:4000000});
+var chunks = [];
+rec.ondataavailable = function(e){if(e.data.size)chunks.push(e.data)};
+
+var frameIdx = 0;
+rec.start();
+
+function loadNext() {
+  if (frameIdx >= FRAMES) {
+    rec.stop();
+    return;
+  }
+  var img = new Image();
+  img.onload = function() {
+    ctx.drawImage(img, 0, 0, 480, 480);
+    stream.getVideoTracks()[0].requestFrame();
+    frameIdx++;
+    if (frameIdx % 100 === 0) console.log(frameIdx + '/' + FRAMES);
+    setTimeout(loadNext, 1000/FPS);
+  };
+  img.onerror = function() { console.log('err: ' + frameIdx); frameIdx++; loadNext(); };
+  img.src = 'idle-frames/f' + String(frameIdx).padStart(5,'0') + '.png';
+}
+
+rec.onstop = async function() {
+  var blob = new Blob(chunks, {type:'video/webm'});
+  var buf = await blob.arrayBuffer();
+  window._videoData = Array.from(new Uint8Array(buf));
+  window._done = true;
+  console.log('Encoded: ' + (buf.byteLength/1024) + 'KB');
+};
+
+loadNext();
+</script>
+</body></html>

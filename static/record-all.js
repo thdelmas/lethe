@@ -1,6 +1,6 @@
 const puppeteer = require('puppeteer');
 const { execSync } = require('child_process');
-const FPS = 15;
+const FPS = 10;
 
 const ANIMS = [
   { idx: 0, name: 'intro',     dur: 5.71,  glow: false },
@@ -30,7 +30,7 @@ const ANIMS = [
     const url = `http://localhost:9999/record-preview.html?anim=${anim.idx}${glowParam}`;
 
     const page = await browser.newPage();
-    await page.setViewport({ width: 360, height: 480, deviceScaleFactor: 2 });
+    await page.setViewport({ width: 480, height: 480, deviceScaleFactor: 2 });
 
     console.log(`\n[${anim.name}] ${frames} frames, glow=${anim.glow}`);
     await page.goto(url, { waitUntil: 'load', timeout: 120000 });

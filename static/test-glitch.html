@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html><head>
+<style>
+* { margin: 0; }
+body { background: #080808; display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100vh; }
+.mascot-wrap { position: relative; width: 480px; height: 480px; }
+video {
+  position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+  object-fit: contain; background: transparent;
+  transition: opacity 0.08s ease;
+}
+video::-webkit-media-controls { display: none !important; }
+#vid-a { z-index: 1; }
+#vid-b { z-index: 2; opacity: 0; }
+.controls { margin-top: 20px; display: flex; gap: 8px; flex-wrap: wrap; justify-content: center; }
+button {
+  padding: 8px 16px; background: #111; color: #22e8a0; border: 1px solid #1a3a2a;
+  border-radius: 4px; font: 13px monospace; cursor: pointer;
+}
+button:hover { background: #1a3a2a; }
+p { color: #3a5840; font: 11px monospace; margin-top: 8px; }
+</style>
+</head>
+<body>
+<div class="mascot-wrap">
+  <video id="vid-a" muted playsinline></video>
+  <video id="vid-b" muted playsinline></video>
+</div>
+<div class="controls">
+  <button onclick="triggerAnim('mascot-walk-blue.webm')">walk (blue)</button>
+  <button onclick="triggerAnim('mascot-run-red.webm')">run (red)</button>
+</div>
+<p id="status">idle</p>
+
+<script>
+var vidA = document.getElementById('vid-a');
+var vidB = document.getElementById('vid-b');
+var statusEl = document.getElementById('status');
+var frontVid = vidA;
+var backVid = vidB;
+var pendingAnim = null;
+var backReady = false;
+var isIdle = true;
+var transitioning = false;
+
+frontVid.src = 'mascot-idle-green.webm';
+frontVid.loop = true;
+frontVid.style.opacity = '1';
+frontVid.play();
+
+function swapLayers() {
+  var tmp = frontVid;
+  frontVid = backVid;
+  backVid = tmp;
+}
+
+function checkTime() {
+  requestAnimationFrame(checkTime);
+  if (!pendingAnim || !isIdle || transitioning) return;
+
+  var dur = frontVid.duration || 999;
+  var t = frontVid.currentTime;
+
+  // Wait for BOTH: near neutral frame AND back video is ready
+  if (t >= dur - 0.4 && backReady) {
+    transitioning = true;
+    pendingAnim = null;
+    backReady = false;
+
+    // Instant swap — back video is preloaded and paused at frame 0
+    backVid.play();
+    backVid.style.opacity = '1';
+    frontVid.style.opacity = '0';
+
+    setTimeout(function() {
+      frontVid.pause();
+      frontVid.playbackRate = 1;
+      swapLayers();
+      isIdle = false;
+      transitioning = false;
+      statusEl.textContent = 'playing';
+
+      // Preload idle on back for the return
+      backVid.src = 'mascot-idle-green.webm';
+      backVid.loop = true;
+      backVid.load();
+      backVid.oncanplay = function() {
+        backVid.oncanplay = null;
+        // Pause at frame 0 until needed
+        backVid.pause();
+      };
+
+      frontVid.onended = function() {
+        frontVid.onended = null;
+        // Back has idle preloaded — swap
+        backVid.play();
+        backVid.style.opacity = '1';
+        frontVid.style.opacity = '0';
+        setTimeout(function() {
+          frontVid.pause();
+          swapLayers();
+          isIdle = true;
+          statusEl.textContent = 'idle';
+        }, 100);
+      };
+    }, 100);
+  }
+}
+checkTime();
+
+function triggerAnim(src) {
+  if (pendingAnim || !isIdle || transitioning) return;
+  pendingAnim = src;
+  backReady = false;
+  statusEl.textContent = 'preloading...';
+
+  // Preload animation on back video immediately
+  backVid.src = src;
+  backVid.loop = false;
+  backVid.load();
+  backVid.oncanplay = function() {
+    backVid.oncanplay = null;
+    // Pause — don't play yet, just have frames decoded
+    backVid.pause();
+    backVid.currentTime = 0;
+    backReady = true;
+    statusEl.textContent = 'ready, speeding up...';
+  };
+
+  // Speed up idle to reach neutral
+  frontVid.playbackRate = 4;
+}
+</script>
+</body>
+</html>
