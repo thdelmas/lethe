@@ -4,6 +4,8 @@
 </head><body>
 <script src="three.min.js"></script>
 <script src="GLTFLoader.js"></script>
+<script src="fflate.min.js"></script>
+<script src="FBXLoader.js"></script>
 <script>
 var params = new URLSearchParams(location.search);
 var renderer = new THREE.WebGLRenderer({antialias:false, alpha:false});
@@ -115,42 +117,111 @@ var ol=new THREE.PointLight(0x22e8a0,2.0,0.8);scene.add(ol);
 var cl=new THREE.PointLight(0x22e8a0,1.5,0.6);scene.add(cl);
 var hl=new THREE.PointLight(0x22e8a0,1.0,0.4);scene.add(hl);
 
-var mixer;
+var mixer, modelScene, restPose = {};
+var activeFBXRetarget = null;
+
+var MIXAMO_TO_LETHE = {
+  'mixamorigHips': 'Hip', 'mixamorigSpine': 'Waist',
+  'mixamorigSpine1': 'Spine01', 'mixamorigSpine2': 'Spine02',
+  'mixamorigNeck': 'NeckTwist01', 'mixamorigHead': 'Head',
+  'mixamorigLeftUpLeg': 'L_Thigh', 'mixamorigLeftLeg': 'L_Calf',
+  'mixamorigLeftFoot': 'L_Foot', 'mixamorigLeftToeBase': 'L_Foot',
+  'mixamorigRightUpLeg': 'R_Thigh', 'mixamorigRightLeg': 'R_Calf',
+  'mixamorigRightFoot': 'R_Foot', 'mixamorigRightToeBase': 'R_Foot',
+  'mixamorigLeftShoulder': 'L_Clavicle', 'mixamorigLeftArm': 'L_Upperarm',
+  'mixamorigLeftForeArm': 'L_Forearm', 'mixamorigLeftHand': 'L_Hand',
+  'mixamorigRightShoulder': 'R_Clavicle', 'mixamorigRightArm': 'R_Upperarm',
+  'mixamorigRightForeArm': 'R_Forearm', 'mixamorigRightHand': 'R_Hand'
+};
+var WORLD_COPY_BONES = ['L_Upperarm','L_Forearm','L_Hand',
+                        'R_Upperarm','R_Forearm','R_Hand'];
+var BONE_ORDER = ['mixamorigHips','mixamorigSpine','mixamorigSpine1','mixamorigSpine2',
+  'mixamorigNeck','mixamorigHead',
+  'mixamorigLeftShoulder','mixamorigLeftArm','mixamorigLeftForeArm','mixamorigLeftHand',
+  'mixamorigRightShoulder','mixamorigRightArm','mixamorigRightForeArm','mixamorigRightHand',
+  'mixamorigLeftUpLeg','mixamorigLeftLeg','mixamorigLeftFoot','mixamorigLeftToeBase',
+  'mixamorigRightUpLeg','mixamorigRightLeg','mixamorigRightFoot','mixamorigRightToeBase'];
+
+function setupFBXRetarget(fbxScene) {
+  var mixamoBones = {}, mixamoRestLocal = {}, letheBones = {};
+  fbxScene.traverse(function(n) {
+    if (n.isBone) { mixamoBones[n.name] = n; mixamoRestLocal[n.name] = n.quaternion.clone(); }
+  });
+  modelScene.traverse(function(n) { if (n.isBone) letheBones[n.name] = n; });
+  var fbxMixer = new THREE.AnimationMixer(fbxScene);
+  var act = fbxMixer.clipAction(fbxScene.animations[0]);
+  act.setLoop(THREE.LoopRepeat); act.play();
+  activeFBXRetarget = { fbxScene:fbxScene, fbxMixer:fbxMixer,
+    mixamoBones:mixamoBones, mixamoRestLocal:mixamoRestLocal, letheBones:letheBones };
+}
+
+function updateFBXRetarget(dt) {
+  if (!activeFBXRetarget) return;
+  var r = activeFBXRetarget;
+  r.fbxMixer.update(dt);
+  r.fbxScene.updateMatrixWorld(true);
+  BONE_ORDER.forEach(function(mName) {
+    var lName = MIXAMO_TO_LETHE[mName];
+    var mBone = r.mixamoBones[mName], lBone = r.letheBones[lName];
+    if (!mBone || !lBone || !restPose[lName]) return;
+    if (WORLD_COPY_BONES.indexOf(lName) !== -1) {
+      var mwq = new THREE.Quaternion(); mBone.getWorldQuaternion(mwq);
+      var pwq = new THREE.Quaternion(); if (lBone.parent) lBone.parent.getWorldQuaternion(pwq);
+      lBone.quaternion.copy(pwq.clone().invert().multiply(mwq));
+    } else {
+      var delta = r.mixamoRestLocal[mName].clone().invert().multiply(mBone.quaternion);
+      lBone.quaternion.copy(restPose[lName].q.clone().multiply(delta));
+    }
+  });
+  modelScene.updateMatrixWorld(true);
+}
+
 var loader=new THREE.GLTFLoader();
 loader.load('mascot-taproot.glb',function(gltf){
-  gltf.scene.rotation.y=285*Math.PI/180;
-  var box=new THREE.Box3().setFromObject(gltf.scene);
+  modelScene = gltf.scene;
+  modelScene.rotation.y=285*Math.PI/180;
+  var box=new THREE.Box3().setFromObject(modelScene);
   var c=box.getCenter(new THREE.Vector3());
   var s=box.getSize(new THREE.Vector3());
-  gltf.scene.position.set(-c.x,-box.min.y,-c.z);
+  modelScene.position.set(-c.x,-box.min.y,-c.z);
   camera.position.set(0,s.y*0.45,s.x*2.5);
   camera.lookAt(0,s.y*0.4,0);
   ol.position.set(0,s.y*0.55,0.02);
   cl.position.set(0,s.y*0.35,0.02);
   hl.position.set(0,s.y*0.80,0.02);
-  scene.add(gltf.scene);
-  mixer=new THREE.AnimationMixer(gltf.scene);
-  var animIdx=parseInt(params.get('anim')||'24');
-  // Play initial animation
-  var pingpong = params.get('pingpong') === '1';
-  if(animIdx < gltf.animations.length){
-    var action = mixer.clipAction(gltf.animations[animIdx]);
-    action.setLoop(pingpong ? THREE.LoopPingPong : THREE.LoopRepeat);
-    action.play();
+  modelScene.traverse(function(n) {
+    if (n.isBone) restPose[n.name] = { q:n.quaternion.clone(), p:n.position.clone() };
+  });
+  scene.add(modelScene);
+  mixer=new THREE.AnimationMixer(modelScene);
+
+  var fbxFile = params.get('fbx');
+  if (fbxFile) {
+    // Load FBX and use runtime retargeting
+    var fbxLoader = new THREE.FBXLoader();
+    fbxLoader.load(fbxFile, function(fbxResult) {
+      setupFBXRetarget(fbxResult);
+      window._ready = true;
+    });
+  } else {
+    var animIdx=parseInt(params.get('anim')||'24');
+    var pingpong = params.get('pingpong') === '1';
+    if(animIdx < gltf.animations.length){
+      var action = mixer.clipAction(gltf.animations[animIdx]);
+      action.setLoop(pingpong ? THREE.LoopPingPong : THREE.LoopRepeat);
+      action.play();
+    }
+    window._mixer = mixer;
+    window._anims = gltf.animations;
+    window._currentAction = action;
+    window.switchAnim = function(idx) {
+      if(window._currentAction) window._currentAction.fadeOut(0.5);
+      var newAction = mixer.clipAction(gltf.animations[idx]);
+      newAction.reset().fadeIn(0.5).setLoop(THREE.LoopRepeat).play();
+      window._currentAction = newAction;
+    };
+    window._ready=true;
   }
-
-  // Expose API for switching animations mid-recording
-  window._mixer = mixer;
-  window._anims = gltf.animations;
-  window._currentAction = action;
-  window.switchAnim = function(idx) {
-    if(window._currentAction) window._currentAction.fadeOut(0.5);
-    var newAction = mixer.clipAction(gltf.animations[idx]);
-    newAction.reset().fadeIn(0.5).setLoop(THREE.LoopRepeat).play();
-    window._currentAction = newAction;
-  };
-
-  window._ready=true;
 });
 
 var clock=new THREE.Clock();
@@ -158,7 +229,11 @@ function animate(){
   requestAnimationFrame(animate);
   var dt=clock.getDelta();var t=clock.getElapsedTime();
   var speed=parseFloat(params.get('speed')||'0.3');
-  if(mixer)mixer.update(dt*speed);
+  if (activeFBXRetarget) {
+    updateFBXRetarget(dt*speed);
+  } else if(mixer) {
+    mixer.update(dt*speed);
+  }
   var g=0.5+0.5*Math.sin(t*Math.PI/7.5);
   ol.intensity=2.0*(0.7+0.15*g);
   cl.intensity=1.5*(0.7+0.15*g);

@@ -71,10 +71,17 @@ var vidA = document.getElementById('vid-a');
 var vidB = document.getElementById('vid-b');
 var activeVid = vidA;   // currently drawing to canvas
 var nextVid = vidB;     // preloading next video
-var letheAnimations = [
-  'mascot-walk-blue.webm',
-  'mascot-run-red.webm'
-];
+// Context-aware animation pools — no LLM needed
+// All green to match default mood; mood system handles color shifts separately
+// speed: playbackRate (1 = normal, <1 = slower)
+var animByContext = {
+  calm:      [{src: 'mascot-waving-green.webm'}, {src: 'mascot-walk-green.webm'}],
+  fidgeting: [{src: 'mascot-walk-green.webm'}, {src: 'mascot-run-green.webm', speed: 0.6}],
+  sleepy:    [{src: 'mascot-idle-green.webm'}],
+  replied:   [{src: 'mascot-waving-green.webm'}, {src: 'mascot-walk-green.webm'}],
+  tap:       [{src: 'mascot-waving-green.webm'}, {src: 'mascot-walk-green.webm'}, {src: 'mascot-run-green.webm', speed: 0.6}],
+  wake:      [{src: 'mascot-warm_up-green.webm'}]
+};
 var letheAnimPlaying = false;
 var idleLoopTimer = null;
 var lastInteraction = Date.now();
@@ -192,7 +199,7 @@ if (vidA && canvas2d) {
   drawLoop();
 }
 
-function playVideoAnim(src) {
+function playVideoAnim(src, speed) {
   if (!vidA || letheAnimPlaying || crossfading || pendingAnim) return;
   pendingAnim = src;
   nextReady = false;
@@ -200,6 +207,7 @@ function playVideoAnim(src) {
   // Preload animation on next video
   nextVid.src = src;
   nextVid.loop = false;
+  nextVid.playbackRate = speed || 1;
   nextVid.load();
   console.log('LETHE anim: preloading ' + src);
   function onReady() {
@@ -215,10 +223,15 @@ function playVideoAnim(src) {
   nextVid.onloadeddata = onReady; // fallback for older WebViews
 }
 
-function playRandomAnim() {
+function pickAnim(context) {
+  var pool = animByContext[context] || animByContext.calm;
+  return pool[Math.floor(Math.random() * pool.length)];
+}
+
+function playRandomAnim(context) {
   if (!vidA || letheAnimPlaying) return;
-  var src = letheAnimations[Math.floor(Math.random() * letheAnimations.length)];
-  playVideoAnim(src);
+  var anim = pickAnim(context || boredomState);
+  playVideoAnim(anim.src, anim.speed);
 }
 
 function setBoredom(state) {
@@ -397,7 +410,7 @@ homeMascot.addEventListener('touchstart', function(e) {
   if (boredomState === 'asleep' || boredomState === 'sleepy') {
     setBoredom('calm');
     if (canvas2d && !letheAnimPlaying) {
-      playVideoAnim('warm_up');
+      playRandomAnim('wake');
     }
   }
 
@@ -423,7 +436,7 @@ homeMascot.addEventListener('touchend', function(e) {
       openChat();
     }
   } else {
-    playRandomAnim();
+    playRandomAnim('tap');
   }
   e.preventDefault();
 }, { passive: false });
@@ -432,7 +445,7 @@ homeMascot.addEventListener('touchend', function(e) {
 homeMascot.addEventListener('click', function(e) {
   lastInteraction = Date.now();
   spawnRipple(e.clientX, e.clientY);
-  playRandomAnim();
+  playRandomAnim('tap');
 });
 
 /* Tap mini mascot in chat → go home */
@@ -708,6 +721,10 @@ function send() {
 
       chatHistory.push({ role: 'assistant', content: reply });
       addMessage(reply, 'lethe'); setState('idle');
+      // Context-aware post-reply animation (50% chance, avoids being annoying)
+      if (viewState === 'home' && Math.random() > 0.5) {
+        setTimeout(function() { playRandomAnim('replied'); }, 1500);
+      }
     })
     .catch(function() {
       hideTyping(); setState('alert');

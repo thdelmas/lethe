@@ -6,7 +6,7 @@
 var canvas = document.getElementById('c');
 var ctx = canvas.getContext('2d');
 var FPS = 16;
-var FRAMES = 96;
+var FRAMES = 120;
 var stream = canvas.captureStream(0);
 var rec = new MediaRecorder(stream, {mimeType:'video/webm;codecs=vp8',videoBitsPerSecond:4000000});
 var chunks = [];
