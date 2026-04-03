@@ -88,6 +88,8 @@
 
 <script src="three.min.js"></script>
 <script src="GLTFLoader.js"></script>
+<script src="fflate.min.js"></script>
+<script src="FBXLoader.js"></script>
 <script>
 var viewport = document.getElementById('viewport');
 var W = viewport.clientWidth, H = viewport.clientHeight;
@@ -221,6 +223,18 @@ loader.load('mascot-taproot.glb', function(gltf) {
   });
   list.parentNode.insertBefore(exportBtn, list.nextSibling);
 
+  // Save rest pose for FBX retargeting
+  var restPose = {};
+  modelScene.traverse(function(node) {
+    if (node.isBone) {
+      restPose[node.name] = {
+        q: node.quaternion.clone(),
+        p: node.position.clone()
+      };
+    }
+  });
+  window._letheRestPose = restPose;
+
   // Play first by default
   playAnim(0);
   document.querySelector('.anim-list li').classList.add('active');
@@ -229,13 +243,208 @@ loader.load('mascot-taproot.glb', function(gltf) {
     animations.length + ' animations\n' +
     gltf.scene.children.length + ' root nodes\n' +
     (gltf.scene.userData || '');
+
+  // Load extra FBX animation packs
+  loadFBXAnims(['Waving.fbx', 'Breakdance 1990.fbx']);
 });
+
+// Mixamo → LETHE bone retargeting
+// FBXLoader strips the colon, so "mixamorig:Hips" becomes "mixamorigHips"
+var MIXAMO_TO_LETHE = {
+  'mixamorigHips': 'Hip', 'mixamorigSpine': 'Waist',
+  'mixamorigSpine1': 'Spine01', 'mixamorigSpine2': 'Spine02',
+  'mixamorigNeck': 'NeckTwist01', 'mixamorigHead': 'Head',
+  'mixamorigLeftUpLeg': 'L_Thigh', 'mixamorigLeftLeg': 'L_Calf',
+  'mixamorigLeftFoot': 'L_Foot', 'mixamorigLeftToeBase': 'L_Foot',
+  'mixamorigRightUpLeg': 'R_Thigh', 'mixamorigRightLeg': 'R_Calf',
+  'mixamorigRightFoot': 'R_Foot', 'mixamorigRightToeBase': 'R_Foot',
+  'mixamorigLeftShoulder': 'L_Clavicle', 'mixamorigLeftArm': 'L_Upperarm',
+  'mixamorigLeftForeArm': 'L_Forearm', 'mixamorigLeftHand': 'L_Hand',
+  'mixamorigRightShoulder': 'R_Clavicle', 'mixamorigRightArm': 'R_Upperarm',
+  'mixamorigRightForeArm': 'R_Forearm', 'mixamorigRightHand': 'R_Hand'
+};
+
+// Runtime retargeting: animate Mixamo offscreen, transfer deltas to LETHE
+var activeFBXRetarget = null;
+
+function setupRuntimeRetarget(fbxScene, clipName) {
+  var mixamoBones = {};
+  var mixamoRestLocal = {};
+  var mixamoRestWorld = {};
+  fbxScene.traverse(function(node) {
+    if (!node.isBone) return;
+    mixamoBones[node.name] = node;
+    mixamoRestLocal[node.name] = node.quaternion.clone();
+  });
+  // Compute world quaternions from rest pose
+  fbxScene.updateMatrixWorld(true);
+  fbxScene.traverse(function(node) {
+    if (!node.isBone) return;
+    var wq = new THREE.Quaternion();
+    node.getWorldQuaternion(wq);
+    mixamoRestWorld[node.name] = wq;
+  });
+
+  var letheBones = {};
+  var letheRestWorld = {};
+  // Save LETHE rest world quaternions before any animation
+  modelScene.traverse(function(node) {
+    if (!node.isBone) return;
+    letheBones[node.name] = node;
+  });
+  // Ensure rest pose is applied
+  modelScene.traverse(function(node) {
+    if (node.isBone && window._letheRestPose[node.name]) {
+      node.quaternion.copy(window._letheRestPose[node.name].q);
+    }
+  });
+  modelScene.updateMatrixWorld(true);
+  modelScene.traverse(function(node) {
+    if (!node.isBone) return;
+    var wq = new THREE.Quaternion();
+    node.getWorldQuaternion(wq);
+    letheRestWorld[node.name] = wq;
+  });
+
+  // Pre-compute axis correction per bone: maps Mixamo local axes to LETHE local axes
+  // axisCorrection = letheRestWorld * mixamoRestWorld^-1
+  var axisCorrection = {};
+  Object.keys(MIXAMO_TO_LETHE).forEach(function(mName) {
+    var lName = MIXAMO_TO_LETHE[mName];
+    if (mixamoRestWorld[mName] && letheRestWorld[lName]) {
+      var C = letheRestWorld[lName].clone().multiply(mixamoRestWorld[mName].clone().invert());
+      axisCorrection[mName] = C;
+    }
+  });
+
+  // Create mixer for FBX
+  var fbxMixer = new THREE.AnimationMixer(fbxScene);
+  var fbxAction = fbxMixer.clipAction(fbxScene.animations[0]);
+  fbxAction.setLoop(THREE.LoopRepeat);
+  fbxAction.play();
+
+  activeFBXRetarget = {
+    fbxScene: fbxScene,
+    fbxMixer: fbxMixer,
+    mixamoBones: mixamoBones,
+    mixamoRestLocal: mixamoRestLocal,
+    letheBones: letheBones,
+    axisCorrection: axisCorrection
+  };
+}
+
+function updateRuntimeRetarget(dt) {
+  if (!activeFBXRetarget) return;
+  var r = activeFBXRetarget;
+
+  // Advance FBX animation
+  r.fbxMixer.update(dt);
+
+  // For each mapped bone: copy the Mixamo world rotation, convert to LETHE local
+  // But first update the FBX world matrices
+  r.fbxScene.updateMatrixWorld(true);
+
+  // Process bones top-down (parent before child) so parent world quats are current
+  var boneOrder = ['mixamorigHips', 'mixamorigSpine', 'mixamorigSpine1', 'mixamorigSpine2',
+    'mixamorigNeck', 'mixamorigHead',
+    'mixamorigLeftShoulder', 'mixamorigLeftArm', 'mixamorigLeftForeArm', 'mixamorigLeftHand',
+    'mixamorigRightShoulder', 'mixamorigRightArm', 'mixamorigRightForeArm', 'mixamorigRightHand',
+    'mixamorigLeftUpLeg', 'mixamorigLeftLeg', 'mixamorigLeftFoot', 'mixamorigLeftToeBase',
+    'mixamorigRightUpLeg', 'mixamorigRightLeg', 'mixamorigRightFoot', 'mixamorigRightToeBase'];
+
+  // Torso/spine chain: use delta approach (parent chains differ)
+  var deltaBones = ['Hip', 'Waist', 'Spine01', 'Spine02', 'NeckTwist01', 'Head',
+                    'R_Thigh', 'R_Calf', 'R_Foot', 'L_Thigh', 'L_Calf', 'L_Foot'];
+  // Limbs: use world rotation copy (arm axes differ)
+  var worldBones = ['L_Upperarm', 'L_Forearm', 'L_Hand',
+                    'R_Upperarm', 'R_Forearm', 'R_Hand'];
+
+  boneOrder.forEach(function(mName) {
+    var lName = MIXAMO_TO_LETHE[mName];
+    var mBone = r.mixamoBones[mName];
+    var lBone = r.letheBones[lName];
+    if (!mBone || !lBone) return;
+
+    if (worldBones.indexOf(lName) !== -1) {
+      // World rotation copy for arms
+      var mWorldQ = new THREE.Quaternion();
+      mBone.getWorldQuaternion(mWorldQ);
+      var lParentWorldQ = new THREE.Quaternion();
+      if (lBone.parent) lBone.parent.getWorldQuaternion(lParentWorldQ);
+      lBone.quaternion.copy(lParentWorldQ.clone().invert().multiply(mWorldQ));
+    } else {
+      // Delta approach for torso/legs
+      var mRest = r.mixamoRestLocal[mName];
+      var delta = mRest.clone().invert().multiply(mBone.quaternion);
+      var lRest = window._letheRestPose[lName].q;
+      lBone.quaternion.copy(lRest.clone().multiply(delta));
+    }
+  });
+  modelScene.updateMatrixWorld(true);
+}
+
+// Store loaded FBX scenes for runtime retargeting
+var fbxScenes = {};
+
+function loadFBXAnims(urls) {
+  var fbxLoader = new THREE.FBXLoader();
+  var list = document.getElementById('anim-list');
+  urls.forEach(function(url) {
+    fbxLoader.load(url, function(result) {
+      var name = url.replace(/\.fbx$/i, '');
+      fbxScenes[name] = result;
+      var idx = animations.length;
+      // Push a dummy clip so the index is reserved
+      var dummyClip = new THREE.AnimationClip(name, result.animations[0].duration, []);
+      dummyClip._fbxName = name;
+      animations.push(dummyClip);
+      // Add to UI list
+      var li = document.createElement('li');
+      li.innerHTML = '<span class="anim-label">🆕 ' + idx + ': ' + name + '</span>' +
+        '<span class="dur">' + result.animations[0].duration.toFixed(1) + 's</span>';
+      li.addEventListener('click', function() {
+        playAnim(idx);
+        document.querySelectorAll('.anim-list li').forEach(function(el) {
+          el.classList.remove('active');
+        });
+        li.classList.add('active');
+      });
+      list.appendChild(li);
+      console.log('LETHE FBX: loaded ' + url);
+    }, undefined, function(err) {
+      console.error('LETHE FBX: failed to load ' + url, err);
+    });
+  });
+}
 
 function playAnim(idx) {
   if (!mixer || idx >= animations.length) return;
   if (currentAction) currentAction.stop();
-  currentAction = mixer.clipAction(animations[idx]);
+  activeFBXRetarget = null; // Stop any runtime retarget
+
+  var clip = animations[idx];
+  console.log('Playing:', clip.name, 'tracks:', clip.tracks.length, 'duration:', clip.duration);
+
+  // If this is an FBX clip, use runtime retargeting
+  if (clip._fbxName && fbxScenes[clip._fbxName]) {
+    // Reset LETHE bones to rest pose first
+    modelScene.traverse(function(node) {
+      if (node.isBone && window._letheRestPose[node.name]) {
+        node.quaternion.copy(window._letheRestPose[node.name].q);
+        node.position.copy(window._letheRestPose[node.name].p);
+      }
+    });
+    setupRuntimeRetarget(fbxScenes[clip._fbxName], clip._fbxName);
+    currentAction = null;
+    updateInfo(idx);
+    return;
+  }
+
+  currentAction = mixer.clipAction(clip);
   currentAction.setLoop(THREE.LoopRepeat);
+  currentAction.clampWhenFinished = false;
+  currentAction.enabled = true;
+  currentAction.setEffectiveWeight(1);
   currentAction.reset().play();
   updateInfo(idx);
 }
@@ -296,7 +505,11 @@ function animate() {
   var dt = clock.getDelta();
   var t = clock.getElapsedTime();
 
-  if (mixer) mixer.update(dt * currentSpeed);
+  if (activeFBXRetarget) {
+    updateRuntimeRetarget(dt * currentSpeed);
+  } else if (mixer) {
+    mixer.update(dt * currentSpeed);
+  }
 
   // Inner glow: gentle pulse at constant teal — CSS filter shifts the color
   var glow = 0.5 + 0.5 * Math.sin(t * Math.PI / 7.5);
