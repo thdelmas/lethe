@@ -441,6 +441,14 @@ features:
         name: "Mull Browser"
         package: "us.spotco.fennec_dos"
         desc: "Privacy-hardened Firefox fork by DivestOS — all traffic routed through Tor"
+      - id: aurora
+        name: "Aurora Store"
+        package: "com.aurora.store"
+        desc: "Anonymous Google Play Store client — no Google account needed, tracker scores shown"
+        notes: >
+          Provides anonymous access to Google Play catalog via disposable tokens.
+          All traffic routed through Tor by default. Shows Exodus Privacy tracker
+          counts per app. Users can optionally sign in for paid app access.
       - id: davx5
         name: "DAVx5"
         package: "at.bitfire.davdroid"

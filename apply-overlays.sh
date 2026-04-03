@@ -201,12 +201,36 @@ if [ -f "$OVERLAY_DIR/ipfs-ota.conf" ]; then
     else
         echo "  -> WARNING: init dir not found, skipping IPFS OTA init service."
     fi
+
+    # Install the OTA update script to /system/bin
+    SCRIPTS_DIR="$SCRIPT_DIR/scripts"
+    if [ -f "$SCRIPTS_DIR/lethe-ota-update.sh" ]; then
+        mkdir -p "system/bin"
+        cp "$SCRIPTS_DIR/lethe-ota-update.sh" "system/bin/lethe-ota-update.sh"
+        chmod 755 "system/bin/lethe-ota-update.sh"
+        echo "  -> OTA update script installed to /system/bin."
+    else
+        echo "  -> WARNING: lethe-ota-update.sh not found, skipping."
+    fi
+
+    # Install trust pubkey placeholder (replaced at build time with real key)
+    mkdir -p "system/etc/lethe"
+    if [ -f "$SCRIPT_DIR/../keys/update-pubkey.pem" ]; then
+        cp "$SCRIPT_DIR/../keys/update-pubkey.pem" "system/etc/lethe/update-pubkey.pem"
+        chmod 644 "system/etc/lethe/update-pubkey.pem"
+        echo "  -> OTA trust pubkey installed."
+    else
+        echo "  -> WARNING: update-pubkey.pem not found in keys/. Generate with:"
+        echo "     openssl genpkey -algorithm Ed25519 -out keys/update-privkey.pem"
+        echo "     openssl pkey -in keys/update-privkey.pem -pubout -out keys/update-pubkey.pem"
+    fi
+
     echo "  -> IPFS OTA overlay installed."
 fi
 
 # ── 11. LETHE agent (native AI layer) ──
 echo "[11/13] Installing LETHE agent as native system component..."
-AGENT_SOURCE="${AGENT_DIR:-${BENDER_DIR:-$SCRIPT_DIR/../../bender}}"
+AGENT_SOURCE="${AGENT_DIR:-${LETHE_DIR:-${BENDER_DIR:-$SCRIPT_DIR/../../bender}}}"
 if [ -d "$AGENT_SOURCE" ]; then
     # ── 10a. Backend server (Python, runs as system service) ──
     AGENT_TARGET="system/extras/lethe/agent"
@@ -333,7 +357,7 @@ MANIFEST
     echo "  -> LETHE agent installed as native system component."
 else
     echo "  -> WARNING: Agent source not found at $AGENT_SOURCE, skipping."
-    echo "     Set AGENT_DIR or BENDER_DIR to override, or place bender/ alongside OSmosis."
+    echo "     Set AGENT_DIR or LETHE_DIR to override, or place bender/ alongside OSmosis."
 fi
 
 # ── 12. Build fingerprint ──

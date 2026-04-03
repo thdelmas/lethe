@@ -16,13 +16,11 @@ Requires: Pillow (pip install Pillow)
 
 import argparse
 import math
-import os
 import shutil
 import zipfile
 from pathlib import Path
 
-from PIL import Image, ImageEnhance
-
+from PIL import Image
 
 SCRIPT_DIR = Path(__file__).resolve().parent
 DEFAULT_SOURCE = SCRIPT_DIR.parent / "overlays" / "lockscreen.png"
@@ -121,10 +119,12 @@ def write_bootanimation_zip(frames_part0, frames_part1, output_path):
 
 def main():
     parser = argparse.ArgumentParser(description="Generate Lethe boot animation")
-    parser.add_argument("--source", type=Path, default=DEFAULT_SOURCE,
-                        help="Source image (default: overlays/lockscreen.png)")
-    parser.add_argument("--output", type=Path, default=DEFAULT_OUTPUT,
-                        help="Output ZIP path (default: bootanimation/bootanimation.zip)")
+    parser.add_argument(
+        "--source", type=Path, default=DEFAULT_SOURCE, help="Source image (default: overlays/lockscreen.png)"
+    )
+    parser.add_argument(
+        "--output", type=Path, default=DEFAULT_OUTPUT, help="Output ZIP path (default: bootanimation/bootanimation.zip)"
+    )
     args = parser.parse_args()
 
     if not args.source.exists():

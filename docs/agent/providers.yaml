@@ -19,6 +19,7 @@ providers:
     requires_api_key: false
     models_dir: "/data/lethe/models"
     models:
+      # ── Chat / Reasoning ──
       - id: "qwen3-0.6b"
         file: "qwen3-0.6b-q4_k_m.gguf"
         download_url: "https://huggingface.co/Qwen/Qwen3-0.6B-GGUF/resolve/main/qwen3-0.6b-q4_k_m.gguf"
@@ -37,6 +38,24 @@ providers:
         tasks: ["chat", "summarize", "reasoning"]
         context_window: 8192
         notes: "Qwen 3 — strong local reasoning. Recommended for 3GB+ RAM."
+      # ── Tool Calling ──
+      - id: "functiongemma-270m"
+        file: "functiongemma-270m-it-q4.gguf"
+        download_url: "https://huggingface.co/google/functiongemma-270m-it"
+        size_mb: 125
+        min_ram_mb: 300
+        arch: ["armv7", "arm64", "x86_64"]
+        tasks: ["tool_calling"]
+        context_window: 8192
+        notes: "Gemma 3 270M fine-tuned for function/tool calling. 85% accuracy. Translates NL to system API actions. Key to making LETHE's agent act."
+      # ── Speech (Sherpa-ONNX replaces Whisper) ──
+      - id: "sherpa-onnx-streaming"
+        engine_override: "sherpa-onnx"
+        size_mb: 30
+        min_ram_mb: 80
+        arch: ["armv7", "arm64", "x86_64"]
+        tasks: ["transcription", "tts", "vad"]
+        notes: "Sherpa-ONNX streaming STT+TTS+VAD. Replaces Whisper+eSpeak. Int8 models for Cortex A7. 30MB streaming models."
       - id: "whisper-tiny"
         file: "ggml-tiny.bin"
         download_url: "https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-tiny.bin"
@@ -44,6 +63,7 @@ providers:
         min_ram_mb: 200
         arch: ["armv7", "arm64", "x86_64"]
         tasks: ["transcription"]
+        notes: "Fallback if Sherpa-ONNX unavailable."
       - id: "whisper-base"
         file: "ggml-base.bin"
         download_url: "https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-base.bin"
@@ -51,6 +71,28 @@ providers:
         min_ram_mb: 300
         arch: ["armv7", "arm64", "x86_64"]
         tasks: ["transcription"]
+      # ── Embeddings (for Mnemosyne memory system) ──
+      - id: "all-minilm-l6-v2"
+        engine_override: "tract"
+        size_mb: 80
+        min_ram_mb: 120
+        arch: ["armv7", "arm64", "x86_64"]
+        tasks: ["embeddings"]
+        notes: "22M param embedding model. Runs on ARMv7. For on-device semantic search / Mnemosyne."
+      - id: "embeddinggemma-300m"
+        engine_override: "tract"
+        size_mb: 200
+        min_ram_mb: 400
+        arch: ["arm64", "x86_64"]
+        tasks: ["embeddings"]
+        notes: "308M params. 100+ languages. <15ms per 256 tokens. Taproot+ only."
+      # ── Vision (deeproot only) ──
+      - id: "smolvlm-256m"
+        size_mb: 300
+        min_ram_mb: 1000
+        arch: ["arm64"]
+        tasks: ["vision"]
+        notes: "Smallest VLM. 81 tokens per 384x384 image (vs 16K for Qwen2-VL). Outperforms 300x larger models."
 
   anthropic:
     type: "cloud"
@@ -129,20 +171,60 @@ tasks:
       Connect me to a cloud provider.
   vision:
     desc: "Image understanding, screenshot analysis"
-    priority: ["cloud"]
-    required_models: ["claude-opus-4-6", "claude-sonnet-4-6", "google/gemini-2.5-pro"]
+    priority: ["local", "cloud"]
+    required_models: ["smolvlm-256m", "claude-opus-4-6", "claude-sonnet-4-6", "google/gemini-2.5-pro"]
     fallback_message: >
       I cannot see images without a vision-capable model.
+      Download SmolVLM in Settings, or add a cloud provider key.
   transcription:
     desc: "Speech-to-text"
     priority: ["local"]
-    required_models: ["whisper-tiny", "whisper-base"]
+    required_models: ["sherpa-onnx-streaming", "whisper-tiny", "whisper-base"]
     fallback_message: >
-      I need a Whisper model to hear you. Download one
+      I need a speech model to hear you. Download one
       in Settings > LETHE > Voice.
+  tts:
+    desc: "Text-to-speech"
+    priority: ["local"]
+    required_models: ["sherpa-onnx-streaming"]
+    fallback_message: >
+      Voice output needs a TTS model. Falling back to eSpeak.
+  tool_calling:
+    desc: "Translate natural language to system API actions"
+    priority: ["local", "cloud"]
+    required_models: ["functiongemma-270m"]
+    fallback_message: >
+      I need the FunctionGemma model to take actions.
+      Download it in Settings > LETHE > Intelligence.
+  embeddings:
+    desc: "Semantic search for Mnemosyne memory system"
+    priority: ["local"]
+    required_models: ["all-minilm-l6-v2", "embeddinggemma-300m"]
+    fallback_message: >
+      Memory search needs an embedding model. Download one
+      in Settings > LETHE > Intelligence.
   summarize:
     desc: "Summarize text, articles, conversations"
     priority: ["local", "cloud"]
+  # ── Future task types (research phase, no models assigned yet) ──
+  action:
+    desc: "Execute multi-step actions across apps and system APIs (LAM)"
+    priority: ["local", "cloud"]
+    notes: >
+      Currently handled by tool_calling (FunctionGemma 270M at 85%).
+      Dedicated LAM models may surpass this. Watch: Gorilla LLM,
+      NexusRaven, Google function-call Gemma variants.
+    fallback_message: >
+      I need an action model to do that. Download FunctionGemma
+      in Settings > LETHE > Intelligence.
+  segmentation:
+    desc: "Segment objects in images for accessibility or camera input (SAM)"
+    priority: ["local"]
+    notes: >
+      No model assigned yet. Evaluate MobileSAM / EfficientSAM
+      when arm64 deeproot-tier devices are primary targets.
+    fallback_message: >
+      Object segmentation is not available yet.
 
 # ── Routing logic ──
 routing:
@@ -182,8 +264,25 @@ settings_ui:
           label: "Qwen 3 (1.7B) — chat + reasoning"
           size: "1.1 GB"
           min_ram: "3 GB"
+        - model: "functiongemma-270m"
+          label: "FunctionGemma — tool calling (actions)"
+          size: "125 MB"
+        - model: "sherpa-onnx-streaming"
+          label: "Sherpa-ONNX — voice in + out"
+          size: "30 MB"
         - model: "whisper-base"
-          label: "Whisper Base — voice input"
+          label: "Whisper Base — voice input (legacy)"
           size: "150 MB"
+        - model: "all-minilm-l6-v2"
+          label: "MiniLM — memory search"
+          size: "80 MB"
+        - model: "embeddinggemma-300m"
+          label: "EmbeddingGemma — memory search (100+ languages)"
+          size: "200 MB"
+          min_ram: "4 GB"
+        - model: "smolvlm-256m"
+          label: "SmolVLM — screen understanding"
+          size: "300 MB"
+          min_ram: "4 GB"
     - title: "Task routing"
       desc: "Which model handles what"

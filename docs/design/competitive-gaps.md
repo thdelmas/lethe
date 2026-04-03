@@ -54,6 +54,14 @@ These are areas where no competitor matches LETHE:
 - Surface as mascot micro-expressions + ambient notification embers, not pop-ups
 - Never proactive about productivity or behavior — only about protection
 
+**Research findings (2026-03-31):**
+- **Calm Technology principles** (calmtech.com) — 8-principle framework for peripheral alerts. Mascot-as-dashboard: posture=threat level, glow=security state, breathing=activity, eyes=attention. Users never read a dashboard — the guardian's body language IS the dashboard.
+- **Sherpa-ONNX** (github.com/k2-fsa/sherpa-onnx) — unified STT+TTS+VAD+emotion detection in one library, 30MB streaming models. Replaces Whisper AND eSpeak. Runs on Cortex A7.
+- **openWakeWord** (github.com/dscripka/openWakeWord) — train "Hey Lethe" using synthetic voices only, zero real voice data. ONNX, runs on RPi.
+- **Tone.js** (tonejs.github.io) — procedural earcons via Web Audio, zero audio files. Parameterize by threat severity.
+- **Ambient escalation ladder**: glow shift > posture > animation > haptic > earcon > badge > interruption. Most events never pass level 2. Research shows 94.4% non-annoyance rate for peripheral haptics.
+- See: `docs/research/gems-ux-interaction.md` §3, `gems-ai-inference.md` §3
+
 ---
 
 ### 2. App Control / System-Level Actions
@@ -71,6 +79,12 @@ These are areas where no competitor matches LETHE:
 - App intents for common actions (open, share, install, uninstall)
 - Sandboxed: actions require user confirmation unless they're protective (revoking a permission, killing a leaking app)
 - No AppFunctions dependency (that's Google's standard) — build an open equivalent
+
+**Research findings (2026-03-31):**
+- **FunctionGemma 270M** (huggingface.co/google/functiongemma-270m-it) — 125MB quantized model fine-tuned for tool calling. 85% accuracy translating NL to API actions. Fine-tune for LETHE system actions (toggle Tor, manage permissions, install apps).
+- **Moondream 0.5B** (moondream.ai) — VLM with UI element localization (F1: 80.4). Can understand what's on screen for apps without APIs. ~300-500MB quantized, deeproot only.
+- **Accessibility whitelist at framework level** — hardcode LETHE agent as only allowed accessibility consumer. Android 17 adds `isAccessibilityTool` flag; LETHE can enforce strictly at OS level.
+- See: `docs/research/gems-ai-inference.md` §2, §4
 
 ---
 
@@ -92,6 +106,32 @@ These are areas where no competitor matches LETHE:
 - Authentication: Ed25519 keypair + optional passphrase
 - Command subset only: wipe, status, lock, DMS reset. No full chat over remote (bandwidth + latency on Tor)
 
+**Research findings (2026-03-31):**
+- **SimpleX Chat** (simplex.chat) — first messenger with NO user identifiers. Not usernames, phone numbers, or even random IDs. Unidirectional message queues = server handling Alice has zero knowledge of Bob. Audited by Trail of Bits. More metadata-resistant than Signal/Session/Matrix. Candidate default messenger.
+- **Yggdrasil** (yggdrasil-network.github.io) — E2E encrypted IPv6 overlay. Every LETHE device gets a permanent cryptographic address derived from its public key. Works over WiFi mesh, internet, or LoRa bridge. F-Droid app, no root.
+- **Posthumous** (metafunctor.com/post/2026-02-14-posthumous/) — federated dead man's switch. Multiple nodes watch each other. TOTP check-ins. Any node trigger cascades everywhere. Solves single-point-of-failure for DMS.
+- See: `docs/research/gems-decentralized-mesh.md` §3, §4
+
+---
+
+### 3b. IoT / Home Automation Control
+
+**Who has it:** Google Home, Alexa, Gladys Assistant (open-source, local-first)
+
+**What LETHE lacks:** No ability to control smart home devices. A privacy-first OS that can't interact with the user's physical environment.
+
+**Why it matters:** Users with privacy-hardened phones still have smart homes. If LETHE can't bridge that gap, they'll use Google Home — defeating the purpose.
+
+**Implementation direction:**
+- Discover Gladys instances on LAN (mDNS)
+- Agent routes device control intents to Gladys REST API
+- Dead man's switch triggers Gladys scenes (lock doors, kill cameras)
+- Burner mode wipes Gladys API tokens
+- All communication stays on LAN — never through Gladys Plus cloud
+- Matter protocol as the vendor-neutral bridge for direct device control without Gladys
+
+**Priority:** P2. See: `docs/research/gladys-assistant.md`
+
 ---
 
 ### 4. Skills / Plugin Ecosystem
@@ -112,6 +152,13 @@ These are areas where no competitor matches LETHE:
 - Self-building: LETHE can draft a skill, but user must review and approve before it runs
 - Skills are wiped in burner mode unless stored in `/persist`
 
+**Research findings (2026-03-31):**
+- **Spritely OCapN** (spritely.institute) — object-capability permissions. "If you don't have it, you can't use it." Capabilities are cryptographic tokens — no blockchain or server needed. Radically better than ACLs for plugin sandboxing. Proto-standardization with Agoric, MetaMask.
+- **Droidspaces** (github.com/ravindu644/Droidspaces-OSS) — LXC-inspired containers for Android, 260KB. Run untrusted skills in PID/MNT/NET-isolated containers.
+- **Network namespaces per app** — kernel-enforced network isolation. Skills get their own namespace; no raw-socket bypass possible.
+- **Holochain** (holochain.org) — agent-centric DHT, no blockchain. Each LETHE device is sovereign. Zero-width arcs for mobile = participate without storing others' data.
+- See: `docs/research/gems-decentralized-mesh.md` §2, §7
+
 ---
 
 ### 5. Resource Efficiency on Shallow-Tier Devices
@@ -130,6 +177,17 @@ These are areas where no competitor matches LETHE:
 - **Evaluate Rust rewrite** for the core agent loop (not the LLM inference — that stays llama.cpp)
 - **Memory budget:** Agent must stay under 50MB RSS on shallow, 100MB on taproot
 - WebView mascot already degrades to static PNG on shallow — good. Ensure the chat UI also degrades (plain text terminal, no CSS animations)
+
+**Research findings (2026-03-31):**
+- **Gemma 3n E2B** (deepmind.google/models/gemma/gemma-3n/) — mobile-first multimodal (text+vision+audio) that **runs on <2GB RAM**. Per-Layer Embeddings for radical RAM reduction. Nested 2B submodel trades quality for speed. Designed with Qualcomm/MediaTek/Samsung. THIS is the shallow-tier model.
+- **FunctionGemma 270M** — 125MB quantized tool-calling model. Combined with SmolLM 135M (~80MB) for cheap thinking = two-model pipeline under 300MB.
+- **BitNet b1.58** (github.com/microsoft/BitNet) — 1.58-bit ternary weights (-1, 0, +1). Integer-only math on ARMv7 without NEON FP. 2B model in ~300-400MB. Potentially the most important finding for shallow-tier.
+- **MLLM** (github.com/UbiquitousLearning/mllm) — unlocks idle Hexagon DSPs on old Snapdragon 600/800 phones. 22x faster prefill, 30x energy savings.
+- **NCNN** (github.com/Tencent/ncnn) — 300KB inference library, hand-tuned ARM NEON. Fastest non-LLM inference on ARM. Critical for TTS.
+- **Tract** (github.com/sonos/tract) — pure Rust ONNX inference, 70us for CNN on RPi Zero. Path to killing Python dependency.
+- **Arti/Lightarti** (gitlab.torproject.org/tpo/core/arti) — Tor in Rust. Downloads relay lists weekly vs 2-hourly. Dramatically less bandwidth/battery.
+- **OGL** (github.com/oframe/ogl) — zero-dep WebGL, lighter than Three.js. CSS 3D transforms for shallow-tier at near-zero CPU.
+- See: `docs/research/gems-ai-inference.md` (full document)
 
 ---
 
@@ -151,6 +209,14 @@ These are areas where no competitor matches LETHE:
 - Memory is local-only, never synced, never sent to cloud providers
 - Memory file is encrypted at rest (device encryption key)
 - Factory reset = memory gone (unless user exported it)
+
+**Research findings (2026-03-31):**
+- **sqlite-vec** (github.com/asg017/sqlite-vec) — vector search as a SQLite extension. Pure C, zero deps. SQLite is already on every Android device — load an extension and you have a vector DB with no new process or attack surface.
+- **EmbeddingGemma 300M** (huggingface.co/google/embeddinggemma-300m) — 100+ language embedding model, <200MB, <15ms per 256 tokens. For taproot+. On shallow: **all-MiniLM-L6-v2** (22M params, ~50MB).
+- **Iroh + Willow** (iroh.computer / willowprotocol.org) — IPFS successor for P2P sync. Willow's Sideloading protocol for offline sync via USB/QR. Earthstar's invite-only namespaces for capability-based access.
+- **Automerge** (automerge.org) — CRDT documents that merge without conflicts. Transport-agnostic (Bluetooth, USB, QR).
+- **GuardianDB** (github.com/wmaslonek/guardian-db) — Rust embedded DB on Iroh + Willow. OrbitDB rebuilt without IPFS overhead.
+- See: `docs/research/gems-ai-inference.md` §5, `gems-decentralized-mesh.md` §1
 
 ---
 
@@ -190,6 +256,11 @@ These are areas where no competitor matches LETHE:
 - On shallow/taproot: not available (too expensive). Use heuristic analysis instead (URL pattern matching, known phishing domains)
 - Privacy boundary: screenshots are never stored, never sent to cloud, processed in-memory only
 
+**Research findings (2026-03-31):**
+- **SmolVLM 256M** (huggingface.co/HuggingFaceTB/SmolVLM-256M-Instruct) — smallest VLM. <1GB GPU. Encodes images in 81 tokens per 384x384 (vs 16K for Qwen2-VL). Outperforms 300x larger Idefics-80B. Apache 2.0. Could run on taproot tier, not just deeproot.
+- **Gemma 3n E4B** — multimodal text+vision+audio in one model. Deeproot tier.
+- See: `docs/research/gems-ai-inference.md` §4
+
 ---
 
 ## Gaps That Don't Fit LETHE
@@ -216,6 +287,7 @@ These are competitor features that LETHE should **not** adopt:
 | **P1** | App Control | High | High | Transforms LETHE from chatbot to actual OS agent. |
 | **P1** | Messaging Gateway | High | Medium | Critical for operational security scenarios (remote wipe). |
 | **P1** | Persistent Memory (opt-in) | Medium | Low | Simple file-based system. Mnemosyne complements Lethe. |
+| **P2** | IoT / Home Automation | Medium | Medium | Gladys integration. LAN-only, privacy-preserving. Natural extension of guardian role. |
 | **P2** | Skills Ecosystem | Medium | High | Community growth driver, but LETHE needs core features first. |
 | **P2** | Visual/Screen Understanding | Medium | High | Hardware-gated. Only useful on deeproot. |
 | **P3** | Multi-Agent Coordination | Low | Medium | Internal routing already partially exists. Full multi-agent is premature. |

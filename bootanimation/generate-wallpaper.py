@@ -28,9 +28,9 @@ DEFAULT_WALLPAPER = SCRIPT_DIR.parent / "overlays" / "wallpaper.png"
 DEFAULT_LOCKSCREEN = SCRIPT_DIR.parent / "overlays" / "lockscreen.png"
 
 # Crack colors
-CORE_COLOR = (200, 30, 30)       # Bright red core of the crack
-GLOW_COLOR = (140, 18, 18)       # Dimmer bloom around it
-BG_COLOR = (0, 0, 0)             # True OLED black
+CORE_COLOR = (200, 30, 30)  # Bright red core of the crack
+GLOW_COLOR = (140, 18, 18)  # Dimmer bloom around it
+BG_COLOR = (0, 0, 0)  # True OLED black
 
 
 def fracture_branch(draw, x, y, angle, length, width, depth, max_depth, rng):
@@ -66,15 +66,21 @@ def fracture_branch(draw, x, y, angle, length, width, depth, max_depth, rng):
             branch_length = length * rng.uniform(0.3, 0.6)
             branch_width = max(1, width - 1)
             fracture_branch(
-                draw, bx, by, branch_angle,
-                branch_length, branch_width,
-                depth + 1, max_depth, rng,
+                draw,
+                bx,
+                by,
+                branch_angle,
+                branch_length,
+                branch_width,
+                depth + 1,
+                max_depth,
+                rng,
             )
 
 
 def generate_wallpaper(width, height, seed):
     """Generate the cracked obsidian wallpaper."""
-    rng = random.Random(seed)
+    rng = random.Random(seed)  # noqa: S311
     img = Image.new("RGB", (width, height), BG_COLOR)
     draw = ImageDraw.Draw(img)
 
@@ -149,7 +155,7 @@ def generate_wallpaper_fast(width, height, seed):
     except ImportError:
         return generate_wallpaper(width, height, seed)
 
-    rng = random.Random(seed)
+    rng = random.Random(seed)  # noqa: S311
     img = Image.new("RGB", (width, height), BG_COLOR)
     draw = ImageDraw.Draw(img)
 
@@ -221,6 +227,7 @@ def main():
 
     # Lockscreen: same art, slightly dimmer (70% brightness)
     from PIL import ImageEnhance
+
     lockscreen = ImageEnhance.Brightness(wallpaper).enhance(0.7)
     lockscreen.save(args.lockscreen, "PNG", optimize=True)
     print(f"Lockscreen: {args.lockscreen}")
@@ -228,8 +235,7 @@ def main():
     # Report OLED black percentage
     total = args.width * args.height
     black_pixels = sum(
-        1 for x in range(args.width) for y in range(args.height)
-        if wallpaper.getpixel((x, y)) == (0, 0, 0)
+        1 for x in range(args.width) for y in range(args.height) if wallpaper.getpixel((x, y)) == (0, 0, 0)
     )
     pct = black_pixels / total * 100
     print(f"OLED black: {pct:.0f}% of pixels are #000000")

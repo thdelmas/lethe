@@ -21,7 +21,11 @@ tiers:
     desc: "Devices with ≤2GB RAM, ARMv7 or early ARM64, weak GPU"
     avatar: "static"                     # PNG only, no animation overhead
     avatar_options: ["static", "2d"]     # User can try 2d if they want
-    local_models: ["qwen3-0.6b"]         # Only the smallest model fits
+    avatar_renderer: "css3d"             # CSS 3D transforms for idle state (near-zero CPU)
+    local_models: ["qwen3-0.6b", "functiongemma-270m", "sherpa-onnx-streaming", "all-minilm-l6-v2"]
+    # Budget: ~510-800MB total (see gems-ai-inference.md §6)
+    # FunctionGemma 125MB + Qwen3 0.6B 450MB + Sherpa 30MB + MiniLM 50MB
+    # Future: Gemma 3n E2B (<2GB multimodal), BitNet b1.58 (integer-only math)
     animation_fps: 0                     # No animation by default
     particles: false
     gyroscope_parallax: false
@@ -41,7 +45,10 @@ tiers:
     desc: "Devices with 3-6GB RAM, modern ARM64, mid-range GPU"
     avatar: "2d"                         # Animated PNG, CSS transforms
     avatar_options: ["static", "2d", "3d"]
-    local_models: ["qwen3-0.6b", "qwen3-1.7b"]
+    avatar_renderer: "ogl"               # OGL (lighter than Three.js) + springTo.js
+    local_models: ["qwen3-0.6b", "qwen3-1.7b", "functiongemma-270m", "sherpa-onnx-streaming", "embeddinggemma-300m"]
+    # Budget: ~915MB-1.5GB (see gems-ai-inference.md §6)
+    # Use MLLM engine on Snapdragon devices to unlock NPU
     animation_fps: 30
     particles: true
     particle_count: 3
@@ -61,7 +68,11 @@ tiers:
     desc: "Devices with ≥8GB RAM, flagship SoC, strong GPU"
     avatar: "3d"                         # Full WebGL GLB model
     avatar_options: ["static", "2d", "3d"]
-    local_models: ["qwen3-0.6b", "qwen3-1.7b", "qwen3-4b"]
+    avatar_renderer: "threejs"           # Three.js (or OGL) + IK + spring physics
+    local_models: ["qwen3-0.6b", "qwen3-1.7b", "qwen3-4b", "functiongemma-270m", "sherpa-onnx-streaming", "embeddinggemma-300m", "smolvlm-256m"]
+    # Budget: ~2.8-3.8GB (see gems-ai-inference.md §6)
+    # SmolVLM loaded on-demand for screen understanding
+    # Use MLLM engine with QNN/NPU on Snapdragon flagships
     animation_fps: 60
     particles: true
     particle_count: 6

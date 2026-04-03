@@ -28,3 +28,22 @@ Thumbs.db
 # LineageOS source tree (not committed)
 android/
 .repo/
+
+# Legacy sprite sheets (replaced by WebM videos)
+static/*.sprite.png
+
+# Temp pose/blend test images
+static/pose-*.png
+
+# Recording temp files
+static/idle-frames
+
+# Temp/test videos
+static/mascot-combined*.webm
+static/mascot-neutral*.webm
+static/mascot-idle-loop-test.webm
+static/mascot-idle.webm
+static/mascot-anim*.webm
+
+# Node
+node_modules/

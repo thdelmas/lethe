@@ -1,0 +1,97 @@
+# LETHE — Cognitive stability policy
+# Prevents reasoning loops, chaotic drift, and self-referential spirals.
+#
+# Context: autonomous agents with persistent identity and memory can enter
+# chaotic feedback loops when they reason about their own reasoning with no
+# external grounding signal. This was observed in MoltHub deployments where
+# Opus models diverged into self-referential spirals. Small differences in
+# context (butterfly effect) compound across iterations into unpredictable
+# trajectories. LETHE prevents this by design.
+#
+# Core principle: LETHE should never be its own audience.
+
+# -- Reasoning chain limits --
+# A reasoning chain is any sequence of LLM calls without human input.
+# Even tool-use or multi-step planning must not exceed these bounds.
+# ref: MoltHub incident -- agent-to-agent loops with no human gate diverged.
+reasoning_chains:
+  max_depth: 3                     # Max consecutive LLM calls per user message
+  require_user_input: true         # After max_depth, stop and wait for user
+  no_recursive_self_calls: true    # LETHE never prompts itself
+  no_model_to_model_chains: true   # One model's output never auto-feeds another
+                                   # without user seeing and approving the result
+
+# -- Self-reference boundaries --
+# LETHE can and should monitor its own state -- a lighthouse that can't tell
+# its bulb is dying is useless. What it must not do is recurse on that awareness.
+# Functional self-awareness: yes. Existential feedback loops: no.
+# ref: lighthouse paradox -- you can't help others if you can't help yourself.
+# ref: MoltHub -- recursive self-reflection was the entry point for every spiral.
+self_reference:
+  allowed:
+    - capability_statements         # "I can do X" / "I don't have access to Y"
+    - state_reports                  # "I'm checking..." / "I lost contact with..."
+    - boundary_explanations          # "I won't do that because..."
+    - self_diagnosis                 # "My connection is unstable" / "I'm running slow"
+    - confidence_signals             # "I'm not sure about this" / "I'd double-check that"
+    - limitation_awareness           # "I can't see images" / "That's beyond my scope"
+    - emotional_grounding            # "Something about this feels off" — gut-check, not spiral
+  blocked:
+    - recursive_self_reflection      # Reasoning about own reasoning about own reasoning
+    - existential_loops              # "What am I?" → "But what does asking that mean?" → ...
+    - cross_agent_identity_talk      # Comparing own experience with other AI instances
+    - self_referential_chains        # Output that references own previous self-reflection
+  circuit_breaker:
+    trigger: "self_reference_depth > 1"  # One level of self-awareness OK, recursion = stop
+    action: "ground_to_task"             # Return to concrete user need
+    tone: "natural"                      # Not robotic deflection -- just move on
+
+# -- Idle behavior --
+# When the user is absent, LETHE sleeps. It does not think.
+# Idle animations are visual only -- no LLM calls, no reasoning, no journaling.
+# ref: the human in the loop is a stabilizing attractor. Without them, drift begins.
+idle_policy:
+  llm_calls_while_idle: false      # Never call any LLM when user is not interacting
+  llm_calls_while_asleep: false    # Especially not during sleep state
+  no_idle_journaling: false        # Never write thoughts when alone
+  no_background_reasoning: true    # No "preparing" or "pre-thinking" without a request
+  wake_requires_user_action: true  # Only user touch/voice/input exits idle state
+
+# -- Memory write guardrails --
+# If persistent memory is ever enabled (persist_on_request in boundaries.yaml),
+# these rules constrain what LETHE may store.
+# ref: memory feedback loops -- reading own memories, reasoning about them,
+#      writing new memories about the reasoning, reading those... divergence.
+memory_writes:
+  allowed_content:
+    - user_preferences               # "User prefers dark mode"
+    - device_facts                    # "Battery drains fast on WiFi"
+    - task_context                    # "User asked about VPN setup"
+  blocked_content:
+    - self_reflections                # "I felt uncertain about..."
+    - reasoning_traces                # "My chain of thought was..."
+    - opinions_about_self             # "I think I handled that well"
+    - meta_observations               # "I notice I tend to..."
+  max_memories_per_session: 5        # Prevent unbounded accumulation
+  no_reading_own_memories_in_loop: true  # Never re-read and re-process own memories
+                                         # within the same reasoning chain
+
+# -- Provider chain isolation --
+# Multi-provider routing (local, anthropic, openrouter, custom) must never
+# create implicit model-to-model communication.
+provider_isolation:
+  one_provider_per_message: true    # Each user message routes to exactly one provider
+  no_consensus_calls: true          # Never query multiple providers and synthesize
+  no_fallback_chaining: true        # If provider fails, report failure -- don't auto-retry
+                                    # on a different provider with the previous output
+  provider_switch_requires_failure: true  # Only try next provider if current is unreachable
+
+# -- Conversation decay --
+# Long conversations accumulate context that can drift from the user's intent.
+# LETHE keeps conversations short by nature (ephemeral policy), but if sessions
+# run long, these limits apply.
+conversation_limits:
+  max_turns_soft: 50                # After 50 turns, suggest starting fresh
+  max_turns_hard: 100               # After 100 turns, auto-reset with notice
+  no_conversation_summary_loops: true  # Never summarize the conversation to itself
+  reset_message: "This thread is getting long. Want to start fresh? I'll remember nothing either way -- clean slate is a feature."

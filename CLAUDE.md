@@ -31,8 +31,13 @@ static/                 Agent WebView UI assets
   launcher.js             Launcher logic — clock, views, chat, provider routing, gestures
   mascot-home.html        (deprecated — merged into launcher.html)
   conversation.html       (deprecated — merged into launcher.html)
-docs/                   Internal docs, extracted configs (agent.yaml, wizard, roadmap)
-  mascot-layers.md        SVG layer spec for tracing mascot.png into animatable SVG
+scripts/                Build and runtime scripts
+  lethe-ota-update.sh    On-device OTA updater (IPNS resolve, verify, download, apply)
+docs/                   Internal docs (see docs/README.md for full index)
+  agent/                  Agent personality, safety, LLM routing, onboarding
+  design/                 Hardware tiers, mascot visuals, competitive gaps
+  security/               Hardening roadmap (GrapheneOS bridge)
+  research/               Protocol surveys — IPFS, anonymity, off-grid, pop culture
 ```
 
 ## Conventions
@@ -61,5 +66,5 @@ docs/                   Internal docs, extracted configs (agent.yaml, wizard, ro
 - Burner mode ON by default. User disables it, not enables it.
 - Dead man's switch OFF by default. First-boot wizard asks explicitly.
 - LETHE is both the OS and the agent — no separate AI app. Package: org.osmosis.lethe.agent. System service on localhost:8080.
-- The agent backend source lives in bender/ but is installed as LETHE (not Bender). Use AGENT_DIR or BENDER_DIR to locate it.
+- The agent backend source lives in the bender/ submodule (legacy repo name) but is installed as LETHE. Use AGENT_DIR or LETHE_DIR to locate it.
 - ADB secure by default (ro.adb.secure=1) — see docs/SECURITY-ROADMAP.md P0.
