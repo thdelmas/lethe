@@ -208,41 +208,69 @@ LETHE IS the phone. It feels its own state:
 Staggered timing, random horizontal drift. No JS frame loop — pure
 CSS `@keyframes`. Turn red during alert state, disabled during sleep.
 
-## 3D model + Mixamo FBX pipeline
+## 3D model + Mixamo pipeline
 
 On taproot/deeproot tiers, the mascot uses a skeletal 3D model
-(`mascot-taproot.glb`, 12MB) rendered via Three.js. Animations are
-embedded in the GLB (39 bones, 117 tracks per clip).
+(`mascot-taproot.glb`, ~20MB) rendered via Three.js.
+
+### Model pipeline
+
+Source: `~/Downloads/lethe.glb` (Tripo, 75MB, 2M faces, 4K texture).
+Optimized: `static/mascot-taproot.glb` (20MB, 50K faces, 1K texture).
+
+Optimization steps (in Blender):
+1. Import `lethe.glb`
+2. Hand twist fix: L_Hand +90° Y, R_Hand -90° Y (post-multiply)
+3. Decimate each mesh part to ~50K total faces
+4. Resize texture 4096→1024
+5. Export GLB with JPEG texture at 75%
+
+**Do NOT modify:** bone rolls, rest pose, arm retargeting, or weight
+painting in Blender. These break animations. The JS runtime handles
+arm retargeting via adaptive axis conjugation.
+
+### Emission-based mood system
+
+The material uses an HSV-detected emission map to identify teal
+crack areas (hue 0.38–0.6, saturation > 0.4, value > 0.3). A Mix
+node darkens the base color to black in crack areas so the emission
+color dominates without color bleed.
+
+| Mood | Emission RGB | Strength |
+|------|-------------|----------|
+| teal (default) | (0.13, 0.91, 0.63) | 5 |
+| green | (0.18, 0.85, 0.30) | 5 |
+| blue | (0.10, 0.55, 0.95) | 5 |
+| yellow | (0.90, 0.85, 0.15) | 5 |
+| red | (1.00, 0.00, 0.00) | 15 |
+| purple | (0.60, 0.20, 0.90) | 5 |
+| white | (0.85, 0.90, 0.88) | 3 |
+
+In WebGL: change the emission color uniform to switch moods.
+Mask power 0.15 for sharp crack edges.
 
 ### Adding Mixamo animations
 
-Mixamo FBX files can be retargeted onto the LETHE skeleton at runtime.
-The rigs differ in bone naming, rest pose, and proportions (Mixamo is
-a tall skinny humanoid, LETHE is a small stocky golem).
+Mixamo animations are added via a Mixamo-rigged version of the
+LETHE mesh (auto-rigged on mixamo.com with 33 Mixamo bones).
 
-**Retargeting strategy** (in `mascot-3d-renderer.js`):
-- Torso, legs, head, clavicles: delta-from-rest (extract rotation
-  change from Mixamo rest pose, apply to LETHE rest pose)
-- Upper arms, forearms, hands: world-rotation copy (bone local axes
-  differ too much for delta approach)
-- Position tracks: skipped (proportions differ)
+**Workflow:**
+1. Upload `Downloads/lethe-mesh-only.fbx` to Mixamo (mesh only,
+   10K faces, rotated for Mixamo camera)
+2. Pick an animation on Mixamo, download as FBX
+3. Import FBX in Blender
+4. Run `scripts/fix-mixamo-hands.py` to fix palm orientation
+5. Export as GLB or bake into the main model
 
-**Bone mapping** (FBXLoader strips the colon from `mixamorig:` prefix):
+**Hand orientation fix:** Mixamo auto-rig produces palms facing
+the camera. The fix post-multiplies a 90° Y rotation on LeftHand
+and -90° on RightHand keyframes. Script:
+`lethe/scripts/fix-mixamo-hands.py`
 
-| Mixamo | LETHE |
-|--------|-------|
-| mixamorigHips | Hip |
-| mixamorigSpine | Waist |
-| mixamorigSpine1/2 | Spine01/02 |
-| mixamorigNeck | NeckTwist01 |
-| mixamorigHead | Head |
-| mixamorigLeft/RightShoulder | L/R_Clavicle |
-| mixamorigLeft/RightArm | L/R_Upperarm |
-| mixamorigLeft/RightForeArm | L/R_Forearm |
-| mixamorigLeft/RightHand | L/R_Hand |
-| mixamorigLeft/RightUpLeg | L/R_Thigh |
-| mixamorigLeft/RightLeg | L/R_Calf |
-| mixamorigLeft/RightFoot | L/R_Foot |
+**Note:** The Mixamo skeleton (33 bones, `mixamorig:` prefix) is
+different from the Tripo skeleton (39 bones). Cross-rig retargeting
+(Mixamo animation → Tripo skeleton) is unreliable in Blender. Use
+the Mixamo skeleton directly for new animations.
 
 ### Recording to 2D WebM
 

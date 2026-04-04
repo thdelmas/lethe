@@ -963,6 +963,39 @@ for (var i = 0; i < tierBtns.length; i++) {
   });
 }
 
+/* ═══════════ HELP & FEEDBACK ═══════════ */
+document.getElementById('btn-report-issue').addEventListener('click', function() {
+  var tier = window.letheTier || 'unknown';
+  var agent = agentAvailable ? 'online' : 'offline';
+  var gpu = (window.letheTierConfig ? window.letheTierConfig.gpu : 'unknown');
+  var webgl = !!document.createElement('canvas').getContext('webgl');
+  var body = [
+    '## Description',
+    '',
+    '<!-- Describe what happened and what you expected -->',
+    '',
+    '## Device info',
+    '',
+    '| Key | Value |',
+    '|-----|-------|',
+    '| Tier | ' + tier + ' |',
+    '| GPU | ' + gpu + ' |',
+    '| WebGL | ' + webgl + ' |',
+    '| Agent | ' + agent + ' |',
+    '| User-Agent | ' + navigator.userAgent + ' |',
+    '| Screen | ' + screen.width + 'x' + screen.height + ' |'
+  ].join('\n');
+  var url = 'https://github.com/thdelmas/OSmosis/issues/new'
+    + '?labels=bug,lethe'
+    + '&title=' + encodeURIComponent('[LETHE] ')
+    + '&body=' + encodeURIComponent(body);
+  window.open(url, '_blank');
+});
+
+document.getElementById('btn-discord').addEventListener('click', function() {
+  window.open('https://discord.gg/tAqyY47Szp', '_blank');
+});
+
 function updateDevInfo() {
   var info = document.getElementById('dev-info');
   var tierInfo = document.getElementById('dev-tier-info');
