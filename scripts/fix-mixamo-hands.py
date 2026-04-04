@@ -10,8 +10,9 @@ Usage:
 Or from Blender's Python console:
   exec(open("/home/mia/OSmosis/lethe/scripts/fix-mixamo-hands.py").read())
 """
-import bpy
 import math
+
+import bpy
 from mathutils import Quaternion
 
 HAND_FIXES = {
