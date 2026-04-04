@@ -10,14 +10,15 @@ Usage:
 Or from Blender's Python console:
   exec(open("/home/mia/OSmosis/lethe/scripts/fix-mixamo-hands.py").read())
 """
+
 import math
 
 import bpy
 from mathutils import Quaternion
 
 HAND_FIXES = {
-    'mixamorig:LeftHand': Quaternion((0, 1, 0), math.radians(90)),
-    'mixamorig:RightHand': Quaternion((0, 1, 0), math.radians(-90)),
+    "mixamorig:LeftHand": Quaternion((0, 1, 0), math.radians(90)),
+    "mixamorig:RightHand": Quaternion((0, 1, 0), math.radians(-90)),
 }
 
 fixed = 0
@@ -37,9 +38,9 @@ for action in bpy.data.actions:
         if len(curves) != 4:
             continue
         for kp_idx in range(len(curves[0].keyframe_points)):
-            old_q = Quaternion([
-                curves[i].keyframe_points[kp_idx].co[1] for i in range(4)
-            ])
+            old_q = Quaternion(
+                [curves[i].keyframe_points[kp_idx].co[1] for i in range(4)]
+            )
             new_q = old_q @ twist
             for i in range(4):
                 curves[i].keyframe_points[kp_idx].co[1] = new_q[i]
