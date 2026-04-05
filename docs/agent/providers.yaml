@@ -38,6 +38,34 @@ providers:
         tasks: ["chat", "summarize", "reasoning"]
         context_window: 8192
         notes: "Qwen 3 — strong local reasoning. Recommended for 3GB+ RAM."
+      - id: "qwen3-3b"
+        file: "qwen3-3b-q4_k_m.gguf"
+        download_url: "https://huggingface.co/Qwen/Qwen3-3B-GGUF/resolve/main/qwen3-3b-q4_k_m.gguf"
+        size_mb: 2000
+        min_ram_mb: 3000
+        arch: ["arm64", "x86_64"]
+        tasks: ["chat", "code", "reasoning", "summarize"]
+        context_window: 32768
+        notes: "Qwen 3 3B — local code + reasoning for deeproot tier. Reduces cloud dependency."
+      # ── Multimodal (text + vision + audio) ──
+      - id: "gemma-3n-e2b"
+        file: "gemma-3n-e2b-it-q4_k_m.gguf"
+        download_url: "https://huggingface.co/google/gemma-3n-E2B-it-GGUF/resolve/main/gemma-3n-e2b-it-q4_k_m.gguf"
+        size_mb: 1200
+        min_ram_mb: 1500
+        arch: ["armv7", "arm64", "x86_64"]
+        tasks: ["chat", "vision", "summarize"]
+        context_window: 8192
+        notes: "Gemma 3n E2B — multimodal (text+vision) in <2GB RAM. Per-Layer Embeddings for radical RAM reduction. Designed with Qualcomm/MediaTek/Samsung."
+      - id: "gemma-3n-e4b"
+        file: "gemma-3n-e4b-it-q4_k_m.gguf"
+        download_url: "https://huggingface.co/google/gemma-3n-E4B-it-GGUF/resolve/main/gemma-3n-e4b-it-q4_k_m.gguf"
+        size_mb: 2800
+        min_ram_mb: 3500
+        arch: ["arm64", "x86_64"]
+        tasks: ["chat", "vision", "reasoning", "summarize"]
+        context_window: 32768
+        notes: "Gemma 3n E4B — 4B active params, nested 2B sub-model. Full multimodal. Taproot+ tier."
       # ── Tool Calling ──
       - id: "functiongemma-270m"
         file: "functiongemma-270m-it-q4.gguf"
@@ -86,13 +114,21 @@ providers:
         arch: ["arm64", "x86_64"]
         tasks: ["embeddings"]
         notes: "308M params. 100+ languages. <15ms per 256 tokens. Taproot+ only."
-      # ── Vision (deeproot only) ──
+      # ── Vision ──
       - id: "smolvlm-256m"
         size_mb: 300
         min_ram_mb: 1000
         arch: ["arm64"]
         tasks: ["vision"]
-        notes: "Smallest VLM. 81 tokens per 384x384 image (vs 16K for Qwen2-VL). Outperforms 300x larger models."
+        notes: "Smallest dedicated VLM. 81 tokens per 384x384 image. Taproot+ tier. Gemma 3n also handles vision on lower tiers."
+      - id: "moondream-0.5b"
+        file: "moondream-0.5b-q4_k_m.gguf"
+        download_url: "https://huggingface.co/vikhyat/moondream2-gguf/resolve/main/moondream-0.5b-q4_k_m.gguf"
+        size_mb: 400
+        min_ram_mb: 1500
+        arch: ["arm64", "x86_64"]
+        tasks: ["vision"]
+        notes: "MoE VLM with UI localization (ScreenSpot F1: 80.4). Agent can understand and interact with app screens. Deeproot tier."
 
   anthropic:
     type: "cloud"
@@ -135,9 +171,17 @@ providers:
       - id: "meta-llama/llama-4-maverick"
         tasks: ["chat", "reasoning", "vision", "summarize"]
         context_window: 1048576
+      - id: "meta-llama/llama-4-scout"
+        tasks: ["chat", "code", "reasoning", "vision", "summarize"]
+        context_window: 524288
+        notes: "16-expert MoE, 109B total / 17B active. Strong coding + vision. Apache 2.0."
       - id: "google/gemini-2.5-pro"
         tasks: ["chat", "code", "reasoning", "vision", "summarize"]
         context_window: 1000000
+      - id: "google/gemini-2.5-flash"
+        tasks: ["chat", "code", "reasoning", "vision", "summarize"]
+        context_window: 1000000
+        notes: "Fast + cheap. Good fallback when Opus/Pro quota exhausted."
 
   custom:
     type: "cloud"
@@ -158,11 +202,12 @@ tasks:
       on this device right now.
   code:
     desc: "Code generation, debugging, refactoring"
-    priority: ["cloud"]
-    required_models: ["claude-opus-4-6", "claude-sonnet-4-6"]
+    priority: ["cloud", "local"]
+    required_models: ["claude-opus-4-6", "claude-sonnet-4-6", "qwen3-3b"]
     fallback_message: >
       Code tasks need a more capable model. Add an Anthropic
-      or OpenRouter key in Settings > LETHE > Intelligence.
+      or OpenRouter key in Settings, or download Qwen 3 (3B)
+      for basic local code help.
   reasoning:
     desc: "Complex analysis, planning, multi-step logic"
     priority: ["cloud"]
@@ -172,10 +217,11 @@ tasks:
   vision:
     desc: "Image understanding, screenshot analysis"
     priority: ["local", "cloud"]
-    required_models: ["smolvlm-256m", "claude-opus-4-6", "claude-sonnet-4-6", "google/gemini-2.5-pro"]
+    required_models: ["gemma-3n-e2b", "gemma-3n-e4b", "smolvlm-256m", "moondream-0.5b", "claude-opus-4-6", "claude-sonnet-4-6", "google/gemini-2.5-pro"]
     fallback_message: >
       I cannot see images without a vision-capable model.
-      Download SmolVLM in Settings, or add a cloud provider key.
+      Download Gemma 3n or SmolVLM in Settings, or add a
+      cloud provider key.
   transcription:
     desc: "Speech-to-text"
     priority: ["local"]
@@ -264,6 +310,17 @@ settings_ui:
           label: "Qwen 3 (1.7B) — chat + reasoning"
           size: "1.1 GB"
           min_ram: "3 GB"
+        - model: "qwen3-3b"
+          label: "Qwen 3 (3B) — chat + code + reasoning"
+          size: "2 GB"
+          min_ram: "6 GB"
+        - model: "gemma-3n-e2b"
+          label: "Gemma 3n (E2B) — chat + vision, ultra-low RAM"
+          size: "1.2 GB"
+        - model: "gemma-3n-e4b"
+          label: "Gemma 3n (E4B) — chat + vision + reasoning"
+          size: "2.8 GB"
+          min_ram: "4 GB"
         - model: "functiongemma-270m"
           label: "FunctionGemma — tool calling (actions)"
           size: "125 MB"
@@ -284,5 +341,9 @@ settings_ui:
           label: "SmolVLM — screen understanding"
           size: "300 MB"
           min_ram: "4 GB"
+        - model: "moondream-0.5b"
+          label: "Moondream — app screen understanding + UI interaction"
+          size: "400 MB"
+          min_ram: "6 GB"
     - title: "Task routing"
       desc: "Which model handles what"

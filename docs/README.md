@@ -14,6 +14,7 @@ Hardware tiers, mascot visuals, competitive positioning.
 - [device-tiers.yaml](design/device-tiers.yaml) — Shallow/taproot/deeproot tiers, 40+ device mappings
 - [mascot-layers.md](design/mascot-layers.md) — SVG layer decomposition, animation states, 3D/FBX retargeting pipeline, context-aware animation pools
 - [competitive-gaps.md](design/competitive-gaps.md) — Gap analysis vs 2026 AI agents (P0-P3 priorities)
+- [protection-domains.md](design/protection-domains.md) — Guardian protection modules: Bios, PreuJust, Vigil, Mnemo, Hora, Egida, Themis, Oikos
 
 ## security/
 Hardening roadmap bridging GrapheneOS depth with Lethe's device breadth.

@@ -248,7 +248,8 @@ highest-value upgrade. Watch:
 | Function | Component | RAM |
 |---|---|---|
 | Agent brain | FunctionGemma 270M (Q4) | ~125MB |
-| Chat | Gemma 3n E2B or Qwen3 0.6B (Q2_K) | ~300-500MB |
+| Chat + Vision | Gemma 3n E2B (Q4, multimodal) | ~500MB |
+| Chat fallback | Qwen3 0.6B (Q2_K, text-only) | ~300MB |
 | STT | Sherpa-ONNX (int8 streaming) | ~30-50MB |
 | TTS | eSpeak-NG (fallback) or Piper/NCNN | 2-60MB |
 | Embeddings | all-MiniLM-L6-v2 | ~50MB |
@@ -256,32 +257,45 @@ highest-value upgrade. Watch:
 | Inference | NCNN + Tract (Rust) | ~1-5MB |
 | **Total** | | **~510-800MB** |
 
+> **Key change:** Gemma 3n E2B brings vision to the shallow tier — users
+> can point their camera or share screenshots even on 2GB devices.
+
 ### Taproot (3-6GB RAM, mid ARM64)
 
 | Function | Component | RAM |
 |---|---|---|
 | Agent brain | FunctionGemma 270M (Q4) | ~125MB |
-| Chat | Qwen3 0.6B or 1.7B (Q4) | ~500MB-1GB |
+| Chat + Vision | Gemma 3n E4B (Q4, multimodal) | ~1.5GB |
+| Chat fallback | Qwen3 1.7B (Q4, text-only) | ~500MB |
+| Vision detail | SmolVLM 256M (swap in/out) | ~300MB |
 | STT | Sherpa-ONNX (streaming) | ~50MB |
 | TTS | Piper/NCNN (medium voice) | ~30-60MB |
 | Embeddings | EmbeddingGemma 300M | ~200MB |
 | Vector DB | sqlite-vec or ObjectBox | ~5-30MB |
 | Inference | MLLM (if Snapdragon) | ~5MB |
-| **Total** | | **~915MB-1.5GB** |
+| **Total** | | **~1.2-2.8GB** |
+
+> **Key change:** Gemma 3n E4B is the primary model — one model handles
+> chat, vision, and reasoning. SmolVLM swaps in for detailed image work.
 
 ### Deeproot (>=8GB RAM, flagship)
 
 | Function | Component | RAM |
 |---|---|---|
 | Agent brain | FunctionGemma 270M (Q4) | ~125MB |
-| Chat | Qwen3 3B+ or Gemma 3n E4B | ~2-3GB |
-| Vision | SmolVLM 256M (swap in/out) | ~300MB |
+| Chat + Code | Qwen3 3B (Q4_K_M) | ~2GB |
+| Vision | Gemma 3n E4B or Moondream 0.5B | ~1.5GB |
+| Screen agent | Moondream 0.5B (UI localization) | ~400MB |
 | STT | Sherpa-ONNX + SenseVoice | ~100MB |
 | TTS | Piper/NCNN (high voice) | ~60MB |
 | Embeddings | EmbeddingGemma 300M | ~200MB |
 | Vector DB | ObjectBox | ~30MB |
 | Inference | MLLM (QNN/NPU) | ~5MB |
-| **Total** | | **~2.8-3.8GB** |
+| **Total** | | **~3.5-4.5GB** |
+
+> **Key changes:** Qwen3 3B handles code locally (no cloud needed for
+> basic tasks). Moondream enables the agent to understand and interact
+> with app UIs that lack APIs — critical for the "phone IS LETHE" vision.
 
 ### Future: Rust-Only Stack
 - LLM: Candle / Crane / mistral.rs
