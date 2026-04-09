@@ -462,14 +462,31 @@ window.onBackPressed = function() {
   return false;
 };
 
-/* First-visit hint */
+/* First-visit hints — sequential onboarding */
 if (!localStorage.getItem('lethe_hint_seen')) {
   setTimeout(function() { hintEl.classList.add('visible'); }, 5000);
   homeMascot.addEventListener('click', function once() {
     hintEl.classList.remove('visible');
     localStorage.setItem('lethe_hint_seen', '1');
     homeMascot.removeEventListener('click', once);
+    /* After guardian tap: show swipe-up hint for app drawer */
+    if (!localStorage.getItem('lethe_swipe_hint_seen')) {
+      setTimeout(function() {
+        hintEl.textContent = 'swipe up for apps';
+        hintEl.classList.add('visible');
+        localStorage.setItem('lethe_swipe_hint_seen', '1');
+        setTimeout(function() { hintEl.classList.remove('visible'); hintEl.textContent = 'tap the guardian'; }, 4000);
+      }, 3000);
+    }
   });
+} else if (!localStorage.getItem('lethe_swipe_hint_seen')) {
+  /* Returning user who tapped guardian but hasn't seen swipe hint yet */
+  setTimeout(function() {
+    hintEl.textContent = 'swipe up for apps';
+    hintEl.classList.add('visible');
+    localStorage.setItem('lethe_swipe_hint_seen', '1');
+    setTimeout(function() { hintEl.classList.remove('visible'); hintEl.textContent = 'tap the guardian'; }, 4000);
+  }, 5000);
 }
 
 function showHomeNotice(text) {
