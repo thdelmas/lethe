@@ -359,3 +359,48 @@ video.mascot-video::-webkit-media-controls-enclosure {
   border-radius: 4px; font-size: 11px;
   color: var(--text-dim); white-space: pre-wrap;
 }
+
+/* ═════════════════════════════════════
+   SETTINGS PANEL
+   ═════════════════════════════════════ */
+.settings-panel {
+  position: fixed; inset: 0;
+  background: rgba(8,8,8,0.97);
+  z-index: 9998;
+  padding: 1rem;
+  overflow-y: auto;
+  font-size: 13px;
+  color: var(--text);
+}
+.settings-panel .input-field {
+  width: 100%; margin-top: 0.3rem;
+  font-size: 12px; padding: 0.5rem;
+}
+
+/* ═════════════════════════════════════
+   BURNER MODE WARNING BANNER
+   ═════════════════════════════════════ */
+.burner-banner {
+  position: fixed; top: 0; left: 0; right: 0;
+  display: flex; align-items: center; gap: 0.5rem;
+  padding: 0.45rem 0.8rem;
+  background: rgba(255, 68, 68, 0.12);
+  border-bottom: 1px solid rgba(255, 68, 68, 0.25);
+  color: #ff8a80;
+  font-family: var(--font);
+  font-size: 0.7rem; letter-spacing: 0.02em;
+  z-index: 100;
+  animation: burner-in 0.4s ease;
+}
+@keyframes burner-in {
+  from { opacity: 0; transform: translateY(-100%); }
+  to   { opacity: 1; transform: none; }
+}
+.burner-icon { font-size: 0.9rem; flex-shrink: 0; }
+.burner-close {
+  margin-left: auto; flex-shrink: 0;
+  background: none; border: none; color: #ff8a80;
+  font-size: 1rem; cursor: pointer; padding: 0 0.2rem;
+  opacity: 0.6;
+}
+.burner-close:active { opacity: 1; }

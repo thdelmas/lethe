@@ -636,14 +636,15 @@ var providers = [
     needsKey: false, key: null, model: null },
   { name: 'anthropic', endpoint: 'https://api.anthropic.com', format: 'anthropic',
     needsKey: true, key: localStorage.getItem('lethe_key_anthropic'),
-    model: 'claude-sonnet-4-6' },
+    model: localStorage.getItem('lethe_model_anthropic') || 'claude-sonnet-4-6' },
   { name: 'openrouter', endpoint: 'https://openrouter.ai/api/v1', format: 'openai',
     needsKey: true, key: localStorage.getItem('lethe_key_openrouter'),
-    model: 'anthropic/claude-sonnet-4-6' },
+    model: localStorage.getItem('lethe_model_openrouter') || 'anthropic/claude-sonnet-4-6' },
   { name: 'custom',
     endpoint: localStorage.getItem('lethe_custom_endpoint') || '',
     format: 'openai', needsKey: false,
-    key: localStorage.getItem('lethe_key_custom'), model: null }
+    key: localStorage.getItem('lethe_key_custom'),
+    model: localStorage.getItem('lethe_model_custom') || null }
 ];
 
 function getProvider() {
@@ -1011,6 +1012,11 @@ document.getElementById('btn-report-issue').addEventListener('click', function()
 
 document.getElementById('btn-discord').addEventListener('click', function() {
   window.open('https://discord.gg/tAqyY47Szp', '_blank');
+});
+
+document.getElementById('btn-settings').addEventListener('click', function() {
+  devPanel.style.display = 'none';
+  if (typeof settingsOpen === 'function') settingsOpen();
 });
 
 function updateDevInfo() {
