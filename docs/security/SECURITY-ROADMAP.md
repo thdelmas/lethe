@@ -39,16 +39,23 @@ accelerometer/gyroscope/magnetometer data — prevents sensor fingerprinting
 (websites/apps can derive persistent device IDs from manufacturing imperfections).
 Default deny for user-installed apps. Quick Settings tile: "Sensors off."
 
-### Lockdown mode toggle
+### Lockdown mode toggle — DONE
 
-One-tap Quick Settings tile: kill modem + WiFi + Bluetooth + sensors + camera + mic.
-Software equivalent of Librem 5/PinePhone hardware kill switches. Label as
-"best-effort" (software-only, can't match hardware disconnect).
+~~One-tap Quick Settings tile: kill modem + WiFi + Bluetooth + sensors + camera + mic.~~
 
-### EXIF metadata stripping
+**Implemented:**
+- LetheTileService.java — Quick Settings tile, one-tap toggle
+- Kills WiFi, mobile data, Bluetooth via `svc` commands
+- Sets `persist.lethe.lockdown.active` for sensor restriction
+- Labeled "best-effort" (software-only, can't match hardware disconnect)
 
-Strip EXIF/GPS/camera metadata from photos before sharing, system-wide.
-Bake into share sheet or pre-install Scrambled Exif. Default: strip.
+### EXIF metadata stripping — PARTIAL
+
+~~Strip EXIF/GPS/camera metadata from photos before sharing, system-wide.~~
+
+**Implemented:**
+- Scrambled Exif added to recommended apps in manifest.yaml
+- Share-sheet integration and system-wide mat2 still TODO (see P1 mat2 item)
 
 ### PanicKit integration
 
@@ -56,25 +63,28 @@ Extend duress PIN beyond data wipe: clear RAM, kill Tor circuits, broadcast
 duress signal to trusted contacts (via PubSub/Reticulum), power off modem.
 Use Guardian Project's PanicKit framework for app-level panic response.
 
-### Default-deny input firewall
+**Partially implemented:**
+- Panic wipe (5x power press) via PanicPressService.java
+- Duress PIN receiver via DuressPinReceiver.java
+- PanicKit broadcast integration and Tor circuit kill still TODO
 
-`firewall-rules.conf` input chain has `policy accept`. Any service listening on
-the device is reachable from the local network.
+### Default-deny input firewall — DONE
 
-**Changes:**
-- Input chain default policy becomes `drop`
-- Explicitly allow: DHCP replies, DNS responses, established/related connections, loopback
-- These rules already exist — just flip the default
+~~`firewall-rules.conf` input chain has `policy accept`. Any service listening on
+the device is reachable from the local network.~~
 
-### Per-connection MAC randomization
+**Implemented:** `firewall-rules.conf` input chain already has `policy drop`.
+Allows: established/related, loopback, DHCP replies. All else dropped and logged.
 
-LETHE randomizes MAC on wipe, but a single MAC per boot session lets networks
-correlate all activity within that session. Android 14 supports per-network,
-per-connection randomization natively.
+### Per-connection MAC randomization — DONE
 
-**Changes:**
-- Enable AOSP's per-connection MAC randomization via system property
-- Verify it works on LineageOS 21.0 base across device list
+~~LETHE randomizes MAC on wipe, but a single MAC per boot session lets networks
+correlate all activity within that session.~~
+
+**Implemented:**
+- `persist.lethe.wifi.mac_randomization=per_connection` in privacy-defaults.conf
+- Per-boot rotation via init.lethe-burner.rc (runs at post-fs-data)
+- Android 14+ devices get per-connection randomization; older devices get per-boot
 
 ### AVB relock on Pixel builds
 

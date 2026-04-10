@@ -478,6 +478,10 @@ features:
         name: "Shelter"
         package: "net.typeblog.shelter"
         desc: "Isolate apps in a work profile sandbox"
+      - id: scrambledexif
+        name: "Scrambled Exif"
+        package: "com.jarsilio.android.scrambledeggsif"
+        desc: "Strip GPS, camera, and device metadata from photos before sharing"
 
 # ── First-boot wizard ──
 # Unified onboarding flow defined in docs/first-boot-wizard.yaml.
