@@ -67,6 +67,13 @@ public class LetheActivity extends Activity {
         s.setDatabaseEnabled(true);
         s.setCacheMode(WebSettings.LOAD_DEFAULT);
         wv.setWebViewClient(new WebViewClient());
+        wv.setWebChromeClient(new android.webkit.WebChromeClient() {
+            @Override
+            public boolean onConsoleMessage(android.webkit.ConsoleMessage cm) {
+                Log.d(TAG, "JS:" + cm.lineNumber() + " " + cm.message());
+                return true;
+            }
+        });
         wv.setBackgroundColor(0xFF080808);
     }
 

@@ -430,13 +430,9 @@ homeMascot.addEventListener('touchend', function(e) {
   if (touch) spawnRipple(touch.clientX, touch.clientY);
 
   if (held > 500) {
-    if (!agentAvailable) {
-      showHomeNotice('thinking core offline');
-    } else {
-      openChat();
-    }
-  } else {
     playRandomAnim('tap');
+  } else {
+    openChat();
   }
   e.preventDefault();
 }, { passive: false });
