@@ -1185,6 +1185,8 @@ function openDrawer() {
   drawerEl.classList.add('open');
   home.classList.add('hidden');
   hintEl.classList.remove('visible');
+  var bb = document.getElementById('burner-banner');
+  if (bb) bb.style.display = 'none';
   drawerSearch.value = '';
   drawerSearch.focus();
 }
@@ -1195,6 +1197,11 @@ function closeDrawer() {
   drawerEl.classList.remove('open');
   home.classList.remove('hidden');
   drawerSearch.blur();
+  /* Re-show burner banner if still active */
+  var bb = document.getElementById('burner-banner');
+  if (bb && deviceState.burner_mode && !sessionStorage.getItem('lethe_burner_dismissed')) {
+    bb.style.display = 'flex';
+  }
 }
 
 function toggleDrawer() {
