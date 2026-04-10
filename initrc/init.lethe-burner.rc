@@ -21,17 +21,19 @@ on post-fs-data
         fi"
 
 service lethe-mac-rotate /system/bin/sh -c "\
-    ENABLED=$(getprop persist.lethe.burner.enabled); \
-    if [ \"$ENABLED\" = \"true\" ]; then \
-        MAC=$(cat /dev/urandom | tr -dc 'a-f0-9' | head -c 12 | sed 's/../&:/g;s/:$//'); \
+    ENABLED=\$(getprop persist.lethe.burner.enabled); \
+    if [ \"\$ENABLED\" = \"true\" ]; then \
+        MAC=\$(cat /dev/urandom | tr -dc 'a-f0-9' | head -c 12 | sed 's/../&:/g;s/:\$//'); \
         ip link set wlan0 down; \
-        ip link set wlan0 address $MAC; \
+        ip link set wlan0 address \$MAC; \
         ip link set wlan0 up; \
-        log -t lethe-burner \"MAC rotated to $MAC\"; \
+        log -t lethe-burner \"MAC rotated to \$MAC\"; \
     fi"
-    class late_start
+    class core
     oneshot
     disabled
 
-on property:sys.boot_completed=1
+# Run MAC rotation early — before WiFi HAL connects with old MAC.
+# post-fs-data runs before zygote and WiFi supplicant.
+on post-fs-data
     start lethe-mac-rotate

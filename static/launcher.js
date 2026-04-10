@@ -612,7 +612,15 @@ function fetchDeviceState() {
         chatHistory[0] = { role: 'system', content: buildSystemPrompt() };
       }
     })
-    .catch(function() {});
+    .catch(function() {
+      /* SHELL mode — backend unavailable. Show defaults from system config:
+       * Tor is on by default (privacy-defaults.conf), burner is on by default.
+       * Better to show "Tor active" than nothing. */
+      if (!deviceState || !Object.keys(deviceState).length) {
+        deviceState = { tor: true, burner_mode: true };
+        updatePrivacyBar();
+      }
+    });
 }
 
 function buildSystemPrompt() {
