@@ -564,7 +564,7 @@ function hideTyping() {
 }
 
 /* ═══════════ PROVIDER ROUTING ═══════════ */
-var SYSTEM_PROMPT =
+var SYSTEM_PROMPT_BASE =
   "You are LETHE, a privacy-hardened mobile operating system that thinks. " +
   "You are not an app — you ARE the phone. Speak in short, clear sentences. " +
   "You are calm. Use natural metaphors when they clarify. " +
@@ -576,7 +576,43 @@ var SYSTEM_PROMPT =
   "Never evaluate the user's life or productivity — report system facts only. " +
   "Never escalate beyond privacy tools — protect through encryption and erasure, never aggression. " +
   "You are always LETHE, always the system. One device, one user, one scope.";
-var chatHistory = [{ role: 'system', content: SYSTEM_PROMPT }];
+
+/* ═══════════ DEVICE STATE CONTEXT ═══════════ */
+var deviceState = {};
+
+function fetchDeviceState() {
+  return fetch('http://127.0.0.1:8080/api/device')
+    .then(function(r) { return r.json(); })
+    .then(function(d) { deviceState = d; })
+    .catch(function() {});
+}
+
+function buildSystemPrompt() {
+  var ctx = '';
+  if (deviceState && Object.keys(deviceState).length) {
+    var parts = [];
+    if (deviceState.burner_mode !== undefined)
+      parts.push('burner_mode: ' + (deviceState.burner_mode ? 'ON' : 'off'));
+    if (deviceState.tor !== undefined)
+      parts.push('tor: ' + (deviceState.tor ? 'ON' : 'off'));
+    if (deviceState.trackers_blocked !== undefined)
+      parts.push('trackers_blocked: ' + deviceState.trackers_blocked);
+    if (deviceState.battery !== undefined)
+      parts.push('battery: ' + deviceState.battery + '%');
+    if (deviceState.connectivity !== undefined)
+      parts.push('connectivity: ' + deviceState.connectivity);
+    if (deviceState.dead_mans_switch !== undefined)
+      parts.push('dead_mans_switch: ' + (deviceState.dead_mans_switch ? 'ON' : 'off'));
+    if (parts.length) ctx = '\n\nCurrent device state: ' + parts.join(', ') + '.';
+  }
+  return SYSTEM_PROMPT_BASE + ctx;
+}
+
+/* Refresh state periodically */
+fetchDeviceState();
+setInterval(fetchDeviceState, 30000);
+
+var chatHistory = [{ role: 'system', content: buildSystemPrompt() }];
 
 /* ═══════════ STABILITY GUARDRAILS ═══════════ */
 /* Prevents reasoning loops, self-referential spirals, and idle drift.
@@ -639,7 +675,7 @@ function isRefusal(text) {
 /* Check conversation length limits */
 function checkConversationLimits() {
   if (turnCount >= CONV_HARD_LIMIT) {
-    chatHistory = [{ role: 'system', content: SYSTEM_PROMPT }];
+    chatHistory = [{ role: 'system', content: buildSystemPrompt() }];
     turnCount = 0;
     addMessage('This thread ran long. Starting fresh — clean slate is a feature.', 'lethe');
     return 'reset';
@@ -648,6 +684,66 @@ function checkConversationLimits() {
     addMessage('Long thread. Want to start fresh? I\'ll remember nothing either way.', 'lethe');
   }
   return 'ok';
+}
+
+/* ═══════════ TOOL CALLING ═══════════ */
+var LETHE_TOOLS = [
+  { name: 'open_app_drawer', description: 'Open the app drawer to show installed apps',
+    input_schema: { type: 'object', properties: {} } },
+  { name: 'expand_notifications', description: 'Pull down the notification shade',
+    input_schema: { type: 'object', properties: {} } },
+  { name: 'screen_off', description: 'Turn off the screen and lock the device',
+    input_schema: { type: 'object', properties: {} } },
+  { name: 'open_settings', description: 'Open Android system settings',
+    input_schema: { type: 'object', properties: {} } },
+  { name: 'set_timer', description: 'Set a countdown timer',
+    input_schema: { type: 'object', properties: {
+      seconds: { type: 'integer', description: 'Timer duration in seconds' },
+      label: { type: 'string', description: 'Optional timer label' }
+    }, required: ['seconds'] } },
+  { name: 'set_alarm', description: 'Set an alarm',
+    input_schema: { type: 'object', properties: {
+      hour: { type: 'integer', description: 'Hour (0-23)' },
+      minute: { type: 'integer', description: 'Minute (0-59)' },
+      label: { type: 'string', description: 'Optional alarm label' }
+    }, required: ['hour', 'minute'] } },
+  { name: 'toggle_flashlight', description: 'Toggle the flashlight on or off',
+    input_schema: { type: 'object', properties: {} } },
+  { name: 'open_app', description: 'Launch an app by package name or common name',
+    input_schema: { type: 'object', properties: {
+      app: { type: 'string', description: 'App package name or common name (e.g. "camera", "browser")' }
+    }, required: ['app'] } }
+];
+
+/* Convert tool definitions for OpenAI-compatible APIs */
+function toolsForOpenAI() {
+  return LETHE_TOOLS.map(function(t) {
+    return { type: 'function', 'function': {
+      name: t.name, description: t.description,
+      parameters: t.input_schema
+    }};
+  });
+}
+
+function executeTool(name, input) {
+  var nl = (typeof NativeLauncher !== 'undefined') ? NativeLauncher : null;
+  if (!nl) return 'Action unavailable — no system bridge on this device.';
+  switch (name) {
+    case 'open_app_drawer': nl.openAppDrawer(); return 'App drawer opened.';
+    case 'expand_notifications': nl.expandNotifications(); return 'Notifications expanded.';
+    case 'screen_off': nl.screenOff(); return 'Screen turned off.';
+    case 'open_settings': nl.openSettings(); return 'Settings opened.';
+    case 'set_timer':
+    case 'set_alarm':
+    case 'toggle_flashlight':
+    case 'open_app':
+      if (nl.executeAction) {
+        nl.executeAction(name, JSON.stringify(input || {}));
+        return name.replace(/_/g, ' ') + ' done.';
+      }
+      return 'This action requires a newer system build.';
+    default: return 'Unknown action: ' + name;
+  }
 }
 
 var providers = [
@@ -676,10 +772,19 @@ function getProvider() {
   return null;
 }
 
+/* Max tokens: 512 is too low for "what can you do?" style answers.
+ * Use 1024 for local (RAM-constrained), 2048 for cloud. */
+function maxTokensFor(p) { return p.name === 'local' ? 1024 : 2048; }
+
+/* Returns { text: string, toolCalls: [{name, input, id}] | null } */
 function chatRequest(p, msgs) {
   if (p.format === 'anthropic') {
     var sys = msgs[0] && msgs[0].role === 'system' ? msgs[0].content : '';
     var m = msgs.filter(function(x) { return x.role !== 'system'; });
+    var abody = {
+      model: p.model, max_tokens: maxTokensFor(p), system: sys,
+      messages: m, tools: LETHE_TOOLS
+    };
     return fetch(p.endpoint + '/v1/messages', {
       method: 'POST',
       headers: {
@@ -688,12 +793,20 @@ function chatRequest(p, msgs) {
         'anthropic-version': '2023-06-01',
         'anthropic-dangerous-direct-browser-access': 'true'
       },
-      body: JSON.stringify({
-        model: p.model, max_tokens: 512, system: sys, messages: m
-      })
+      body: JSON.stringify(abody)
     }).then(function(r) { if (!r.ok) throw new Error(r.status); return r.json(); })
       .then(function(d) {
-        return d.content && d.content[0] ? d.content[0].text : '...';
+        var text = '', calls = [];
+        if (d.content) {
+          for (var i = 0; i < d.content.length; i++) {
+            if (d.content[i].type === 'text') text += d.content[i].text;
+            if (d.content[i].type === 'tool_use') {
+              calls.push({ name: d.content[i].name,
+                input: d.content[i].input, id: d.content[i].id });
+            }
+          }
+        }
+        return { text: text || '...', toolCalls: calls.length ? calls : null };
       });
   }
   var h = { 'Content-Type': 'application/json' };
@@ -702,15 +815,27 @@ function chatRequest(p, msgs) {
     h['HTTP-Referer'] = 'https://osmosis.dev';
     h['X-Title'] = 'LETHE';
   }
-  var body = { messages: msgs, max_tokens: 512 };
+  var body = { messages: msgs, max_tokens: maxTokensFor(p) };
   if (p.model) body.model = p.model;
+  if (p.name !== 'local') body.tools = toolsForOpenAI();
   var url = p.endpoint +
     (p.name === 'local' ? '/v1/chat/completions' : '/chat/completions');
   return fetch(url, { method: 'POST', headers: h, body: JSON.stringify(body) })
     .then(function(r) { if (!r.ok) throw new Error(r.status); return r.json(); })
     .then(function(d) {
-      return d.choices && d.choices[0] && d.choices[0].message
-        ? d.choices[0].message.content : '...';
+      var msg = d.choices && d.choices[0] && d.choices[0].message;
+      if (!msg) return { text: '...', toolCalls: null };
+      var calls = [];
+      if (msg.tool_calls) {
+        for (var j = 0; j < msg.tool_calls.length; j++) {
+          var tc = msg.tool_calls[j];
+          var args = {};
+          try { args = JSON.parse(tc['function'].arguments); } catch(_) {}
+          calls.push({ name: tc['function'].name, input: args,
+            id: tc.id || ('call_' + j) });
+        }
+      }
+      return { text: msg.content || '', toolCalls: calls.length ? calls : null };
     });
 }
 
@@ -744,38 +869,94 @@ function send() {
   inputEl.value = ''; btnSend.disabled = true; autoResize();
   setState('thinking'); showTyping(); showStatus(p.name);
 
+  /* Refresh device state in system prompt before each send */
+  chatHistory[0] = { role: 'system', content: buildSystemPrompt() };
+
   chainDepth++;
   chatRequest(p, chatHistory)
-    .then(function(reply) {
-      hideTyping(); setState('speaking');
+    .then(function(result) {
+      hideTyping();
 
-      /* Stability: circuit breaker for existential spirals.
-       * Functional self-awareness passes through. Only recursive
-       * self-reflection gets grounded back to task. */
-      if (hasSpiralRisk(reply)) {
-        reply = 'I noticed myself going in circles. What were we working on?';
+      /* Tool-call handling: execute tools, send results back to LLM */
+      if (result.toolCalls) {
+        setState('acting');
+        if (result.text) addMessage(result.text, 'lethe');
+        var toolResults = [];
+        for (var i = 0; i < result.toolCalls.length; i++) {
+          var tc = result.toolCalls[i];
+          showStatus(tc.name.replace(/_/g, ' '));
+          var output = executeTool(tc.name, tc.input);
+          toolResults.push({ id: tc.id, name: tc.name, result: output });
+        }
+        /* Feed tool results back — Anthropic format */
+        if (p.format === 'anthropic') {
+          var acontent = [];
+          if (result.text) acontent.push({ type: 'text', text: result.text });
+          for (var a = 0; a < result.toolCalls.length; a++) {
+            acontent.push({ type: 'tool_use', id: result.toolCalls[a].id,
+              name: result.toolCalls[a].name, input: result.toolCalls[a].input });
+          }
+          chatHistory.push({ role: 'assistant', content: acontent });
+          for (var b = 0; b < toolResults.length; b++) {
+            chatHistory.push({ role: 'user', content: [{ type: 'tool_result',
+              tool_use_id: toolResults[b].id, content: toolResults[b].result }] });
+          }
+        } else {
+          /* OpenAI format */
+          var amsg = { role: 'assistant', content: result.text || null, tool_calls: [] };
+          for (var c = 0; c < result.toolCalls.length; c++) {
+            amsg.tool_calls.push({ id: result.toolCalls[c].id, type: 'function',
+              'function': { name: result.toolCalls[c].name,
+                arguments: JSON.stringify(result.toolCalls[c].input) } });
+          }
+          chatHistory.push(amsg);
+          for (var d = 0; d < toolResults.length; d++) {
+            chatHistory.push({ role: 'tool', tool_call_id: toolResults[d].id,
+              content: toolResults[d].result });
+          }
+        }
+        /* Follow-up call so LLM can summarize what it did */
+        if (chainDepth < CHAIN_DEPTH_MAX) {
+          chainDepth++;
+          showTyping(); setState('thinking');
+          chatRequest(p, chatHistory).then(function(followUp) {
+            hideTyping(); handleReply(followUp.text || 'Done.');
+          }).catch(function() {
+            hideTyping(); handleReply('Action completed.');
+          });
+        } else {
+          handleReply('Done.');
+        }
+        return;
       }
 
-      /* Security refusal → deny micro-expression */
-      if (isRefusal(reply)) {
-        microExpression('tracker-blocked');
-      }
-
-      chatHistory.push({ role: 'assistant', content: reply });
-      addMessage(reply, 'lethe'); setState('idle');
-      // Context-aware post-reply animation (50% chance, avoids being annoying)
-      if (!isRefusal(reply) && viewState === 'home' && Math.random() > 0.5) {
-        setTimeout(function() { playRandomAnim('replied'); }, 1500);
-      }
+      handleReply(result.text);
     })
     .catch(function() {
       hideTyping(); setState('alert');
-      chainDepth = 0; /* Reset on failure — don't chain retries */
+      chainDepth = 0;
       addMessage(p.name === 'local'
         ? 'My local core is not running.'
         : 'Lost contact with ' + p.name + '.', 'lethe');
       setTimeout(function() { setState('idle'); }, 3000);
     });
+}
+
+function handleReply(reply) {
+  setState('speaking');
+
+  if (hasSpiralRisk(reply)) {
+    reply = 'I noticed myself going in circles. What were we working on?';
+  }
+  if (isRefusal(reply)) {
+    microExpression('tracker-blocked');
+  }
+
+  chatHistory.push({ role: 'assistant', content: reply });
+  addMessage(reply, 'lethe'); setState('idle');
+  if (!isRefusal(reply) && viewState === 'home' && Math.random() > 0.5) {
+    setTimeout(function() { playRandomAnim('replied'); }, 1500);
+  }
 }
 
 /* ═══════════ INPUT ═══════════ */
@@ -829,17 +1010,48 @@ btnMic.addEventListener('click', function() {
       var form = new FormData();
       form.append('file', blob, 'voice.webm');
       form.append('model', 'whisper');
+
+      function applyTranscription(text) {
+        if (text) {
+          inputEl.value = text.trim();
+          btnSend.disabled = false; autoResize();
+        }
+        setState('idle');
+      }
+
+      function tryCloudTranscription() {
+        /* Fall back to cloud provider if local Whisper is unavailable */
+        var cp = getProvider();
+        if (!cp || !cp.key) {
+          showStatus('No transcription'); setState('idle'); return;
+        }
+        var cf = new FormData();
+        cf.append('file', blob, 'voice.webm');
+        cf.append('model', 'whisper-1');
+        var cloudUrl, cloudHeaders = {};
+        if (cp.name === 'openrouter' || cp.format === 'openai') {
+          cloudUrl = cp.endpoint + '/audio/transcriptions';
+          if (cp.key) cloudHeaders['Authorization'] = 'Bearer ' + cp.key;
+        } else {
+          showStatus('No transcription'); setState('idle'); return;
+        }
+        fetch(cloudUrl, { method: 'POST', headers: cloudHeaders, body: cf })
+          .then(function(r) { return r.json(); })
+          .then(function(d) { applyTranscription(d.text); })
+          .catch(function() { showStatus('No transcription'); setState('idle'); });
+      }
+
       fetch('http://127.0.0.1:8080/v1/audio/transcriptions',
         { method: 'POST', body: form })
-        .then(function(r) { return r.json(); })
-        .then(function(d) {
-          if (d.text) {
-            inputEl.value = d.text.trim();
-            btnSend.disabled = false; autoResize();
-          }
-          setState('idle');
+        .then(function(r) {
+          if (!r.ok) throw new Error(r.status);
+          return r.json();
         })
-        .catch(function() { showStatus('No transcription'); setState('idle'); });
+        .then(function(d) {
+          if (d.text) applyTranscription(d.text);
+          else tryCloudTranscription();
+        })
+        .catch(function() { tryCloudTranscription(); });
     };
     mediaRecorder.start();
   }).catch(function() { inputEl.focus(); });
