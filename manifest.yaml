@@ -18,7 +18,7 @@ description: >
 devices:
   # Samsung
   - chagalllte    # Galaxy Tab S 10.5
-  - codename: t03g          # Galaxy Note II (Exynos 4412, ARMv7)
+  - codename: t03g          # Galaxy Note II 3G (Exynos 4412, ARMv7)
     base_version: "14.1"     # No official LOS 22.1 support — unofficial LOS 14.1 is
     android_version: "7.1"   # the most stable option. Newer LOS builds exist but FBE
     unofficial: true         # is broken on Exynos 4412 and random reboots persist.
@@ -29,6 +29,14 @@ devices:
     disabled_features:        # Features that cannot work on this hardware/base
       - encryption            # FDE removed in Android 13+, FBE unsupported on Exynos 4412
                               # but FDE works fine on LOS 14.1 (Android 7.1)
+  - codename: t0lte          # Galaxy Note II LTE (Exynos 4412, ARMv7)
+    base_version: "14.1"
+    android_version: "7.1"
+    unofficial: true
+    notes: >
+      LTE variant of t03g. Same Exynos 4412, same constraints.
+    disabled_features:
+      - encryption
 
   # Google Pixel
   - panther       # Pixel 7
