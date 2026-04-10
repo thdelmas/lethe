@@ -5,7 +5,7 @@
 
 service lethe-ipfs /system/bin/sh -c "\
     export IPFS_PATH=/data/lethe/ipfs; \
-    if [ ! -d $IPFS_PATH ]; then \
+    if [ ! -d \$IPFS_PATH ]; then \
         ipfs init --profile=lowpower 2>/dev/null; \
         ipfs config Routing.Type dhtclient; \
         ipfs config --json Swarm.DisableNatPortMap true; \
@@ -23,8 +23,8 @@ service lethe-ipfs /system/bin/sh -c "\
 service lethe-ota-check /system/bin/sh -c "\
     while true; do \
         sleep 21600; \
-        ENABLED=$(getprop persist.lethe.ipfs.enabled); \
-        if [ \"$ENABLED\" != \"true\" ]; then continue; fi; \
+        ENABLED=\$(getprop persist.lethe.ipfs.enabled); \
+        if [ \"\$ENABLED\" != \"true\" ]; then continue; fi; \
         \
         /system/bin/lethe-ota-update.sh 2>&1 | log -t lethe-ota; \
     done"
@@ -35,8 +35,8 @@ service lethe-ota-check /system/bin/sh -c "\
 # One-shot check shortly after boot (5 min delay for connectivity).
 service lethe-ota-boot /system/bin/sh -c "\
     sleep 300; \
-    ENABLED=$(getprop persist.lethe.ipfs.enabled); \
-    if [ \"$ENABLED\" = \"true\" ]; then \
+    ENABLED=\$(getprop persist.lethe.ipfs.enabled); \
+    if [ \"\$ENABLED\" = \"true\" ]; then \
         /system/bin/lethe-ota-update.sh 2>&1 | log -t lethe-ota; \
     fi"
     class late_start

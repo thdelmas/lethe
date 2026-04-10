@@ -163,6 +163,35 @@ fi
 
 log "Available: $BUILD_FILENAME (v$BUILD_VERSION, patch $BUILD_SECURITY_PATCH)"
 
+# ── Helper functions (defined before first use) ──
+write_pending_metadata() {
+    cat > "$OTA_DIR/pending-update.json" <<META
+{
+  "cid": "$BUILD_CID",
+  "filename": "$BUILD_FILENAME",
+  "filepath": "$PENDING_FILE",
+  "sha256": "$BUILD_SHA256",
+  "version": "$BUILD_VERSION",
+  "security_patch": "$BUILD_SECURITY_PATCH",
+  "is_security_patch": $IS_SECURITY_PATCH,
+  "codename": "$DEVICE_CODENAME",
+  "policy": "$EFFECTIVE_POLICY",
+  "fetched_at": "$(date -Iseconds 2>/dev/null || date +%s)"
+}
+META
+}
+
+notify_update() {
+    am broadcast \
+        -a lethe.intent.OTA_AVAILABLE \
+        --es cid "$BUILD_CID" \
+        --es version "$BUILD_VERSION" \
+        --es filename "$BUILD_FILENAME" \
+        --es policy "$EFFECTIVE_POLICY" \
+        --ez is_security_patch "$IS_SECURITY_PATCH" \
+        2>/dev/null
+}
+
 # ── Step 5: Check if we already have this version ──
 if [ "$BUILD_VERSION" = "$CURRENT_VERSION" ]; then
     log "Already on $BUILD_VERSION — no update needed"
@@ -216,35 +245,6 @@ if [ "$ACTUAL_SHA" != "$BUILD_SHA256" ]; then
     exit 1
 fi
 log "SHA256 verified OK"
-
-# ── Step 9: Write pending update metadata ──
-write_pending_metadata() {
-    cat > "$OTA_DIR/pending-update.json" <<META
-{
-  "cid": "$BUILD_CID",
-  "filename": "$BUILD_FILENAME",
-  "filepath": "$PENDING_FILE",
-  "sha256": "$BUILD_SHA256",
-  "version": "$BUILD_VERSION",
-  "security_patch": "$BUILD_SECURITY_PATCH",
-  "is_security_patch": $IS_SECURITY_PATCH,
-  "codename": "$DEVICE_CODENAME",
-  "policy": "$EFFECTIVE_POLICY",
-  "fetched_at": "$(date -Iseconds 2>/dev/null || date +%s)"
-}
-META
-}
-
-notify_update() {
-    am broadcast \
-        -a lethe.intent.OTA_AVAILABLE \
-        --es cid "$BUILD_CID" \
-        --es version "$BUILD_VERSION" \
-        --es filename "$BUILD_FILENAME" \
-        --es policy "$EFFECTIVE_POLICY" \
-        --ez is_security_patch "$IS_SECURITY_PATCH" \
-        2>/dev/null
-}
 
 write_pending_metadata
 log "Update ready: $BUILD_FILENAME"

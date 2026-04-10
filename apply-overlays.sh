@@ -266,6 +266,8 @@ if [ -d "$AGENT_SOURCE" ]; then
     <uses-permission android:name="android.permission.RECORD_AUDIO" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
+    <uses-permission android:name="android.permission.REBOOT" />
+    <uses-permission android:name="android.permission.VIBRATE" />
 
     <application
         android:label="LETHE"
@@ -325,12 +327,42 @@ if [ -d "$AGENT_SOURCE" ]; then
             </intent-filter>
         </service>
 
-        <!-- Boot receiver — start notification service on boot -->
+        <!-- Boot receiver — start services on boot -->
         <receiver
             android:name=".BootReceiver"
             android:exported="true">
             <intent-filter>
                 <action android:name="android.intent.action.BOOT_COMPLETED" />
+            </intent-filter>
+        </receiver>
+
+        <!-- Dead man's switch check-in receiver -->
+        <receiver
+            android:name=".CheckinReceiver"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="lethe.intent.CHECKIN_DUE" />
+            </intent-filter>
+        </receiver>
+
+        <!-- Check-in passphrase dialog -->
+        <activity
+            android:name=".CheckinDialogActivity"
+            android:theme="@android:style/Theme.DeviceDefault.Dialog"
+            android:excludeFromRecents="true"
+            android:exported="false" />
+
+        <!-- Panic press monitor (5x power = wipe) -->
+        <service
+            android:name=".PanicPressService"
+            android:exported="false" />
+
+        <!-- Duress PIN receiver (silent wipe on fake unlock) -->
+        <receiver
+            android:name=".DuressPinReceiver"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="lethe.intent.DURESS_UNLOCK" />
             </intent-filter>
         </receiver>
 
@@ -346,6 +378,16 @@ MANIFEST
             cp "$AGENT_SOURCE/static/icon-192.png" "$SYSAPP_DIR/res/mipmap-$DPI/ic_lethe.png"
         done
         echo "  -> App icon installed."
+    fi
+
+    # ── 10b2. Java source files (security features) ──
+    JAVA_SOURCE="$SCRIPT_DIR/java/org/osmosis/lethe"
+    if [ -d "$JAVA_SOURCE" ]; then
+        JAVA_TARGET="$SYSAPP_DIR/src/org/osmosis/lethe/agent"
+        mkdir -p "$JAVA_TARGET"
+        cp "$JAVA_SOURCE"/*.java "$JAVA_TARGET/"
+        JAVA_COUNT=$(ls "$JAVA_SOURCE"/*.java 2>/dev/null | wc -l)
+        echo "  -> Java source files copied ($JAVA_COUNT files)."
     fi
 
     # ── 10c. Init service — backend + default assist registration ──

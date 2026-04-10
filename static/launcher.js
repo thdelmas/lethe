@@ -593,6 +593,12 @@ function updatePrivacyBar() {
   if (privacyTrackersEl && deviceState.trackers_blocked !== undefined) {
     privacyTrackersEl.textContent = deviceState.trackers_blocked + ' trackers blocked';
   }
+  /* Burner mode banner — show when active, dismissable per session */
+  var burnerBanner = document.getElementById('burner-banner');
+  if (burnerBanner && deviceState.burner_mode !== undefined) {
+    var dismissed = sessionStorage.getItem('lethe_burner_dismissed');
+    burnerBanner.style.display = (deviceState.burner_mode && !dismissed) ? 'flex' : 'none';
+  }
 }
 
 function fetchDeviceState() {
@@ -1248,6 +1254,16 @@ for (var i = 0; i < tierBtns.length; i++) {
   tierBtns[i].addEventListener('click', function() {
     localStorage.setItem('lethe_avatar_tier', this.getAttribute('data-tier'));
     location.reload();
+  });
+}
+
+/* ═══════════ BURNER BANNER DISMISS ═══════════ */
+var burnerDismissBtn = document.getElementById('burner-dismiss');
+if (burnerDismissBtn) {
+  burnerDismissBtn.addEventListener('click', function() {
+    sessionStorage.setItem('lethe_burner_dismissed', '1');
+    var banner = document.getElementById('burner-banner');
+    if (banner) banner.style.display = 'none';
   });
 }
 
