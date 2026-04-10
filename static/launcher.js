@@ -617,6 +617,25 @@ function hasSpiralRisk(text) {
   return false;
 }
 
+/* Detect security refusals — LETHE declining a dangerous request.
+ * Triggers the "deny" micro-expression so the mascot visually reinforces
+ * the refusal instead of just responding with text. */
+var REFUSAL_PATTERNS = [
+  /\bi (can'?t|cannot|won'?t|will not|refuse to) (help (you )?(with|do)|do that|assist with that)/i,
+  /\bthat('s| is| would be) (dangerous|unsafe|harmful|a (security|privacy) risk)/i,
+  /\bi('m| am) not (going to|willing to|able to) (help|assist|do)/i,
+  /\bthis (could|would|will) (compromise|endanger|expose|leak)/i,
+  /\bi (have to |must )?decline/i,
+  /\bnot something i('ll| will) (do|help with)/i
+];
+
+function isRefusal(text) {
+  for (var i = 0; i < REFUSAL_PATTERNS.length; i++) {
+    if (REFUSAL_PATTERNS[i].test(text)) return true;
+  }
+  return false;
+}
+
 /* Check conversation length limits */
 function checkConversationLimits() {
   if (turnCount >= CONV_HARD_LIMIT) {
@@ -737,10 +756,15 @@ function send() {
         reply = 'I noticed myself going in circles. What were we working on?';
       }
 
+      /* Security refusal → deny micro-expression */
+      if (isRefusal(reply)) {
+        microExpression('tracker-blocked');
+      }
+
       chatHistory.push({ role: 'assistant', content: reply });
       addMessage(reply, 'lethe'); setState('idle');
       // Context-aware post-reply animation (50% chance, avoids being annoying)
-      if (viewState === 'home' && Math.random() > 0.5) {
+      if (!isRefusal(reply) && viewState === 'home' && Math.random() > 0.5) {
         setTimeout(function() { playRandomAnim('replied'); }, 1500);
       }
     })

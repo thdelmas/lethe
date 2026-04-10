@@ -3,15 +3,16 @@
  * Gyroscope parallax, eye gaze tracking, touch reactions,
  * and ambient system awareness (battery, time-of-day).
  *
- * Requires: mascot-3d.css loaded, #mascot and #mascot-stage in DOM.
+ * Requires: mascot-3d.css loaded, #home-mascot in DOM.
  * Reads/writes CSS custom properties on the mascot element.
- * Calls setState(), setExpression(), microExpression() from conversation.html.
+ * Calls setState(), setExpression(), microExpression() from mascot-emotion.js.
  */
 
 /* ══════════════════════════════════════════
    Gyroscope parallax
    Tilt the phone → the avatar shifts in 3D.
    ══════════════════════════════════════════ */
+var mascot = document.getElementById('home-mascot');
 var gyroEnabled = false;
 var gyroBeta0 = 0;
 var gyroGamma0 = 0;
@@ -52,7 +53,7 @@ if (typeof DeviceOrientationEvent !== 'undefined' &&
    Eye gaze tracking
    Eyes follow touch/mouse position on screen.
    ══════════════════════════════════════════ */
-var stage = document.getElementById('mascot-stage');
+var stage = mascot;
 
 function updateGaze(clientX, clientY) {
   var rect = stage.getBoundingClientRect();
