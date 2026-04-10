@@ -16,9 +16,19 @@ on post-fs-data
 on property:sys.boot_completed=1
     start lethe-tor
 
-    # Apply transparent proxy iptables rules after Tor starts
+    # PHASE 1: Immediately block all user app traffic (no leak window).
+    # This runs before Tor is ready — user apps see no connectivity, not direct.
+    exec -- /system/bin/sh -c "\
+        iptables -A OUTPUT -m owner --uid-owner 10000-99999 -j DROP; \
+        log -t lethe-tor 'User app traffic blocked (pre-Tor)'"
+
+    # PHASE 2: Wait for Tor to bootstrap, then replace the blanket DROP
+    # with proper Tor redirect rules.
     exec -- /system/bin/sh -c "\
         sleep 5; \
+        \
+        # Remove the blanket drop now that Tor is ready \
+        iptables -D OUTPUT -m owner --uid-owner 10000-99999 -j DROP; \
         \
         # Redirect user app DNS (UDP 53) to Tor DNS port \
         iptables -t nat -A OUTPUT -m owner --uid-owner 10000-99999 -p udp --dport 53 \

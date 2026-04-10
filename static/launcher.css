@@ -378,6 +378,36 @@ video.mascot-video::-webkit-media-controls-enclosure {
 }
 
 /* ═════════════════════════════════════
+   PRIVACY STATUS BAR
+   ═════════════════════════════════════ */
+.privacy-bar {
+  position: fixed; bottom: 0; left: 0; right: 0;
+  display: flex; align-items: center; justify-content: center; gap: 0.6rem;
+  padding: 0.35rem 0.8rem;
+  font-size: 11px; color: var(--text-dim);
+  pointer-events: none; z-index: 80;
+  transition: opacity 0.3s var(--ease);
+}
+.privacy-tor {
+  transition: color 0.3s;
+}
+.privacy-tor.active {
+  color: var(--accent);
+}
+.privacy-tor.inactive {
+  color: var(--red);
+}
+.privacy-sep {
+  width: 3px; height: 3px; border-radius: 50%;
+  background: var(--text-dim); flex-shrink: 0;
+}
+.privacy-trackers { opacity: 0.7; }
+
+/* Hide privacy bar when chat is open */
+.chat.open ~ .privacy-bar,
+.home.hidden ~ .privacy-bar { opacity: 0; }
+
+/* ═════════════════════════════════════
    BURNER MODE WARNING BANNER
    ═════════════════════════════════════ */
 .burner-banner {

@@ -580,10 +580,32 @@ var SYSTEM_PROMPT_BASE =
 /* ═══════════ DEVICE STATE CONTEXT ═══════════ */
 var deviceState = {};
 
+var privacyTorEl = document.getElementById('privacy-tor');
+var privacyTrackersEl = document.getElementById('privacy-trackers');
+
+function updatePrivacyBar() {
+  if (!deviceState || !Object.keys(deviceState).length) return;
+  if (privacyTorEl) {
+    var torOn = deviceState.tor;
+    privacyTorEl.className = 'privacy-tor ' + (torOn ? 'active' : 'inactive');
+    privacyTorEl.textContent = torOn ? '\u{1f6e1} Tor active' : '\u{1f6e1} Tor offline';
+  }
+  if (privacyTrackersEl && deviceState.trackers_blocked !== undefined) {
+    privacyTrackersEl.textContent = deviceState.trackers_blocked + ' trackers blocked';
+  }
+}
+
 function fetchDeviceState() {
   return fetch('http://127.0.0.1:8080/api/device')
     .then(function(r) { return r.json(); })
-    .then(function(d) { deviceState = d; })
+    .then(function(d) {
+      deviceState = d;
+      updatePrivacyBar();
+      /* Keep system prompt current so agent always has device context */
+      if (typeof chatHistory !== 'undefined' && chatHistory.length) {
+        chatHistory[0] = { role: 'system', content: buildSystemPrompt() };
+      }
+    })
     .catch(function() {});
 }
 
@@ -712,7 +734,9 @@ var LETHE_TOOLS = [
   { name: 'open_app', description: 'Launch an app by package name or common name',
     input_schema: { type: 'object', properties: {
       app: { type: 'string', description: 'App package name or common name (e.g. "camera", "browser")' }
-    }, required: ['app'] } }
+    }, required: ['app'] } },
+  { name: 'get_privacy_status', description: 'Get current privacy and security status: Tor state, trackers blocked, connectivity, burner mode, dead man\'s switch',
+    input_schema: { type: 'object', properties: {} } }
 ];
 
 /* Convert tool definitions for OpenAI-compatible APIs */
@@ -742,6 +766,16 @@ function executeTool(name, input) {
         return name.replace(/_/g, ' ') + ' done.';
       }
       return 'This action requires a newer system build.';
+    case 'get_privacy_status':
+      var s = deviceState || {};
+      return JSON.stringify({
+        tor: s.tor !== undefined ? (s.tor ? 'active' : 'offline') : 'unknown',
+        trackers_blocked: s.trackers_blocked !== undefined ? s.trackers_blocked : 'unknown',
+        connectivity: s.connectivity || 'unknown',
+        burner_mode: s.burner_mode !== undefined ? (s.burner_mode ? 'ON' : 'off') : 'unknown',
+        dead_mans_switch: s.dead_mans_switch !== undefined ? (s.dead_mans_switch ? 'ON' : 'off') : 'unknown',
+        battery: s.battery !== undefined ? s.battery + '%' : 'unknown'
+      });
     default: return 'Unknown action: ' + name;
   }
 }
