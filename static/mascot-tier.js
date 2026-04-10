@@ -141,9 +141,9 @@
   }
 
   function tierToAvatar(tier) {
-    // All tiers try 3D first (each has its own LOD GLB).
-    // Fall back to 2D (animated WebP) if WebGL is broken.
-    // 2D works on any device — it's just an <img> tag.
+    // Shallow tier: static image to avoid loading Three.js on weak GPUs.
+    // Taproot/deeproot: 3D if WebGL works, 2D video fallback otherwise.
+    if (tier === 'shallow') return 'static';
     if (canWebGL()) return '3d';
     return '2d';
   }

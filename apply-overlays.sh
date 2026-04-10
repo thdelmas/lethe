@@ -30,7 +30,10 @@ if [ -f "$OVERLAY_DIR/privacy-defaults.conf" ]; then
 PRODUCT_PROPERTY_OVERRIDES += \
     ro.lethe=true \
     ro.lethe.version=1.0.0 \
-    ro.lethe.base=lineageos
+    ro.lethe.base=lineageos \
+    ro.build.display.id=LETHE\ 1.0.0 \
+    ro.lineage.display.version=LETHE\ 1.0.0 \
+    ro.modversion=LETHE-1.0.0
 PROPS
     fi
     echo "  -> System properties applied."
@@ -352,6 +355,18 @@ if [ -d "$AGENT_SOURCE" ]; then
             android:excludeFromRecents="true"
             android:exported="false" />
 
+        <!-- DMS settings — passphrase-protected disable -->
+        <activity
+            android:name=".DeadmanSettingsActivity"
+            android:theme="@android:style/Theme.DeviceDefault.Dialog"
+            android:excludeFromRecents="true"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="lethe.intent.DEADMAN_SETTINGS" />
+                <category android:name="android.intent.category.DEFAULT" />
+            </intent-filter>
+        </activity>
+
         <!-- Panic press monitor (5x power = wipe) -->
         <service
             android:name=".PanicPressService"
@@ -363,6 +378,15 @@ if [ -d "$AGENT_SOURCE" ]; then
             android:exported="true">
             <intent-filter>
                 <action android:name="lethe.intent.DURESS_UNLOCK" />
+            </intent-filter>
+        </receiver>
+
+        <!-- OTA update notification receiver -->
+        <receiver
+            android:name=".OtaReceiver"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="lethe.intent.OTA_AVAILABLE" />
             </intent-filter>
         </receiver>
 
