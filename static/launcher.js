@@ -51,13 +51,28 @@ function openChat() {
   chatEl.classList.add('open');
   home.classList.add('hidden');
   hintEl.classList.remove('visible');
-  inputEl.focus();
   history.pushState({ view: 'chat' }, '');
   if (window.mascot3D) window.mascot3D.setChatVisible(true);
+  /* Show native input bar (Android EditText) */
+  if (typeof NativeLauncher !== 'undefined' && NativeLauncher.showInputBar) {
+    NativeLauncher.showInputBar();
+  }
+  /* Show welcome on first open, or status if no provider */
+  if (transcript.children.length === 0) {
+    if (!getProvider()) {
+      addMessage('No thinking core connected. Add an API key in Settings (long-press the clock).', 'lethe');
+    } else {
+      addMessage('What do you need?', 'lethe');
+    }
+  }
 }
 
 function closeChat() {
   viewState = 'home';
+  /* Hide native input bar */
+  if (typeof NativeLauncher !== 'undefined' && NativeLauncher.hideInputBar) {
+    NativeLauncher.hideInputBar();
+  }
   chatEl.classList.remove('open');
   home.classList.remove('hidden');
   inputEl.blur();
@@ -508,6 +523,11 @@ function checkAgent() {
 checkAgent();
 setInterval(checkAgent, 30000);
 
+/* Detect native input bar — hide WebView input area */
+if (typeof NativeLauncher !== 'undefined' && NativeLauncher.showInputBar) {
+  document.body.setAttribute('data-native-input', '');
+}
+
 /* State is driven through the emotion engine (mascot-emotion.js).
  * Falls back to simple global if emotion engine hasn't loaded yet. */
 function setState(s) {
@@ -893,6 +913,13 @@ function chatRequest(p, msgs) {
 }
 
 /* ═══════════ SEND ═══════════ */
+/* Called from native Android EditText via evaluateJavascript */
+function nativeSend(text) {
+  if (!text) return;
+  inputEl.value = text;
+  send();
+}
+
 function send() {
   var text = inputEl.value.trim();
   if (!text) return;
