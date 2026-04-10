@@ -157,9 +157,23 @@ public class LetheActivity extends Activity {
 
     @Override
     public void onBackPressed() {
+        goHome();
+    }
+
+    @Override
+    protected void onNewIntent(Intent intent) {
+        super.onNewIntent(intent);
+        // Home button pressed while already on top → go to home screen
+        goHome();
+    }
+
+    private void goHome() {
+        webView.evaluateJavascript(
+            "typeof closeChat==='function'&&closeChat();" +
+            "typeof closeDrawer==='function'&&closeDrawer()", null);
         if (inputBar.getVisibility() == View.VISIBLE) {
-            webView.evaluateJavascript(
-                "typeof closeChat==='function'&&closeChat()", null);
+            inputBar.setVisibility(View.GONE);
+            inputField.clearFocus();
         }
     }
 

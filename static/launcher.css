@@ -284,11 +284,22 @@ video.mascot-video::-webkit-media-controls-enclosure {
 }
 .chat.open { transform: translateY(0); }
 
-.chat-mascot {
+.chat-header {
   flex-shrink: 0;
-  display: flex; align-items: center; justify-content: center;
-  padding: 0.4rem; min-height: 64px;
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 0.4rem 0.8rem 0.4rem 0.4rem;
+  min-height: 56px;
 }
+.chat-mascot {
+  display: flex; align-items: center; justify-content: center;
+}
+.chat-settings-btn {
+  background: none; border: 1px solid #22e8a020;
+  border-radius: 50%; width: 36px; height: 36px;
+  color: var(--accent); font-size: 1.2rem;
+  cursor: pointer; opacity: 0.6;
+}
+.chat-settings-btn:active { opacity: 1; background: #22e8a010; }
 .chat-status {
   text-align: center;
   font-size: 0.6rem; color: var(--text-dim);

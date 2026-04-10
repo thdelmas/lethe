@@ -46,21 +46,35 @@ setInterval(updateClock, 10000);
 /* ═══════════ VIEW STATE ═══════════ */
 var viewState = 'home';
 
+function hideBurnerBanner() {
+  var bb = document.getElementById('burner-banner');
+  if (bb) bb.style.display = 'none';
+}
+function showBurnerBanner() {
+  var bb = document.getElementById('burner-banner');
+  if (bb && deviceState.burner_mode && !sessionStorage.getItem('lethe_burner_dismissed')) {
+    bb.style.display = 'flex';
+  }
+}
+
 function openChat() {
   viewState = 'chat';
   chatEl.classList.add('open');
   home.classList.add('hidden');
   hintEl.classList.remove('visible');
+  hideBurnerBanner();
   history.pushState({ view: 'chat' }, '');
   if (window.mascot3D) window.mascot3D.setChatVisible(true);
   /* Show native input bar (Android EditText) */
   if (typeof NativeLauncher !== 'undefined' && NativeLauncher.showInputBar) {
     NativeLauncher.showInputBar();
   }
-  /* Show welcome on first open, or status if no provider */
+  /* Show welcome on first open */
   if (transcript.children.length === 0) {
-    if (!getProvider()) {
-      addMessage('No thinking core connected. Add an API key in Settings (long-press the clock).', 'lethe');
+    var p = getProvider();
+    if (!p || (p.name === 'local' && !agentAvailable)) {
+      addMessage('I need a thinking core to talk.', 'lethe');
+      addMessage('Tap the gear icon above, or type /settings to set up a provider.', 'lethe');
     } else {
       addMessage('What do you need?', 'lethe');
     }
@@ -76,6 +90,7 @@ function closeChat() {
   chatEl.classList.remove('open');
   home.classList.remove('hidden');
   inputEl.blur();
+  showBurnerBanner();
   if (window.mascot3D) window.mascot3D.setChatVisible(false);
 }
 
@@ -924,6 +939,32 @@ function send() {
   var text = inputEl.value.trim();
   if (!text) return;
 
+  /* Slash commands */
+  if (text.charAt(0) === '/') {
+    var cmd = text.toLowerCase().split(' ')[0];
+    inputEl.value = ''; autoResize();
+    switch (cmd) {
+      case '/settings':
+        addMessage(text, 'user');
+        if (typeof settingsOpen === 'function') settingsOpen();
+        return;
+      case '/help':
+        addMessage(text, 'user');
+        addMessage('Available commands:', 'lethe');
+        addMessage('/settings — open provider settings', 'lethe');
+        addMessage('/clear — clear this conversation', 'lethe');
+        addMessage('/help — show this list', 'lethe');
+        return;
+      case '/clear':
+        addMessage(text, 'user');
+        transcript.innerHTML = '';
+        chatHistory = [{ role: 'system', content: buildSystemPrompt() }];
+        turnCount = 0;
+        addMessage('Fresh start.', 'lethe');
+        return;
+    }
+  }
+
   /* Stability: block if idle-locked */
   if (isIdleLocked()) {
     showHomeNotice('wake me first');
@@ -1208,8 +1249,7 @@ function openDrawer() {
   drawerEl.classList.add('open');
   home.classList.add('hidden');
   hintEl.classList.remove('visible');
-  var bb = document.getElementById('burner-banner');
-  if (bb) bb.style.display = 'none';
+  hideBurnerBanner();
   drawerSearch.value = '';
   drawerSearch.focus();
 }
@@ -1220,11 +1260,7 @@ function closeDrawer() {
   drawerEl.classList.remove('open');
   home.classList.remove('hidden');
   drawerSearch.blur();
-  /* Re-show burner banner if still active */
-  var bb = document.getElementById('burner-banner');
-  if (bb && deviceState.burner_mode && !sessionStorage.getItem('lethe_burner_dismissed')) {
-    bb.style.display = 'flex';
-  }
+  showBurnerBanner();
 }
 
 function toggleDrawer() {
@@ -1458,6 +1494,14 @@ document.getElementById('btn-settings').addEventListener('click', function() {
   devPanel.style.display = 'none';
   if (typeof settingsOpen === 'function') settingsOpen();
 });
+
+/* Chat settings button — opens provider settings directly */
+var chatSettingsBtn = document.getElementById('chat-settings-btn');
+if (chatSettingsBtn) {
+  chatSettingsBtn.addEventListener('click', function() {
+    if (typeof settingsOpen === 'function') settingsOpen();
+  });
+}
 
 function updateDevInfo() {
   var info = document.getElementById('dev-info');

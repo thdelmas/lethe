@@ -50,7 +50,7 @@
   <!-- ══════ DEV PANEL (long-press clock to open) ══════ -->
   <div class="dev-panel" id="dev-panel" style="display:none">
     <div class="dev-header">
-      <span>LETHE Dev Panel</span>
+      <span>Settings</span>
       <button id="dev-close" class="dev-btn">&times;</button>
     </div>
     <div class="dev-section">
@@ -175,10 +175,14 @@
 
   <!-- ══════ CHAT (slides up) ══════ -->
   <div class="chat" id="chat">
-    <div class="chat-mascot">
-      <canvas id="chat-mascot-canvas" class="chat-3d"></canvas>
-      <img src="mascot.png" alt="LETHE" draggable="false"
-           class="chat-2d" style="display:none"/>
+    <div class="chat-header">
+      <div class="chat-mascot">
+        <canvas id="chat-mascot-canvas" class="chat-3d"></canvas>
+        <img src="mascot.png" alt="LETHE" draggable="false"
+             class="chat-2d" style="display:none"/>
+      </div>
+      <button class="chat-settings-btn" id="chat-settings-btn"
+              aria-label="Settings">&#x2699;</button>
     </div>
     <div class="chat-status" id="status"></div>
     <div class="transcript" id="transcript"></div>
