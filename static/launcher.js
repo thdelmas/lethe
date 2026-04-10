@@ -593,6 +593,15 @@ function updatePrivacyBar() {
   if (privacyTrackersEl && deviceState.trackers_blocked !== undefined) {
     privacyTrackersEl.textContent = deviceState.trackers_blocked + ' trackers blocked';
   }
+  /* Battery → mascot mood */
+  if (deviceState.battery !== undefined && window.letheEmotion) {
+    if (deviceState.battery <= 10) {
+      letheSetMood('yellow');
+      window.letheEmotion.setExpression('concerned');
+    } else if (deviceState.battery <= 15) {
+      window.letheEmotion.setExpression('concerned');
+    }
+  }
   /* Burner mode banner — show when active, dismissable per session */
   var burnerBanner = document.getElementById('burner-banner');
   if (burnerBanner && deviceState.burner_mode !== undefined) {
@@ -997,7 +1006,8 @@ function handleReply(reply) {
     reply = 'I noticed myself going in circles. What were we working on?';
   }
   if (isRefusal(reply)) {
-    microExpression('tracker-blocked');
+    microExpression('deny');
+    if (window.letheEmotion) window.letheEmotion.setExpression('concerned');
   }
 
   chatHistory.push({ role: 'assistant', content: reply });

@@ -48,6 +48,7 @@
   // Map micro-expressions to 3D one-shot animations
   var MICRO_ANIM = {
     surprise: 'alert', nod: 'nod',
+    deny: 'deny',
     'message-received': 'nod',
     'tracker-blocked': 'deny',
     'tor-rebuilt': 'confirm'
