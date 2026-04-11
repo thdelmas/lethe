@@ -847,53 +847,10 @@ function executeTool(name, input) {
   }
 }
 
+/* providers, getProvider(), maxTokensFor(), parseApiError()
+ * are defined in config.js (loaded before this file) */
 var lastProvider = '';
 var lastModel = '';
-
-var providers = [
-  { name: 'local', endpoint: 'http://127.0.0.1:8080', format: 'openai',
-    needsKey: false, key: null, model: null },
-  { name: 'anthropic', endpoint: 'https://api.anthropic.com', format: 'anthropic',
-    needsKey: true, key: localStorage.getItem('lethe_key_anthropic'),
-    model: localStorage.getItem('lethe_model_anthropic') || 'claude-sonnet-4-6' },
-  { name: 'openrouter', endpoint: 'https://openrouter.ai/api/v1', format: 'openai',
-    needsKey: true, key: localStorage.getItem('lethe_key_openrouter'),
-    model: localStorage.getItem('lethe_model_openrouter') || 'anthropic/claude-sonnet-4-6' },
-  { name: 'custom',
-    endpoint: localStorage.getItem('lethe_custom_endpoint') || '',
-    format: 'openai', needsKey: false,
-    key: localStorage.getItem('lethe_key_custom'),
-    model: localStorage.getItem('lethe_model_custom') || null }
-];
-
-function getProvider() {
-  /* If user explicitly chose a provider in settings, use it */
-  var active = localStorage.getItem('lethe_active_provider');
-  if (active) {
-    for (var j = 0; j < providers.length; j++) {
-      if (providers[j].name === active) {
-        var a = providers[j];
-        if (a.name === 'local' && !agentAvailable) break;
-        if (a.needsKey && !a.key) break;
-        if (!a.endpoint) break;
-        return a;
-      }
-    }
-  }
-  /* Auto-select: skip local if offline, skip providers without keys */
-  for (var i = 0; i < providers.length; i++) {
-    var p = providers[i];
-    if (p.name === 'local' && !agentAvailable) continue;
-    if (p.needsKey && !p.key) continue;
-    if (!p.endpoint) continue;
-    return p;
-  }
-  return null;
-}
-
-/* Max tokens: 512 is too low for "what can you do?" style answers.
- * Use 1024 for local (RAM-constrained), 2048 for cloud. */
-function maxTokensFor(p) { return p.name === 'local' ? 1024 : 2048; }
 
 /* Returns { text: string, toolCalls: [{name, input, id}] | null } */
 function chatRequest(p, msgs) {

@@ -85,4 +85,69 @@ public final class LetheConfig {
             return defaultValue;
         }
     }
+
+    /* ═══════════ PERSIST CONFIG ═══════════ */
+
+    /* Config stored in the app's own data dir. Writable by the app,
+     * allowed by SELinux. Burner wipe deletes /data/data — so the
+     * init script must explicitly preserve this file. */
+    private static String sConfigDir = null;
+    private static String sConfigPath = null;
+
+    public static void initConfigDir(android.content.Context ctx) {
+        sConfigDir = ctx.getFilesDir().getAbsolutePath();
+        sConfigPath = sConfigDir + "/config.json";
+    }
+
+    private static String configPath() {
+        return sConfigPath != null ? sConfigPath
+            : "/data/local/lethe/config.json";
+    }
+
+    private static String configDir() {
+        return sConfigDir != null ? sConfigDir : "/data/local/lethe";
+    }
+    private static final String DEFAULT_CONFIG =
+        "{\"version\":1,\"active_provider\":null,\"providers\":{"
+        + "\"local\":{\"endpoint\":\"http://127.0.0.1:8080\","
+        + "\"key\":null,\"model\":null},"
+        + "\"anthropic\":{\"endpoint\":\"https://api.anthropic.com\","
+        + "\"key\":null,\"model\":\"claude-sonnet-4-6\"},"
+        + "\"openrouter\":{\"endpoint\":\"https://openrouter.ai/api/v1\","
+        + "\"key\":null,\"model\":\"anthropic/claude-sonnet-4-6\"},"
+        + "\"custom\":{\"endpoint\":\"\",\"key\":null,\"model\":null}"
+        + "}}";
+
+    public static String loadPersistedConfig() {
+        File f = new File(configPath());
+        if (!f.exists()) {
+            savePersistedConfig(DEFAULT_CONFIG);
+            return DEFAULT_CONFIG;
+        }
+        try {
+            java.io.FileInputStream fis = new java.io.FileInputStream(f);
+            byte[] buf = new byte[(int) f.length()];
+            fis.read(buf); fis.close();
+            return new String(buf, "UTF-8");
+        } catch (Exception e) {
+            Log.e(TAG, "loadPersistedConfig failed", e);
+            return DEFAULT_CONFIG;
+        }
+    }
+
+    public static String savePersistedConfig(String json) {
+        try {
+            new org.json.JSONObject(json); // validate
+            File dir = new File(configDir());
+            if (!dir.exists()) dir.mkdirs();
+            File tmp = new File(configPath() + ".tmp");
+            java.io.FileOutputStream fos = new java.io.FileOutputStream(tmp);
+            fos.write(json.getBytes("UTF-8")); fos.close();
+            tmp.renameTo(new File(configPath()));
+            return "ok";
+        } catch (Exception e) {
+            Log.e(TAG, "savePersistedConfig failed", e);
+            return "error: " + e.getMessage();
+        }
+    }
 }

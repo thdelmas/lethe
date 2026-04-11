@@ -57,10 +57,9 @@ function settingsLoad() {
     var section = document.createElement('div');
     section.className = 'settings-provider';
 
-    var hasKey = def.needsKey ?
-      localStorage.getItem('lethe_key_' + def.name) : null;
-    var hasEndpoint = def.needsEndpoint ?
-      localStorage.getItem('lethe_custom_endpoint') : null;
+    var pc = letheConfig ? letheConfig.providers[def.name] : null;
+    var hasKey = def.needsKey && pc ? pc.key : null;
+    var hasEndpoint = def.needsEndpoint && pc ? pc.endpoint : null;
     var isLocal = def.name === 'local';
     var configured = isLocal || !!hasKey || !!hasEndpoint;
 
@@ -73,7 +72,7 @@ function settingsLoad() {
       '<div class="settings-prov-desc">' + def.desc + '</div>';
 
     if (def.needsKey) {
-      var savedKey = localStorage.getItem('lethe_key_' + def.name) || '';
+      var savedKey = (pc && pc.key) || '';
       var maskedKey = savedKey ? savedKey.substring(0, 8) + '...' : '';
       html += '<input class="settings-input" type="password" ' +
         'data-provider="' + def.name + '" data-field="key" ' +
@@ -82,7 +81,7 @@ function settingsLoad() {
     }
 
     if (def.needsEndpoint) {
-      var savedEndpoint = localStorage.getItem('lethe_custom_endpoint') || '';
+      var savedEndpoint = (pc && pc.endpoint) || '';
       html += '<input class="settings-input" type="url" ' +
         'data-provider="custom" data-field="endpoint" ' +
         'placeholder="https://your-server.com/v1" ' +
@@ -92,7 +91,7 @@ function settingsLoad() {
     // Model selector
     var models = modelCatalog[def.name] || [];
     if (models.length) {
-      var savedModel = localStorage.getItem('lethe_model_' + def.name) || '';
+      var savedModel = (pc && pc.model) || '';
       html += '<select class="settings-input settings-model" ' +
         'data-provider="' + def.name + '" data-field="model">';
       for (var j = 0; j < models.length; j++) {
@@ -117,8 +116,8 @@ var cloudConsentMessages = {
 
 function needsCloudConsent(provName) {
   if (provName === 'local') return false;
-  var consentKey = 'lethe_consent_' + provName;
-  return !localStorage.getItem(consentKey);
+  if (letheConfig && letheConfig['consent_' + provName]) return false;
+  return true;
 }
 
 function showCloudConsent(provName, onAccept) {
@@ -142,7 +141,7 @@ function showCloudConsent(provName, onAccept) {
     overlay.remove();
   });
   overlay.querySelector('.consent-accept').addEventListener('click', function() {
-    localStorage.setItem('lethe_consent_' + provName, '1');
+    if (letheConfig) { letheConfig['consent_' + provName] = true; persistConfig(); }
     overlay.remove();
     onAccept();
   });
@@ -150,43 +149,19 @@ function showCloudConsent(provName, onAccept) {
 
 /* ═══════════ SAVE ALL ═══════════ */
 function doSave() {
+  if (!letheConfig) letheConfig = defaultConfig();
   var inputs = document.querySelectorAll('.settings-input');
   for (var i = 0; i < inputs.length; i++) {
     var inp = inputs[i];
     var prov = inp.getAttribute('data-provider');
     var field = inp.getAttribute('data-field');
     var val = inp.value.trim();
-
-    if (field === 'key' && val) {
-      localStorage.setItem('lethe_key_' + prov, val);
-    }
-    if (field === 'endpoint') {
-      localStorage.setItem('lethe_custom_endpoint', val);
-    }
-    if (field === 'model' && val) {
-      localStorage.setItem('lethe_model_' + prov, val);
-    }
+    if (!letheConfig.providers[prov]) letheConfig.providers[prov] = {};
+    if (field === 'key') letheConfig.providers[prov].key = val || null;
+    if (field === 'endpoint') letheConfig.providers[prov].endpoint = val;
+    if (field === 'model' && val) letheConfig.providers[prov].model = val;
   }
-
-  /* Update live provider array */
-  if (typeof providers !== 'undefined') {
-    for (var j = 0; j < providers.length; j++) {
-      var p = providers[j];
-      if (p.name === 'anthropic') {
-        p.key = localStorage.getItem('lethe_key_anthropic');
-        p.model = localStorage.getItem('lethe_model_anthropic') ||
-          'claude-sonnet-4-6';
-      } else if (p.name === 'openrouter') {
-        p.key = localStorage.getItem('lethe_key_openrouter');
-        p.model = localStorage.getItem('lethe_model_openrouter') ||
-          'anthropic/claude-sonnet-4-6';
-      } else if (p.name === 'custom') {
-        p.endpoint = localStorage.getItem('lethe_custom_endpoint') || '';
-        p.key = localStorage.getItem('lethe_key_custom');
-        p.model = localStorage.getItem('lethe_model_custom') || null;
-      }
-    }
-  }
+  persistConfig(); /* writes to /persist + rebuilds providers array */
 
   setStatus.textContent = 'saved';
   setTimeout(function() { setStatus.textContent = ''; }, 2000);
@@ -202,7 +177,7 @@ document.getElementById('set-save').addEventListener('click', function() {
   for (var i = 0; i < inputs.length; i++) {
     var prov = inputs[i].getAttribute('data-provider');
     var val = inputs[i].value.trim();
-    var hadKey = localStorage.getItem('lethe_key_' + prov);
+    var hadKey = letheConfig && letheConfig.providers[prov] && letheConfig.providers[prov].key;
     if (val && !hadKey && needsCloudConsent(prov)) {
       needConsent = prov;
       break;
@@ -213,7 +188,7 @@ document.getElementById('set-save').addEventListener('click', function() {
     var epInput = document.querySelector('.settings-input[data-field="endpoint"]');
     if (epInput) {
       var epVal = epInput.value.trim();
-      var hadEp = localStorage.getItem('lethe_custom_endpoint');
+      var hadEp = letheConfig && letheConfig.providers.custom && letheConfig.providers.custom.endpoint;
       if (epVal && !hadEp && needsCloudConsent('custom')) {
         needConsent = 'custom';
       }
@@ -261,16 +236,13 @@ function onQRResult(data) {
   try {
     var cfg = JSON.parse(data);
     if (!cfg.lethe_pair) return;
-    if (cfg.key) localStorage.setItem('lethe_key_' + cfg.provider, cfg.key);
-    if (cfg.model) localStorage.setItem('lethe_model_' + cfg.provider, cfg.model);
-    /* Update live providers */
-    if (typeof providers !== 'undefined') {
-      for (var i = 0; i < providers.length; i++) {
-        if (providers[i].name === cfg.provider) {
-          providers[i].key = cfg.key;
-          if (cfg.model) providers[i].model = cfg.model;
-        }
-      }
+    if (letheConfig && cfg.provider) {
+      if (!letheConfig.providers[cfg.provider])
+        letheConfig.providers[cfg.provider] = {};
+      if (cfg.key) letheConfig.providers[cfg.provider].key = cfg.key;
+      if (cfg.model) letheConfig.providers[cfg.provider].model = cfg.model;
+      letheConfig.active_provider = cfg.provider;
+      persistConfig();
     }
     settingsLoad();
     if (typeof addMessage === 'function') {

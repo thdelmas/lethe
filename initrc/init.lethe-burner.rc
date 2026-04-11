@@ -11,9 +11,20 @@ on post-fs-data
         ENABLED=$(getprop persist.lethe.burner.enabled); \
         if [ \"$ENABLED\" = \"true\" ]; then \
             log -t lethe-burner 'Burner mode active — wiping user data'; \
+            # Preserve LETHE config (API keys) across wipe \
+            LETHE_CFG=/data/data/org.osmosis.lethe.agent/files/config.json; \
+            LETHE_BAK=/data/local/tmp/lethe-config-bak.json; \
+            [ -f \$LETHE_CFG ] && cp \$LETHE_CFG \$LETHE_BAK; \
             rm -rf /data/app /data/data /data/user /data/user_de /data/misc/wifi /data/misc/bluedroid; \
             rm -rf /data/media/0/*; \
             rm -rf /data/system/notification_log; \
+            # Restore config after wipe \
+            if [ -f \$LETHE_BAK ]; then \
+                mkdir -p /data/data/org.osmosis.lethe.agent/files; \
+                cp \$LETHE_BAK /data/data/org.osmosis.lethe.agent/files/config.json; \
+                rm \$LETHE_BAK; \
+                log -t lethe-burner 'Config restored'; \
+            fi; \
             settings put secure android_id $(cat /dev/urandom | tr -dc 'a-f0-9' | head -c 16); \
             log -t lethe-burner 'Wipe complete — booting clean session'; \
         else \
