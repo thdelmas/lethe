@@ -294,12 +294,16 @@ video.mascot-video::-webkit-media-controls-enclosure {
   display: flex; align-items: center; justify-content: center;
 }
 .chat-settings-btn {
-  background: none; border: 1px solid #22e8a020;
-  border-radius: 50%; width: 36px; height: 36px;
-  color: var(--accent); font-size: 1.2rem;
-  cursor: pointer; opacity: 0.6;
+  background: none; border: 1px solid #22e8a030;
+  border-radius: 50%; width: 48px; height: 48px;
+  min-width: 48px; min-height: 48px;
+  color: #22e8a0; font-size: 1.4rem;
+  cursor: pointer; opacity: 0.8;
+  display: flex; align-items: center; justify-content: center;
+  -webkit-tap-highlight-color: rgba(34,232,160,0.2);
+  position: relative; z-index: 20;
 }
-.chat-settings-btn:active { opacity: 1; background: #22e8a010; }
+.chat-settings-btn:active { opacity: 1; background: #22e8a020; }
 .chat-status {
   text-align: center;
   font-size: 0.6rem; color: var(--text-dim);
@@ -386,70 +390,6 @@ body[data-native-input] .input-area { display: none; }
   .clock-dot { opacity: 0.6; }
 }
 
-/* ═════════════════════════════════════
-   DEV PANEL
-   ═════════════════════════════════════ */
-.dev-panel {
-  position: fixed; inset: 0;
-  background: rgba(8,8,8,0.95);
-  z-index: 9999;
-  padding: 1rem;
-  overflow-y: auto;
-  font-size: 13px;
-  color: var(--text);
-}
-.dev-header {
-  display: flex; justify-content: space-between; align-items: center;
-  font-size: 15px; font-weight: bold; color: var(--accent);
-  margin-bottom: 1rem; padding-bottom: 0.5rem;
-  border-bottom: 1px solid #1a3a2a;
-}
-.dev-section {
-  margin-bottom: 1rem;
-}
-.dev-section label {
-  display: block; color: var(--accent); font-size: 11px;
-  text-transform: uppercase; letter-spacing: 0.05em;
-  margin-bottom: 0.3rem;
-}
-.dev-section select, .dev-section input[type="range"] {
-  width: 100%; padding: 0.4rem;
-  background: #111; color: var(--text); border: 1px solid #1a3a2a;
-  border-radius: 4px; font-family: var(--font); font-size: 12px;
-}
-.dev-row {
-  display: flex; gap: 0.5rem; margin-top: 0.3rem;
-}
-.dev-btn {
-  padding: 0.4rem 0.8rem;
-  background: #111; color: var(--accent); border: 1px solid #1a3a2a;
-  border-radius: 4px; font-family: var(--font); font-size: 12px;
-  cursor: pointer;
-}
-.dev-btn:active { background: #1a3a2a; }
-.dev-info {
-  margin-top: 1rem; padding: 0.5rem;
-  background: #0a0a0a; border: 1px solid #1a3a2a;
-  border-radius: 4px; font-size: 11px;
-  color: var(--text-dim); white-space: pre-wrap;
-}
-
-/* ═════════════════════════════════════
-   SETTINGS PANEL
-   ═════════════════════════════════════ */
-.settings-panel {
-  position: fixed; inset: 0;
-  background: rgba(8,8,8,0.97);
-  z-index: 9998;
-  padding: 1rem;
-  overflow-y: auto;
-  font-size: 13px;
-  color: var(--text);
-}
-.settings-panel .input-field {
-  width: 100%; margin-top: 0.3rem;
-  font-size: 12px; padding: 0.5rem;
-}
 
 /* ═════════════════════════════════════
    PRIVACY STATUS BAR

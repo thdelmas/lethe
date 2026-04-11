@@ -1,6 +1,7 @@
 package org.osmosis.lethe;
 
 import android.app.Activity;
+import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
 import android.content.pm.PackageManager;
@@ -48,6 +49,7 @@ public class LetheActivity extends Activity {
     private WebView webView;
     private LinearLayout inputBar;
     private EditText inputField;
+    private BroadcastReceiver pairReceiver;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -120,7 +122,44 @@ public class LetheActivity extends Activity {
             LinearLayout.LayoutParams.WRAP_CONTENT));
 
         setContentView(root);
+
+        // Listen for pairing broadcasts from OSmosis over USB
+        pairReceiver = new BroadcastReceiver() {
+            @Override
+            public void onReceive(Context ctx, Intent intent) {
+                String prov = intent.getStringExtra("provider");
+                String key = intent.getStringExtra("key");
+                String model = intent.getStringExtra("model");
+                if (prov == null || key == null) return;
+                Log.i(TAG, "Pair received: " + prov);
+                String js = "localStorage.setItem('lethe_key_" + prov
+                    + "','" + key.replace("'", "\\'") + "');"
+                    + (model != null && !model.isEmpty() ?
+                        "localStorage.setItem('lethe_model_" + prov
+                        + "','" + model + "');" : "")
+                    + "if(typeof providers!=='undefined'){"
+                    + "for(var i=0;i<providers.length;i++){"
+                    + "if(providers[i].name==='" + prov + "'){"
+                    + "providers[i].key='" + key.replace("'", "\\'")
+                    + "';" + (model != null && !model.isEmpty() ?
+                        "providers[i].model='" + model + "';" : "")
+                    + "}}}"
+                    + "if(typeof addMessage==='function')"
+                    + "addMessage('Paired with " + prov
+                    + ". Ready to talk.','lethe');";
+                webView.evaluateJavascript(js, null);
+            }
+        };
+        registerReceiver(pairReceiver,
+            new android.content.IntentFilter("lethe.intent.PAIR"));
+
         Log.i(TAG, "Void Launcher started");
+    }
+
+    @Override
+    protected void onDestroy() {
+        if (pairReceiver != null) unregisterReceiver(pairReceiver);
+        super.onDestroy();
     }
 
     private void sendFromNative() {
@@ -174,6 +213,25 @@ public class LetheActivity extends Activity {
         if (inputBar.getVisibility() == View.VISIBLE) {
             inputBar.setVisibility(View.GONE);
             inputField.clearFocus();
+        }
+    }
+
+    private static final int QR_SCAN_REQUEST = 0x514C; // "QL"
+
+    @Override
+    protected void onActivityResult(int requestCode, int resultCode,
+            Intent data) {
+        super.onActivityResult(requestCode, resultCode, data);
+        if (requestCode == QR_SCAN_REQUEST && resultCode == RESULT_OK
+                && data != null) {
+            String result = data.getStringExtra("SCAN_RESULT");
+            if (result != null) {
+                String escaped = result.replace("\\", "\\\\")
+                    .replace("'", "\\'");
+                webView.evaluateJavascript(
+                    "typeof onQRResult==='function'&&onQRResult('"
+                    + escaped + "')", null);
+            }
         }
     }
 
@@ -299,6 +357,25 @@ public class LetheActivity extends Activity {
             runOnUiThread(() -> startActivity(
                 new Intent(android.provider.Settings.ACTION_SETTINGS)
                     .setFlags(Intent.FLAG_ACTIVITY_NEW_TASK)));
+        }
+
+        @JavascriptInterface
+        public void scanQR() {
+            runOnUiThread(() -> {
+                try {
+                    Intent intent = new Intent(
+                        "com.google.zxing.client.android.SCAN");
+                    intent.putExtra("SCAN_MODE", "QR_CODE_MODE");
+                    startActivityForResult(intent, QR_SCAN_REQUEST);
+                } catch (Exception e) {
+                    // ZXing not installed — try ML Kit or camera fallback
+                    Log.w(TAG, "QR scanner not available: " + e);
+                    webView.evaluateJavascript(
+                        "typeof onQRResult==='function'&&" +
+                        "onQRResult('ERROR:No QR scanner app installed')",
+                        null);
+                }
+            });
         }
 
         @JavascriptInterface

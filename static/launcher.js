@@ -1498,8 +1498,14 @@ document.getElementById('btn-settings').addEventListener('click', function() {
 /* Chat settings button — opens provider settings directly */
 var chatSettingsBtn = document.getElementById('chat-settings-btn');
 if (chatSettingsBtn) {
-  chatSettingsBtn.addEventListener('click', function() {
-    if (typeof settingsOpen === 'function') settingsOpen();
+  chatSettingsBtn.addEventListener('click', function(e) {
+    e.stopPropagation();
+    console.log('LETHE: gear icon clicked');
+    if (typeof settingsOpen === 'function') {
+      settingsOpen();
+    } else {
+      console.log('LETHE: settingsOpen not defined');
+    }
   });
 }
 

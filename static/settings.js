@@ -1,12 +1,9 @@
-/* LETHE Settings panel — provider/model configuration + burner warning.
- * Loaded after launcher.js. Reads/writes localStorage keys that
- * launcher.js provider array already consumes. */
+/* LETHE Settings — provider & model configuration.
+ * All providers are shown at once. The system auto-routes per task:
+ * local first, cloud fallback. Users just enter their keys. */
 
-/* ═══════════ MODEL CATALOG ═══════════
- * Mirrors providers.yaml. Local models are auto-detected by the
- * backend; cloud models are listed here for the selector. */
 var modelCatalog = {
-  local: [],  /* populated by /v1/models when agent is online */
+  local: [],
   anthropic: [
     { id: 'claude-opus-4-6', label: 'Claude Opus 4.6' },
     { id: 'claude-sonnet-4-6', label: 'Claude Sonnet 4.6' },
@@ -16,26 +13,14 @@ var modelCatalog = {
     { id: 'anthropic/claude-opus-4-6', label: 'Claude Opus 4.6' },
     { id: 'anthropic/claude-sonnet-4-6', label: 'Claude Sonnet 4.6' },
     { id: 'qwen/qwen3-72b', label: 'Qwen 3 72B' },
-    { id: 'meta-llama/llama-4-maverick', label: 'Llama 4 Maverick' },
-    { id: 'meta-llama/llama-4-scout', label: 'Llama 4 Scout' },
     { id: 'google/gemini-2.5-pro', label: 'Gemini 2.5 Pro' },
     { id: 'google/gemini-2.5-flash', label: 'Gemini 2.5 Flash' }
-  ],
-  custom: []
+  ]
 };
 
-/* ═══════════ DOM ═══════════ */
 var settingsPanel = document.getElementById('settings-panel');
-var setProvider = document.getElementById('set-provider');
-var setModel = document.getElementById('set-model');
-var setKey = document.getElementById('set-key');
-var setEndpoint = document.getElementById('set-endpoint');
-var setKeySection = document.getElementById('set-key-section');
-var setEndpointSection = document.getElementById('set-endpoint-section');
-var setModelSection = document.getElementById('set-model-section');
 var setStatus = document.getElementById('set-status');
 
-/* ═══════════ OPEN / CLOSE ═══════════ */
 function settingsOpen() {
   settingsPanel.style.display = 'block';
   settingsLoad();
@@ -46,78 +31,115 @@ function settingsClose() {
 
 document.getElementById('settings-close').addEventListener('click', settingsClose);
 
-/* ═══════════ LOAD CURRENT VALUES ═══════════ */
+/* ═══════════ RENDER ALL PROVIDERS ═══════════ */
 function settingsLoad() {
-  /* Determine active provider from stored keys */
-  var active = localStorage.getItem('lethe_active_provider') || 'local';
-  setProvider.value = active;
-  settingsUpdateUI(active);
+  var container = document.getElementById('settings-providers');
+  if (!container) return;
+  container.innerHTML = '';
+
+  var providerDefs = [
+    { name: 'local', label: 'Local (on-device)',
+      desc: 'Runs on this phone. Fully offline. No data leaves the device.',
+      needsKey: false, needsEndpoint: false },
+    { name: 'anthropic', label: 'Anthropic',
+      desc: 'Claude models. Requires an API key from console.anthropic.com',
+      needsKey: true, keyHint: 'sk-ant-...', needsEndpoint: false },
+    { name: 'openrouter', label: 'OpenRouter',
+      desc: 'Access many models with one key. openrouter.ai',
+      needsKey: true, keyHint: 'sk-or-...', needsEndpoint: false },
+    { name: 'custom', label: 'Custom endpoint',
+      desc: 'Any OpenAI-compatible API.',
+      needsKey: false, needsEndpoint: true }
+  ];
+
+  for (var i = 0; i < providerDefs.length; i++) {
+    var def = providerDefs[i];
+    var section = document.createElement('div');
+    section.className = 'settings-provider';
+
+    var hasKey = def.needsKey ?
+      localStorage.getItem('lethe_key_' + def.name) : null;
+    var hasEndpoint = def.needsEndpoint ?
+      localStorage.getItem('lethe_custom_endpoint') : null;
+    var isLocal = def.name === 'local';
+    var configured = isLocal || !!hasKey || !!hasEndpoint;
+
+    var statusDot = configured ?
+      '<span class="status-dot status-on"></span>' :
+      '<span class="status-dot status-off"></span>';
+
+    var html = '<div class="settings-prov-header">' +
+      statusDot + '<strong>' + def.label + '</strong></div>' +
+      '<div class="settings-prov-desc">' + def.desc + '</div>';
+
+    if (def.needsKey) {
+      var savedKey = localStorage.getItem('lethe_key_' + def.name) || '';
+      var maskedKey = savedKey ? savedKey.substring(0, 8) + '...' : '';
+      html += '<input class="settings-input" type="password" ' +
+        'data-provider="' + def.name + '" data-field="key" ' +
+        'placeholder="' + (def.keyHint || 'API key') + '" ' +
+        'value="' + savedKey + '"/>';
+    }
+
+    if (def.needsEndpoint) {
+      var savedEndpoint = localStorage.getItem('lethe_custom_endpoint') || '';
+      html += '<input class="settings-input" type="url" ' +
+        'data-provider="custom" data-field="endpoint" ' +
+        'placeholder="https://your-server.com/v1" ' +
+        'value="' + savedEndpoint + '"/>';
+    }
+
+    // Model selector
+    var models = modelCatalog[def.name] || [];
+    if (models.length) {
+      var savedModel = localStorage.getItem('lethe_model_' + def.name) || '';
+      html += '<select class="settings-input settings-model" ' +
+        'data-provider="' + def.name + '" data-field="model">';
+      for (var j = 0; j < models.length; j++) {
+        var sel = models[j].id === savedModel ? ' selected' : '';
+        html += '<option value="' + models[j].id + '"' + sel + '>' +
+          models[j].label + '</option>';
+      }
+      html += '</select>';
+    }
+
+    section.innerHTML = html;
+    container.appendChild(section);
+  }
 }
 
-function settingsUpdateUI(prov) {
-  /* Key field */
-  var needsKey = (prov === 'anthropic' || prov === 'openrouter');
-  setKeySection.style.display = needsKey ? 'block' : 'none';
-  if (needsKey) {
-    setKey.value = localStorage.getItem('lethe_key_' + prov) || '';
-  }
-
-  /* Endpoint field */
-  setEndpointSection.style.display = (prov === 'custom') ? 'block' : 'none';
-  if (prov === 'custom') {
-    setEndpoint.value = localStorage.getItem('lethe_custom_endpoint') || '';
-  }
-
-  /* Model selector */
-  var models = modelCatalog[prov] || [];
-  setModelSection.style.display = models.length ? 'block' : 'none';
-  setModel.innerHTML = '';
-  var stored = localStorage.getItem('lethe_model_' + prov) || '';
-  for (var i = 0; i < models.length; i++) {
-    var opt = document.createElement('option');
-    opt.value = models[i].id;
-    opt.textContent = models[i].label;
-    if (models[i].id === stored) opt.selected = true;
-    setModel.appendChild(opt);
-  }
-}
-
-setProvider.addEventListener('change', function() {
-  settingsUpdateUI(this.value);
-});
-
-/* ═══════════ SAVE ═══════════ */
+/* ═══════════ SAVE ALL ═══════════ */
 document.getElementById('set-save').addEventListener('click', function() {
-  var prov = setProvider.value;
-  localStorage.setItem('lethe_active_provider', prov);
+  var inputs = document.querySelectorAll('.settings-input');
+  for (var i = 0; i < inputs.length; i++) {
+    var inp = inputs[i];
+    var prov = inp.getAttribute('data-provider');
+    var field = inp.getAttribute('data-field');
+    var val = inp.value.trim();
 
-  /* Save key */
-  if (prov === 'anthropic' || prov === 'openrouter') {
-    var key = setKey.value.trim();
-    if (key) localStorage.setItem('lethe_key_' + prov, key);
+    if (field === 'key' && val) {
+      localStorage.setItem('lethe_key_' + prov, val);
+    }
+    if (field === 'endpoint') {
+      localStorage.setItem('lethe_custom_endpoint', val);
+    }
+    if (field === 'model' && val) {
+      localStorage.setItem('lethe_model_' + prov, val);
+    }
   }
 
-  /* Save endpoint */
-  if (prov === 'custom') {
-    localStorage.setItem('lethe_custom_endpoint', setEndpoint.value.trim());
-  }
-
-  /* Save model */
-  var models = modelCatalog[prov] || [];
-  if (models.length && setModel.value) {
-    localStorage.setItem('lethe_model_' + prov, setModel.value);
-  }
-
-  /* Update live provider array (defined in launcher.js) */
+  /* Update live provider array */
   if (typeof providers !== 'undefined') {
-    for (var i = 0; i < providers.length; i++) {
-      var p = providers[i];
+    for (var j = 0; j < providers.length; j++) {
+      var p = providers[j];
       if (p.name === 'anthropic') {
         p.key = localStorage.getItem('lethe_key_anthropic');
-        p.model = localStorage.getItem('lethe_model_anthropic') || 'claude-sonnet-4-6';
+        p.model = localStorage.getItem('lethe_model_anthropic') ||
+          'claude-sonnet-4-6';
       } else if (p.name === 'openrouter') {
         p.key = localStorage.getItem('lethe_key_openrouter');
-        p.model = localStorage.getItem('lethe_model_openrouter') || 'anthropic/claude-sonnet-4-6';
+        p.model = localStorage.getItem('lethe_model_openrouter') ||
+          'anthropic/claude-sonnet-4-6';
       } else if (p.name === 'custom') {
         p.endpoint = localStorage.getItem('lethe_custom_endpoint') || '';
         p.key = localStorage.getItem('lethe_key_custom');
@@ -128,10 +150,68 @@ document.getElementById('set-save').addEventListener('click', function() {
 
   setStatus.textContent = 'saved';
   setTimeout(function() { setStatus.textContent = ''; }, 2000);
+
+  /* Refresh settings UI to update status dots */
+  settingsLoad();
 });
 
-/* ═══════════ FETCH LOCAL MODELS ═══════════ */
-/* When agent is online, populate local model list from /v1/models */
+/* ═══════════ QR SCAN BUTTON ═══════════ */
+var scanBtn = document.getElementById('set-scan-qr');
+if (scanBtn) {
+  console.log('LETHE: scan button bound');
+  scanBtn.addEventListener('click', function() {
+    console.log('LETHE: scan button clicked');
+    if (typeof NativeLauncher !== 'undefined' && NativeLauncher.scanQR) {
+      console.log('LETHE: calling NativeLauncher.scanQR()');
+      NativeLauncher.scanQR();
+    } else {
+      console.log('LETHE: no NativeLauncher.scanQR');
+      settingsClose();
+      if (typeof addMessage === 'function') {
+        addMessage('QR scanning needs a barcode scanner app. Install "Barcode Scanner" from F-Droid, then try again.', 'lethe');
+      }
+    }
+  });
+} else {
+  console.log('LETHE: scan button NOT found');
+}
+
+/* ═══════════ QR CODE PAIRING ═══════════ */
+/* Scan a QR from OSmosis to import provider + API key in one step.
+ * QR payload: {"lethe_pair":true,"provider":"anthropic","key":"sk-...","model":"..."} */
+function onQRResult(data) {
+  if (data.indexOf('ERROR:') === 0) {
+    if (typeof addMessage === 'function') {
+      addMessage(data.substring(6), 'lethe');
+    }
+    return;
+  }
+  try {
+    var cfg = JSON.parse(data);
+    if (!cfg.lethe_pair) return;
+    if (cfg.key) localStorage.setItem('lethe_key_' + cfg.provider, cfg.key);
+    if (cfg.model) localStorage.setItem('lethe_model_' + cfg.provider, cfg.model);
+    /* Update live providers */
+    if (typeof providers !== 'undefined') {
+      for (var i = 0; i < providers.length; i++) {
+        if (providers[i].name === cfg.provider) {
+          providers[i].key = cfg.key;
+          if (cfg.model) providers[i].model = cfg.model;
+        }
+      }
+    }
+    settingsLoad();
+    if (typeof addMessage === 'function') {
+      addMessage('Paired with ' + cfg.provider + '. Ready to talk.', 'lethe');
+    }
+  } catch (e) {
+    if (typeof addMessage === 'function') {
+      addMessage('Could not read QR code.', 'lethe');
+    }
+  }
+}
+
+/* ═══════════ LOCAL MODEL DETECTION ═══════════ */
 function fetchLocalModels() {
   fetch('http://127.0.0.1:8080/v1/models')
     .then(function(r) { return r.json(); })
@@ -142,66 +222,34 @@ function fetchLocalModels() {
         });
       }
     })
-    .catch(function() { /* agent offline — no local models */ });
+    .catch(function() {});
 }
 fetchLocalModels();
 
-/* ═══════════ BURNER MODE WARNING ═══════════
- * Shows a persistent banner when burner mode is active.
- * Checks the system property via the agent API, with a
- * localStorage fallback for offline/first-boot. */
+/* ═══════════ BURNER MODE WARNING ═══════════ */
 var burnerBanner = document.getElementById('burner-banner');
 var burnerDismissed = sessionStorage.getItem('lethe_burner_dismissed');
 
-function showBurnerWarning() {
-  if (burnerDismissed) return;
-  burnerBanner.style.display = 'flex';
-}
-
-function hideBurnerWarning() {
-  burnerBanner.style.display = 'none';
-}
-
 document.getElementById('burner-dismiss').addEventListener('click', function() {
-  hideBurnerWarning();
+  burnerBanner.style.display = 'none';
   sessionStorage.setItem('lethe_burner_dismissed', '1');
   burnerDismissed = '1';
 });
 
-/* Check burner mode status */
 function checkBurnerMode() {
+  if (burnerDismissed) return;
   fetch('http://127.0.0.1:8080/api/device')
     .then(function(r) { return r.json(); })
     .then(function(d) {
-      /* Agent reports burner mode state via device info */
       if (d.burner_mode || d.burner_enabled) {
         localStorage.setItem('lethe_burner_active', '1');
-        showBurnerWarning();
-      } else {
-        localStorage.removeItem('lethe_burner_active');
-        hideBurnerWarning();
+        burnerBanner.style.display = 'flex';
       }
     })
     .catch(function() {
-      /* Agent offline — use cached state. Burner is ON by default,
-       * so assume active unless explicitly disabled. */
       if (localStorage.getItem('lethe_burner_active') !== '0') {
-        showBurnerWarning();
+        burnerBanner.style.display = 'flex';
       }
     });
 }
 checkBurnerMode();
-
-/* Re-check after agent comes online (SSE reconnect) */
-if (typeof EventSource !== 'undefined' && location.protocol !== 'file:') {
-  try {
-    var burnerSSE = new EventSource('/api/agent/state');
-    burnerSSE.addEventListener('burner_changed', function(e) {
-      try {
-        var d = JSON.parse(e.data);
-        if (d.enabled) { showBurnerWarning(); }
-        else { hideBurnerWarning(); }
-      } catch(_) {}
-    });
-  } catch(_) {}
-}

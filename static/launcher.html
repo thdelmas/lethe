@@ -15,6 +15,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no"/>
   <title>LETHE</title>
   <link rel="stylesheet" href="launcher.css"/>
+  <link rel="stylesheet" href="settings.css"/>
 </head>
 
 <body>
@@ -111,40 +112,21 @@
     </div>
   </div>
 
-  <!-- ══════ SETTINGS PANEL (swipe-left or dev panel link) ══════ -->
+  <!-- ══════ SETTINGS PANEL ══════ -->
   <div class="settings-panel" id="settings-panel" style="display:none">
     <div class="dev-header">
-      <span>Settings</span>
+      <span>Providers</span>
       <button id="settings-close" class="dev-btn">&times;</button>
     </div>
-
+    <div class="settings-desc">
+      Enter your keys below, or scan a QR code from OSmosis.
+      LETHE tries local first, then cloud.
+    </div>
     <div class="dev-section">
-      <label>Provider</label>
-      <select id="set-provider">
-        <option value="local">Local (offline)</option>
-        <option value="anthropic">Anthropic</option>
-        <option value="openrouter">OpenRouter</option>
-        <option value="custom">Custom endpoint</option>
-      </select>
+      <button class="dev-btn" id="set-scan-qr"
+              style="width:100%;padding:0.6rem">Scan QR from OSmosis</button>
     </div>
-
-    <div class="dev-section" id="set-model-section">
-      <label>Model</label>
-      <select id="set-model"></select>
-    </div>
-
-    <div class="dev-section" id="set-key-section" style="display:none">
-      <label>API Key</label>
-      <input type="password" id="set-key" class="input-field"
-             placeholder="sk-..." autocomplete="off"/>
-    </div>
-
-    <div class="dev-section" id="set-endpoint-section" style="display:none">
-      <label>Endpoint URL</label>
-      <input type="url" id="set-endpoint" class="input-field"
-             placeholder="https://..." autocomplete="off"/>
-    </div>
-
+    <div id="settings-providers"></div>
     <div class="dev-section">
       <button class="dev-btn" id="set-save">Save</button>
       <span id="set-status" style="margin-left:0.5rem;font-size:11px;color:var(--accent)"></span>
