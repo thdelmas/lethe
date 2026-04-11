@@ -1,0 +1,5 @@
+#!/usr/bin/env bash
+set -euo pipefail
+echo "Running pre-commit quality checks..."
+echo ""
+exec bash "$(git rev-parse --show-toplevel)/scripts/code-quality-check.sh"
