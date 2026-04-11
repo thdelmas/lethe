@@ -132,22 +132,29 @@ public class LetheActivity extends Activity {
                 String model = intent.getStringExtra("model");
                 if (prov == null || key == null) return;
                 Log.i(TAG, "Pair received: " + prov);
-                String js = "localStorage.setItem('lethe_key_" + prov
-                    + "','" + key.replace("'", "\\'") + "');"
-                    + (model != null && !model.isEmpty() ?
-                        "localStorage.setItem('lethe_model_" + prov
-                        + "','" + model + "');" : "")
-                    + "if(typeof providers!=='undefined'){"
-                    + "for(var i=0;i<providers.length;i++){"
-                    + "if(providers[i].name==='" + prov + "'){"
-                    + "providers[i].key='" + key.replace("'", "\\'")
-                    + "';" + (model != null && !model.isEmpty() ?
-                        "providers[i].model='" + model + "';" : "")
-                    + "}}}"
+                // Merge into /persist config
+                try {
+                    org.json.JSONObject cfg = new org.json.JSONObject(
+                        LetheConfig.loadPersistedConfig());
+                    org.json.JSONObject provs =
+                        cfg.getJSONObject("providers");
+                    org.json.JSONObject pc = provs.optJSONObject(prov);
+                    if (pc == null) pc = new org.json.JSONObject();
+                    pc.put("key", key);
+                    if (model != null && !model.isEmpty())
+                        pc.put("model", model);
+                    provs.put(prov, pc);
+                    cfg.put("active_provider", prov);
+                    LetheConfig.savePersistedConfig(cfg.toString());
+                } catch (Exception e) {
+                    Log.e(TAG, "Pair config merge failed", e);
+                }
+                // Reload config in JS
+                webView.evaluateJavascript(
+                    "if(typeof reloadConfig==='function')reloadConfig();"
                     + "if(typeof addMessage==='function')"
                     + "addMessage('Paired with " + prov
-                    + ". Ready to talk.','lethe');";
-                webView.evaluateJavascript(js, null);
+                    + ". Ready to talk.','lethe');", null);
             }
         };
         registerReceiver(pairReceiver,
@@ -247,6 +254,16 @@ public class LetheActivity extends Activity {
 
     /** NativeLauncher — JS bridge */
     class NativeLauncher {
+
+        @JavascriptInterface
+        public String loadConfig() {
+            return LetheConfig.loadPersistedConfig();
+        }
+
+        @JavascriptInterface
+        public String saveConfig(String json) {
+            return LetheConfig.savePersistedConfig(json);
+        }
 
         @JavascriptInterface
         public void openAppDrawer() {
