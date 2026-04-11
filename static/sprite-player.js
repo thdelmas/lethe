@@ -18,6 +18,9 @@ var SpritePlayer = (function() {
   var frameIndex = 0;
   var intervalId = null;
   var msPerFrame = 200;       // default: 5fps
+  var direction = 1;          // 1=forward, -1=backward (ping-pong)
+  var pingPong = true;        // play forward then backward for smooth loops
+  var direction = 1;          // 1 = forward, -1 = backward
   var sheets = {};            // cache: name-mood -> Image
   var onSwitch = null;        // callback when animation ends (for one-shot anims)
 
@@ -69,7 +72,15 @@ var SpritePlayer = (function() {
   }
 
   function tick() {
-    frameIndex = (frameIndex + 1) % frameCount;
+    frameIndex += direction;
+    // Ping-pong: reverse at ends for seamless loop from rest pose
+    if (frameIndex >= frameCount - 1) {
+      frameIndex = frameCount - 1;
+      direction = -1;
+    } else if (frameIndex <= 0) {
+      frameIndex = 0;
+      direction = 1;
+    }
     drawFrame();
   }
 
