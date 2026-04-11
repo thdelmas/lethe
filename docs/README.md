@@ -36,3 +36,4 @@ Protocol surveys and ecosystem analysis. Reference docs, not specs.
   - [gems-decentralized-mesh.md](research/gems-decentralized-mesh.md) — P2P storage/sync, identity, messaging, mesh, DTN, radio
   - [gems-os-hardening.md](research/gems-os-hardening.md) — Kernel security, verified boot, sandboxing, eBPF, firewalling
   - [gems-ux-interaction.md](research/gems-ux-interaction.md) — Rendering, animation, calm tech, haptics, sound design, keyboards
+  - [octopus-tracker.md](research/octopus-tracker.md) — **Octopus search tracker** — explored GitHub profiles, repos, and issues to avoid re-crawling
