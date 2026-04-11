@@ -8,9 +8,11 @@ FAILED=0
 
 while IFS= read -r file; do
     case "$file" in
-        *.min.js|*.min.css|*.lock|*.sum|package-lock.json|yarn.lock) continue ;;
-        .venv/*|node_modules/*|vendor/*|__pycache__/*) continue ;;
+        *.min.js|*.min.css|*.lock|*.sum|*-lock.json|*lock.json) continue ;;
+        .venv/*|*/node_modules/*|node_modules/*|vendor/*|__pycache__/*) continue ;;
         *.img|*.bin|*.zip|*.tar*|*.pyc|*.png) continue ;;
+        *Loader.js|*loader.js) continue ;;  # vendored Three.js loaders
+        manifest.yaml|docs/*|*/dev-*.html) continue ;;  # config, docs, dev tools
     esac
 
     case "$file" in

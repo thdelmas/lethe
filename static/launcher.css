@@ -1,8 +1,6 @@
 /* LETHE Void Launcher — layout, clock, mascot, and chat styles.
  * The OS is the agent. One page IS the home screen + conversation. */
-
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-
 :root {
   --bg: #080808;
   --text: #dcc8c0;

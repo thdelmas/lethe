@@ -410,7 +410,7 @@ MANIFEST
         JAVA_TARGET="$SYSAPP_DIR/src/org/osmosis/lethe/agent"
         mkdir -p "$JAVA_TARGET"
         cp "$JAVA_SOURCE"/*.java "$JAVA_TARGET/"
-        JAVA_COUNT=$(ls "$JAVA_SOURCE"/*.java 2>/dev/null | wc -l)
+        JAVA_COUNT=$(find "$JAVA_SOURCE" -maxdepth 1 -name '*.java' 2>/dev/null | wc -l)
         echo "  -> Java source files copied ($JAVA_COUNT files)."
     fi
 

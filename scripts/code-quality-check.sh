@@ -43,7 +43,12 @@ echo ""
 # ── 4. YAML validation ─────────────────────────────────────────────
 echo "=== YAML validation ==="
 if command -v python3 &>/dev/null; then
-    python3 -c "import yaml; yaml.safe_load(open('manifest.yaml'))" 2>&1 && echo "OK: manifest.yaml is valid YAML" || { echo "FAIL: manifest.yaml is invalid"; FAILED=1; }
+    if python3 -c "import yaml; yaml.safe_load(open('manifest.yaml'))" 2>&1; then
+        echo "OK: manifest.yaml is valid YAML"
+    else
+        echo "FAIL: manifest.yaml is invalid"
+        FAILED=1
+    fi
 else
     echo "SKIP: python3 not available"
 fi
