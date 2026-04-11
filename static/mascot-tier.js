@@ -141,9 +141,9 @@
   }
 
   function tierToAvatar(tier) {
-    // Shallow tier: static image to avoid loading Three.js on weak GPUs.
-    // Taproot/deeproot: 3D if WebGL works, 2D video fallback otherwise.
-    if (tier === 'shallow') return 'static';
+    // Shallow: sprite sheet animation (canvas-driven, no Three.js/video)
+    // Taproot/deeproot: 3D WebGL if available, 2D video fallback
+    if (tier === 'shallow') return 'sprite';
     if (canWebGL()) return '3d';
     return '2d';
   }
@@ -195,12 +195,14 @@
   function applyAvatar(mode) {
     var el3d = document.querySelector('.mascot-3d');
     var el2d = document.querySelector('.mascot-2d');
+    var elSprite = document.querySelector('.mascot-sprite');
     var elStatic = document.querySelector('.mascot-static');
     var chat3d = document.querySelector('.chat-3d');
     var chat2d = document.querySelector('.chat-2d');
 
     if (el3d) el3d.style.display = (mode === '3d') ? 'block' : 'none';
     if (el2d) el2d.style.display = (mode === '2d') ? 'block' : 'none';
+    if (elSprite) elSprite.style.display = (mode === 'sprite') ? 'block' : 'none';
     if (elStatic) elStatic.style.display = (mode === 'static') ? 'block' : 'none';
     if (chat3d) chat3d.style.display = (mode === '3d') ? 'block' : 'none';
     if (chat2d) chat2d.style.display = (mode !== '3d') ? 'block' : 'none';

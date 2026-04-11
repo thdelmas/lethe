@@ -194,6 +194,12 @@ video.mascot-video::-webkit-media-controls-enclosure {
   transition: all 3s ease;
 }
 
+/* ── Sprite tier: canvas-driven frame animation ── */
+.mascot-sprite {
+  width: 100%; height: 100%; object-fit: contain;
+  filter: drop-shadow(0 0 12px rgba(34, 232, 160, 0.15));
+}
+
 /* ── Static tier: just the image ── */
 .mascot-static {
   width: 100%; height: 100%; object-fit: contain;

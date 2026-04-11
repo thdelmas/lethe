@@ -297,6 +297,34 @@ function scheduleIdleLoop() {
 
 if (vidA) scheduleIdleLoop();
 
+/* ═══════════ SPRITE ANIMATION (SHALLOW TIER) ═══════════ */
+var spriteCanvas = document.getElementById('mascot-canvas-sprite');
+if (window.letheTier === 'sprite' && spriteCanvas && typeof SpritePlayer !== 'undefined') {
+  SpritePlayer.init(spriteCanvas);
+  SpritePlayer.play('idle', { speed: 42, loop: true });
+  console.log('LETHE sprite: idle animation started');
+
+  /* Override playRandomAnim to use sprites instead of video */
+  window._origPlayRandomAnim = typeof playRandomAnim === 'function' ? playRandomAnim : null;
+  playRandomAnim = function(context) {
+    var spriteAnims = {
+      calm: ['idle'],
+      tap: ['wave', 'idle'],
+      replied: ['idle'],
+      wake: ['warmup'],
+      fidgeting: ['walk', 'idle'],
+      sleepy: ['idle']
+    };
+    var pool = spriteAnims[context] || spriteAnims.calm;
+    var pick = pool[Math.floor(Math.random() * pool.length)];
+    var isIdle = (pick === 'idle');
+    SpritePlayer.play(pick, { speed: isIdle ? 200 : 100, loop: isIdle });
+  };
+
+  /* Start idle loop for sprites too */
+  scheduleIdleLoop();
+}
+
 function letheSetAnim(name) { playVideoAnim('mascot-' + name + '.webm'); }
 
 /* ═══════════ MOOD TRANSITION (GLITCH + COLOR FADE) ═══════════ */

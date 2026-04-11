@@ -40,7 +40,11 @@
         <video id="vid-b" muted playsinline style="position:fixed;top:-9999px;left:-9999px;width:1px;height:1px"></video>
       </div>
 
-      <!-- Static: just the image, no animation -->
+      <!-- Sprite: canvas-driven frame animation (shallow tier) -->
+      <canvas id="mascot-canvas-sprite" class="mascot-layer mascot-sprite"
+              style="display:none"></canvas>
+
+      <!-- Static: fallback image, no animation (ultra-low-end) -->
       <img src="mascot.png" alt="LETHE" draggable="false"
            class="mascot-layer mascot-static" style="display:none"/>
     </div>
