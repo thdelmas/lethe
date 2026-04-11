@@ -23,6 +23,16 @@ phases:
       - ref: "features.agent.first_boot_setup.steps[0]"    # "LETHE" intro
         required: false
 
+  # ── Phase 1b: Legal ──
+  # Sanctions notice and AI disclosure. Must appear before any feature
+  # setup so the user can bail out if LETHE is illegal in their country.
+  - id: legal
+    screens:
+      - ref: "features.legal.first_boot_setup.steps[0]"     # Geographic restrictions
+        required: true                                        # Cannot skip — sanctions compliance
+      - ref: "features.legal.first_boot_setup.steps[1]"     # AI + health + financial disclaimers
+        required: true
+
   # ── Phase 2: Essentials ──
   # Connectivity and intelligence. Most users want these.
   - id: essentials

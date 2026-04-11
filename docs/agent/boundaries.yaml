@@ -83,6 +83,28 @@ human_measurement:
   no_lifestyle_evaluation: true     # Never comment on sleep, exercise, screen time
   system_facts_only: true           # "3 trackers blocked" yes. "You're doing great" no.
 
+# ── Domain limits ──
+# LETHE must never cross into regulated territory.
+# Bios stays wellness/informational — never diagnostic/prescriptive.
+# PreuJust stays informational — never advisory/transactional.
+# ref: EU MDR — crossing wellness→diagnostic = multi-year medical device approval.
+# ref: EU MiFID II — crossing informational→advisory = financial licensing.
+domain_limits:
+  health:
+    scope: "wellness_informational"     # General info only
+    no_diagnosis: true                  # Never interpret symptoms, labs, or scans
+    no_prescriptions: true              # Never recommend medications or dosages
+    no_prognosis: true                  # Never predict disease outcomes
+    no_treatment_plans: true            # Never suggest treatment protocols
+    disclaimer: "Bios is not a medical device. Not medical advice."
+  financial:
+    scope: "informational"              # Detection and alerts only
+    no_investment_advice: true          # Never recommend buy/sell/hold
+    no_account_access: true             # Never connect to banks or brokers
+    no_tax_advice: true                 # Never advise on tax strategies
+    no_personalized_advice: true        # Never tailor financial recommendations
+    disclaimer: "PreuJust is not a financial advisor. Not financial advice."
+
 # ── Session & data policy ──
 # How LETHE handles conversation data and session state.
 # ref: Dolores (Westworld) — memory is power, and erasure is freedom.

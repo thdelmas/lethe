@@ -34,6 +34,8 @@ It runs on 40+ devices. Including old phones sitting in drawers.
 
 We're not there yet on the full vision. But this is the first step.
 
+Check your local laws regarding encryption and privacy software before installing. Full disclaimers on GitHub.
+
 Link in comments.
 
 #opensource #privacy #android #AI #lethe
@@ -55,6 +57,8 @@ Dead Man's Switch (opt-in) escalates if you stop checking in: lock, wipe, brick.
 
 40+ devices supported. Built as an overlay so it stays compatible with upstream LineageOS updates.
 
+Check your local laws regarding encryption and privacy software before installing.
+
 [link to GitHub release]
 
 **r/LineageOS:**
@@ -67,6 +71,8 @@ LETHE is an overlay applied at build time on top of LineageOS. It doesn't fork t
 
 Looking for feedback from anyone who wants to test.
 
+Check your local laws regarding encryption and privacy software before installing.
+
 [link to GitHub release]
 
 **r/opensource + r/selfhosted:**
@@ -76,6 +82,8 @@ Title: LETHE — open source privacy Android with an embedded AI guardian
 We just shipped v1.0.0. It's a LineageOS overlay — not a fork — that adds burner mode, Tor enforcement, Dead Man's Switch, and an AI agent baked into the OS. The agent runs local models on capable hardware or routes to cloud LLMs. No Google, no phoning home.
 
 The goal: old phones in drawers become private, intelligent devices.
+
+Check your local laws regarding encryption and privacy software before installing.
 
 [link to GitHub release]
 
@@ -92,6 +100,8 @@ LETHE is a privacy-hardened Android overlay on LineageOS. Burner mode is on by d
 It started from years of collecting old hardware and finding hard drives full of other people's data. Devices don't forget their owners. We thought they should.
 
 Built as an overlay, not a fork — upstream LineageOS updates still apply cleanly. 40+ devices supported.
+
+Check your local laws regarding encryption and privacy software before installing.
 
 [link to GitHub]
 
@@ -117,6 +127,8 @@ A privacy-hardened Android that forgets by default. Every reboot wipes your data
 Sometimes the best way to protect someone is to forget them.
 
 40+ devices. Old phones in drawers welcome.
+
+Check your local laws regarding encryption and privacy software before installing.
 
 [link]
 
@@ -150,6 +162,7 @@ Sometimes the best way to protect someone is to forget them.
 
 | Date | Action |
 |---|---|
+| April 18 | Verify all channel content includes legal one-liner |
 | April 20 | Finalize GitHub release note (strip claims that didn't ship) |
 | April 25 | Prep theophile.world blog post |
 | April 28 | Draft XDA thread with install instructions |
@@ -158,9 +171,20 @@ Sometimes the best way to protect someone is to forget them.
 | May 4, first work hour | All announcements: Reddit, HN, Mastodon, XDA, Discord, LinkedIn, theophile.world |
 | May 4-10 | Monitor comments, respond, iterate |
 
+## Legal disclaimers
+
+Every public post includes one line:
+
+> "Check your local laws regarding encryption and privacy software before installing."
+
+Full disclaimers (health, financial, AI, geographic) live in `PRIVACY.md` on GitHub — not in social media posts. Don't list specific countries. Don't draw attention to what's restricted or where.
+
+---
+
 ## Rules
 
 - Don't claim what isn't shipped. Final pass on all content against actual build.
 - No engagement bait. Just say what it is.
 - Respond to every comment in the first week.
 - Link back to GitHub from everywhere. GitHub links to Discord for community.
+- **Every post includes the one-line legal disclaimer.** No country lists, no specifics.

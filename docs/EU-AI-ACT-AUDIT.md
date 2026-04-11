@@ -15,11 +15,32 @@ LETHE is an **AI-powered operating system agent** that:
 - Makes no autonomous decisions affecting health, safety, employment, or law enforcement
 - Does not perform biometric identification, social scoring, or behavioral profiling
 
-**Classification: Limited risk (not high-risk)**
+**Classification: Limited risk (not high-risk) — IF modules stay within scope**
 
-LETHE does not fall under Annex III high-risk categories. It is not used for biometric identification, critical infrastructure control, education scoring, employment decisions, law enforcement, migration assessment, or democratic process manipulation.
+LETHE's core agent does not fall under Annex III high-risk categories. It is not used
+for biometric identification, critical infrastructure control, education scoring,
+employment decisions, law enforcement, migration assessment, or democratic process
+manipulation.
 
 The primary obligations are **Article 50 (Transparency)** and **Article 4 (AI Literacy)**.
+
+### Classification risk from protection modules
+
+**This classification holds ONLY if Bios and PreuJust stay within their defined scope.**
+
+| Module | Current scope | Safe? | What would trigger high-risk (Annex III) |
+|--------|--------------|-------|------------------------------------------|
+| **Bios** (Health) | Wellness info, medical card, sensor permissions, data access | Yes | Diagnosing conditions, interpreting lab results, recommending medications, predicting disease → Category 10 (health AI) → **also triggers EU MDR (medical device)** |
+| **PreuJust** (Money) | Phishing detection, permission audit, scam screening | Yes | Personalized investment advice, creditworthiness assessment, bank account access → Category 6 (financial services AI) → **also triggers MiFID II** |
+
+**The open-source exemption (Art. 2(12)) does NOT apply to high-risk systems.** If either
+module crosses into high-risk territory, LETHE would need: conformity assessment, CE
+marking, risk management system, technical documentation, EU database registration, and
+potentially a Notified Body review.
+
+**Mitigation:** Every new Bios/PreuJust feature must be evaluated against this table
+before implementation. If a feature could cross the line, it requires legal review first.
+See `docs/research/legal-compliance.md` for the full jurisdiction-by-jurisdiction analysis.
 
 ---
 
@@ -89,14 +110,14 @@ The AI Act does not replace GDPR. When LETHE sends user messages to cloud provid
 
 | Requirement | Status | Detail |
 |---|---|---|
-| Privacy policy | MISSING | No privacy policy document exists |
+| Privacy policy | DONE | `PRIVACY.md` — includes geographic restrictions, module disclaimers, data flow |
 | Data processing disclosure | MISSING | No statement about what data is collected, by whom, how long |
 | User rights (access, deletion, portability) | PARTIAL | Burner mode gives de facto deletion, but no formal rights mechanism |
 | Consent for cloud data transmission | MISSING | No explicit consent when enabling Anthropic/OpenRouter |
 | Data processing agreements with providers | MISSING | No DPA references or links |
 
 **Required fixes:**
-- [ ] Create `PRIVACY.md` covering: data collected, data flow (local vs. cloud), retention (ephemeral by default), user rights, provider data handling
+- [x] Create `PRIVACY.md` covering: data collected, data flow (local vs. cloud), retention (ephemeral by default), user rights, provider data handling, geographic restrictions, module disclaimers
 - [ ] Add consent screen when user first configures a cloud provider: "Your conversations will be sent to [Provider]. [Link to provider's privacy policy]. Continue?"
 - [ ] Link to cloud providers' data processing terms from settings
 
@@ -123,7 +144,7 @@ These are genuine compliance strengths — not gaps:
 
 | Document | Purpose | AI Act Reference |
 |---|---|---|
-| **Privacy Policy** | Data collection, flow, retention, rights | GDPR Art 13/14, AI Act Art 50 |
+| ~~**Privacy Policy**~~ | ~~Data collection, flow, retention, rights~~ | ~~GDPR Art 13/14, AI Act Art 50~~ — **DONE: `PRIVACY.md`** |
 | **AI Transparency Notice** | What AI is, how it works, limitations | Art 50, Art 4 |
 | **Terms of Service** | Liability, prohibited uses, disclaimers | General legal requirement |
 | **AI Capabilities & Limitations** | Knowledge cutoffs, hallucination risk, model info | Art 4 (literacy), Art 50 |
@@ -191,7 +212,25 @@ Given release date of May 4, 2026 and full AI Act enforcement on August 2, 2026:
 
 ---
 
-## 9. Summary
+## 9. Beyond the EU AI Act — Other Regulatory Obligations
+
+The AI Act is not the only legal concern. See `docs/research/legal-compliance.md` for
+the comprehensive analysis. Key items that affect the release timeline:
+
+| Obligation | Status | Deadline |
+|---|---|---|
+| Export control review | **DONE** | Open-source exemptions apply; no action needed |
+| Geographic restriction notice (sanctions) | **DONE** | PRIVACY.md + release notes |
+| Bios "not medical advice" disclaimer | **DONE** | PRIVACY.md + roadmap |
+| PreuJust "not financial advice" disclaimer | **DONE** | PRIVACY.md + roadmap |
+| GDPR DPAs with LLM providers | **TODO** | Before Aug 2 enforcement |
+| GDPR DPIA for health/financial processing | **TODO** | Before Aug 2 enforcement |
+| Terms of service | **TODO** | P2 |
+| Consult specialized legal counsel | **TODO** | Before any Bios/PreuJust scope expansion |
+
+---
+
+## 10. Summary
 
 **LETHE's philosophy is deeply aligned with the AI Act's intent.** The boundaries system, ephemeral design, no-manipulation rules, and user sovereignty are exactly what regulators want to see. The gaps are **formal and presentational**, not architectural:
 

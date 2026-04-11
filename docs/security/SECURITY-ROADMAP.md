@@ -430,6 +430,50 @@ Go thin_client compilable via gomobile for Android integration.
 
 ---
 
+## Legal & Regulatory Awareness
+
+LETHE's security features are its strength — but some directly conflict with
+laws in certain jurisdictions. This doesn't mean we weaken them. It means we
+document the risks honestly so users and the maintainer stay informed.
+
+See `lethe/docs/research/legal-compliance.md` for the full legal analysis.
+
+### Features with legal implications
+
+| Feature | Legal Risk | Jurisdictions |
+|---------|-----------|---------------|
+| **Tor enforcement** | VPN/proxy bans, lawful interception laws | China, Russia, Iran, Belarus, Turkmenistan, UAE |
+| **Burner mode** (identity rotation) | May conflict with device registration laws | China (real-name registration), India (SIM linking) |
+| **Dead man's switch** (wipe/brick) | Evidence destruction laws | Most jurisdictions if triggered during investigation |
+| **Panic wipe** | Evidence destruction laws | Same as above |
+| **Decoy profiles** (P3) | Obstruction of justice in some jurisdictions | US, UK, EU (depends on context) |
+| **Anti-forensic background service** (P3) | Evidence spoliation | Broad — document risk prominently |
+| **Warrant canary** (P3) | Gag order compliance varies | US (NSL), Australia (TOLA Act) |
+| **Encryption** (FBE, per-session keys) | Decryption-on-demand laws | UK (RIPA s.49), Australia (TOLA), India (IT Act s.69) |
+
+### What we do about it
+
+1. **We do not weaken features.** The architecture serves users who need it.
+2. **We document geographic restrictions.** Users must know where LETHE's
+   features conflict with local law.
+3. **We add disclaimers** to the first-boot wizard, release notes, and every
+   public communication.
+4. **We file export control notifications** (EAR for encryption).
+5. **We do not actively distribute** to comprehensively sanctioned countries
+   (DPRK, Iran, Syria, Cuba).
+
+### Export control status
+
+LETHE includes encryption software subject to:
+- **US EAR** (ECCN 5D002) — open-source exemption (740.13(e)) covers publicly
+  available source code.
+- **EU Dual-Use Regulation** (2021/821) — "public domain" exemption, narrower
+  than US. Verify applicability.
+- **Wassenaar Arrangement** — Category 5 Part 2 (information security). 42 states
+  coordinate these controls.
+
+---
+
 ## What we deliberately do NOT port
 
 - **Sandboxed Google Play.** LETHE's identity is full degoogling. Users who
