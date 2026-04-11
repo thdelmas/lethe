@@ -572,10 +572,23 @@ function escapeHtml(s) {
   d.textContent = s; return d.innerHTML;
 }
 
-function addMessage(text, from) {
+function addMessage(text, from, meta) {
   var el = document.createElement('div');
   el.className = 'message from-' + from;
-  el.innerHTML = '<div class="message-bubble">' + escapeHtml(text) + '</div>';
+  if (from === 'lethe') {
+    el.setAttribute('data-ai-generated', 'true');
+    var p = (meta && meta.provider) ? meta.provider : lastProvider || '';
+    var m = (meta && meta.model) ? meta.model : '';
+    if (p) el.setAttribute('data-provider', p);
+    if (m) el.setAttribute('data-model', m);
+    var badge = '<span class="ai-badge">AI</span>';
+    var provLabel = p ? '<span class="ai-provider">' + escapeHtml(p) +
+      (m ? ' / ' + escapeHtml(m) : '') + '</span>' : '';
+    el.innerHTML = '<div class="message-bubble">' + escapeHtml(text) + '</div>' +
+      '<div class="ai-label">' + badge + provLabel + '</div>';
+  } else {
+    el.innerHTML = '<div class="message-bubble">' + escapeHtml(text) + '</div>';
+  }
   transcript.appendChild(el);
   transcript.scrollTop = transcript.scrollHeight;
 }
@@ -834,6 +847,9 @@ function executeTool(name, input) {
   }
 }
 
+var lastProvider = '';
+var lastModel = '';
+
 var providers = [
   { name: 'local', endpoint: 'http://127.0.0.1:8080', format: 'openai',
     needsKey: false, key: null, model: null },
@@ -851,8 +867,23 @@ var providers = [
 ];
 
 function getProvider() {
+  /* If user explicitly chose a provider in settings, use it */
+  var active = localStorage.getItem('lethe_active_provider');
+  if (active) {
+    for (var j = 0; j < providers.length; j++) {
+      if (providers[j].name === active) {
+        var a = providers[j];
+        if (a.name === 'local' && !agentAvailable) break;
+        if (a.needsKey && !a.key) break;
+        if (!a.endpoint) break;
+        return a;
+      }
+    }
+  }
+  /* Auto-select: skip local if offline, skip providers without keys */
   for (var i = 0; i < providers.length; i++) {
     var p = providers[i];
+    if (p.name === 'local' && !agentAvailable) continue;
     if (p.needsKey && !p.key) continue;
     if (!p.endpoint) continue;
     return p;
@@ -882,8 +913,13 @@ function chatRequest(p, msgs) {
         'anthropic-dangerous-direct-browser-access': 'true'
       },
       body: JSON.stringify(abody)
-    }).then(function(r) { if (!r.ok) throw new Error(r.status); return r.json(); })
-      .then(function(d) {
+    }).then(function(r) {
+        if (!r.ok) return r.json().then(function(e) {
+          var msg = (e.error && e.error.message) ? e.error.message : r.status;
+          throw new Error(msg);
+        }).catch(function(e) { throw e.message ? e : new Error(r.status); });
+        return r.json();
+      }).then(function(d) {
         var text = '', calls = [];
         if (d.content) {
           for (var i = 0; i < d.content.length; i++) {
@@ -988,6 +1024,8 @@ function send() {
   addMessage(text, 'user');
   chatHistory.push({ role: 'user', content: text });
   inputEl.value = ''; btnSend.disabled = true; autoResize();
+  lastProvider = p.name;
+  lastModel = p.model || '';
   setState('thinking'); showTyping(); showStatus(p.name);
 
   /* Refresh device state in system prompt before each send */
@@ -1053,12 +1091,13 @@ function send() {
 
       handleReply(result.text);
     })
-    .catch(function() {
+    .catch(function(err) {
       hideTyping(); setState('alert');
       chainDepth = 0;
+      console.log('LETHE chat error: ' + (err ? err.message || err : 'unknown'));
       addMessage(p.name === 'local'
         ? 'My local core is not running.'
-        : 'Lost contact with ' + p.name + '.', 'lethe');
+        : 'Lost contact with ' + p.name + '. (' + (err ? err.message || '' : '') + ')', 'lethe');
       setTimeout(function() { setState('idle'); }, 3000);
     });
 }
@@ -1075,7 +1114,8 @@ function handleReply(reply) {
   }
 
   chatHistory.push({ role: 'assistant', content: reply });
-  addMessage(reply, 'lethe'); setState('idle');
+  addMessage(reply, 'lethe', { provider: lastProvider, model: lastModel });
+  setState('idle');
   if (!isRefusal(reply) && viewState === 'home' && Math.random() > 0.5) {
     setTimeout(function() { playRandomAnim('replied'); }, 1500);
   }
@@ -1494,6 +1534,19 @@ document.getElementById('btn-settings').addEventListener('click', function() {
   devPanel.style.display = 'none';
   if (typeof settingsOpen === 'function') settingsOpen();
 });
+
+/* Chat info button — AI transparency panel (EU AI Act Art. 4) */
+var chatInfoBtn = document.getElementById('chat-info-btn');
+var aiInfoPanel = document.getElementById('ai-info-panel');
+if (chatInfoBtn && aiInfoPanel) {
+  chatInfoBtn.addEventListener('click', function(e) {
+    e.stopPropagation();
+    aiInfoPanel.style.display = 'block';
+  });
+  document.getElementById('ai-info-close').addEventListener('click', function() {
+    aiInfoPanel.style.display = 'none';
+  });
+}
 
 /* Chat settings button — opens provider settings directly */
 var chatSettingsBtn = document.getElementById('chat-settings-btn');

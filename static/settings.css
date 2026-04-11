@@ -89,3 +89,36 @@
 }
 .status-on { background: #22e8a0; }
 .status-off { background: #333; }
+
+/* ═════════════════════════════════════
+   CLOUD CONSENT DIALOG (EU AI Act Art. 50)
+   ═════════════════════════════════════ */
+.consent-overlay {
+  position: fixed; inset: 0;
+  background: rgba(0,0,0,0.85);
+  z-index: 10000;
+  display: flex; align-items: center; justify-content: center;
+  padding: 1.5rem;
+}
+.consent-dialog {
+  background: #121210; border: 1px solid #22e8a030;
+  border-radius: 8px; padding: 1.2rem;
+  max-width: 320px; width: 100%;
+}
+.consent-title {
+  font-size: 0.9rem; font-weight: 600; color: var(--accent);
+  margin-bottom: 0.6rem;
+}
+.consent-body {
+  font-size: 0.72rem; color: var(--text); line-height: 1.5;
+  margin-bottom: 1rem;
+}
+.consent-actions {
+  display: flex; gap: 0.5rem; justify-content: flex-end;
+}
+.consent-cancel {
+  color: var(--text-dim) !important; border-color: #333 !important;
+}
+.consent-accept {
+  color: var(--accent) !important; border-color: var(--accent) !important;
+}

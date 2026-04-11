@@ -133,6 +133,32 @@
     </div>
   </div>
 
+  <!-- ══════ AI INFO PANEL (EU AI Act Art. 4 — AI literacy) ══════ -->
+  <div class="ai-info-panel" id="ai-info-panel" style="display:none">
+    <div class="dev-header">
+      <span>About AI responses</span>
+      <button id="ai-info-close" class="dev-btn">&times;</button>
+    </div>
+    <div class="ai-info-content">
+      <p>LETHE uses <strong>artificial intelligence</strong> (language models) to generate
+      responses. These are not written by a human.</p>
+      <p><strong>Limitations:</strong></p>
+      <ul>
+        <li>Responses may be inaccurate, incomplete, or outdated</li>
+        <li>AI models have knowledge cutoffs and can hallucinate facts</li>
+        <li>Do not rely on LETHE for medical, legal, or financial decisions</li>
+        <li>Verify anything that matters</li>
+      </ul>
+      <p><strong>Your data:</strong></p>
+      <ul>
+        <li>Local models: nothing leaves this device</li>
+        <li>Cloud providers: messages are sent to the provider you configured</li>
+        <li>Burner mode: everything is erased on reboot</li>
+      </ul>
+      <p class="ai-info-link">Full details: Settings > PRIVACY.md</p>
+    </div>
+  </div>
+
   <!-- ══════ PRIVACY STATUS BAR (persistent, bottom of home screen) ══════ -->
   <div class="privacy-bar" id="privacy-bar">
     <span class="privacy-tor" id="privacy-tor">&#x1f6e1; Tor</span>
@@ -163,6 +189,8 @@
         <img src="mascot.png" alt="LETHE" draggable="false"
              class="chat-2d" style="display:none"/>
       </div>
+      <button class="chat-info-btn" id="chat-info-btn"
+              aria-label="About AI responses">&#x2139;</button>
       <button class="chat-settings-btn" id="chat-settings-btn"
               aria-label="Settings">&#x2699;</button>
     </div>

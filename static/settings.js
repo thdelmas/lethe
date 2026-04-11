@@ -108,8 +108,48 @@ function settingsLoad() {
   }
 }
 
+/* ═══════════ CLOUD CONSENT (EU AI Act Art. 50) ═══════════ */
+var cloudConsentMessages = {
+  anthropic: 'Your messages will be sent to Anthropic servers for processing. Anthropic may process your data per their usage policy.',
+  openrouter: 'Your messages will be sent to OpenRouter servers and routed to third-party model providers.',
+  custom: 'Your messages will be sent to the external endpoint you configure.'
+};
+
+function needsCloudConsent(provName) {
+  if (provName === 'local') return false;
+  var consentKey = 'lethe_consent_' + provName;
+  return !localStorage.getItem(consentKey);
+}
+
+function showCloudConsent(provName, onAccept) {
+  var overlay = document.createElement('div');
+  overlay.className = 'consent-overlay';
+  var msg = cloudConsentMessages[provName] ||
+    'Your messages will be sent to external servers for processing.';
+  overlay.innerHTML =
+    '<div class="consent-dialog">' +
+    '<div class="consent-title">Data leaves this device</div>' +
+    '<div class="consent-body">' + msg +
+    '<br><br>Conversations are not stored on this device by default (burner mode). ' +
+    'But the cloud provider receives your messages while the session is active.' +
+    '<br><br>You can switch to Local Only at any time in Settings.</div>' +
+    '<div class="consent-actions">' +
+    '<button class="dev-btn consent-cancel">Cancel</button>' +
+    '<button class="dev-btn consent-accept">I understand</button>' +
+    '</div></div>';
+  document.body.appendChild(overlay);
+  overlay.querySelector('.consent-cancel').addEventListener('click', function() {
+    overlay.remove();
+  });
+  overlay.querySelector('.consent-accept').addEventListener('click', function() {
+    localStorage.setItem('lethe_consent_' + provName, '1');
+    overlay.remove();
+    onAccept();
+  });
+}
+
 /* ═══════════ SAVE ALL ═══════════ */
-document.getElementById('set-save').addEventListener('click', function() {
+function doSave() {
   var inputs = document.querySelectorAll('.settings-input');
   for (var i = 0; i < inputs.length; i++) {
     var inp = inputs[i];
@@ -153,6 +193,38 @@ document.getElementById('set-save').addEventListener('click', function() {
 
   /* Refresh settings UI to update status dots */
   settingsLoad();
+}
+
+document.getElementById('set-save').addEventListener('click', function() {
+  /* Check if any NEW cloud provider keys were entered that need consent */
+  var inputs = document.querySelectorAll('.settings-input[data-field="key"]');
+  var needConsent = null;
+  for (var i = 0; i < inputs.length; i++) {
+    var prov = inputs[i].getAttribute('data-provider');
+    var val = inputs[i].value.trim();
+    var hadKey = localStorage.getItem('lethe_key_' + prov);
+    if (val && !hadKey && needsCloudConsent(prov)) {
+      needConsent = prov;
+      break;
+    }
+  }
+  /* Also check custom endpoint */
+  if (!needConsent) {
+    var epInput = document.querySelector('.settings-input[data-field="endpoint"]');
+    if (epInput) {
+      var epVal = epInput.value.trim();
+      var hadEp = localStorage.getItem('lethe_custom_endpoint');
+      if (epVal && !hadEp && needsCloudConsent('custom')) {
+        needConsent = 'custom';
+      }
+    }
+  }
+
+  if (needConsent) {
+    showCloudConsent(needConsent, doSave);
+  } else {
+    doSave();
+  }
 });
 
 /* ═══════════ QR SCAN BUTTON ═══════════ */

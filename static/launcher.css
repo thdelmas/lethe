@@ -293,7 +293,7 @@ video.mascot-video::-webkit-media-controls-enclosure {
 .chat-mascot {
   display: flex; align-items: center; justify-content: center;
 }
-.chat-settings-btn {
+.chat-info-btn, .chat-settings-btn {
   background: none; border: 1px solid #22e8a030;
   border-radius: 50%; width: 48px; height: 48px;
   min-width: 48px; min-height: 48px;
@@ -303,7 +303,8 @@ video.mascot-video::-webkit-media-controls-enclosure {
   -webkit-tap-highlight-color: rgba(34,232,160,0.2);
   position: relative; z-index: 20;
 }
-.chat-settings-btn:active { opacity: 1; background: #22e8a020; }
+.chat-info-btn { font-size: 1.1rem; font-weight: 700; font-style: italic; }
+.chat-info-btn:active, .chat-settings-btn:active { opacity: 1; background: #22e8a020; }
 .chat-status {
   text-align: center;
   font-size: 0.6rem; color: var(--text-dim);
@@ -336,6 +337,23 @@ video.mascot-video::-webkit-media-controls-enclosure {
 }
 .from-user .message-bubble { background: #122018; border: 1px solid #22e8a018; }
 .from-lethe .message-bubble { background: #121210; border: 1px solid #22e8a00c; }
+
+/* ── AI disclosure label (EU AI Act Art. 50) ── */
+.ai-label {
+  display: flex; align-items: center; gap: 0.3rem;
+  margin-top: 0.15rem; padding-left: 0.2rem;
+  font-size: 0.55rem; color: var(--text-dim); opacity: 0.6;
+}
+.ai-badge {
+  display: inline-block;
+  padding: 0.05rem 0.25rem; border-radius: 3px;
+  background: #22e8a012; border: 1px solid #22e8a020;
+  color: var(--accent); font-size: 0.5rem; font-weight: 600;
+  letter-spacing: 0.06em;
+}
+.ai-provider {
+  font-size: 0.5rem; color: var(--text-dim);
+}
 
 .typing-indicator { display: inline-flex; gap: 4px; padding: 0.55rem 0.9rem; }
 .typing-indicator span {
@@ -376,6 +394,34 @@ body[data-native-input] .input-area { display: none; }
 .btn:active { background: #22e8a010; transform: scale(0.95); }
 .btn:disabled { opacity: 0.15; cursor: default; }
 .btn-mic.recording { background: #ff444418; border-color: #ff444430; color: var(--red); }
+
+/* ═════════════════════════════════════
+   AI INFO PANEL (EU AI Act Art. 4)
+   ═════════════════════════════════════ */
+.ai-info-panel {
+  position: fixed; inset: 0;
+  background: rgba(8,8,8,0.97);
+  z-index: 9997;
+  padding: 1rem;
+  overflow-y: auto;
+  font-size: 13px;
+  color: var(--text);
+}
+.ai-info-content {
+  line-height: 1.6; font-size: 0.78rem;
+}
+.ai-info-content p { margin-bottom: 0.6rem; }
+.ai-info-content ul {
+  margin: 0 0 0.6rem 1.2rem; padding: 0;
+}
+.ai-info-content li {
+  margin-bottom: 0.25rem; color: var(--text-dim);
+}
+.ai-info-content strong { color: var(--accent); }
+.ai-info-link {
+  font-size: 0.65rem; color: var(--text-dim);
+  margin-top: 1rem;
+}
 
 /* ═════════════════════════════════════
    Reduced motion
