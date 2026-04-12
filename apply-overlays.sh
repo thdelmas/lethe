@@ -188,6 +188,16 @@ if [ -f "$OVERLAY_DIR/tor.conf" ]; then
     else
         echo "  -> WARNING: init dir not found, skipping Tor init service."
     fi
+    # Check for prebuilt Tor binary
+    TOR_BINARY="$SCRIPT_DIR/prebuilt/tor/$TARGET_ARCH/tor"
+    if [ -f "$TOR_BINARY" ]; then
+        cp "$TOR_BINARY" "system/bin/tor"
+        chmod 755 "system/bin/tor"
+        echo "  -> Tor binary installed ($TARGET_ARCH)."
+    else
+        echo "  -> WARNING: Tor binary not found at $TOR_BINARY"
+        echo "     Extract from Tor Browser APK: lib/<abi>/libTor.so"
+    fi
     echo "  -> Tor overlay installed."
 fi
 

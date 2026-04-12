@@ -10,8 +10,9 @@ service lethe-tor /system/bin/tor -f /system/etc/tor/torrc
     disabled
 
 on post-fs-data
-    # Create Tor data directory on /persist (survives burner wipe)
-    mkdir /persist/lethe/tor 0700 9050 9050
+    # Create Tor data directory on /data
+    mkdir /data/lethe 0700 root root
+    mkdir /data/lethe/tor 0700 root root
 
 on property:sys.boot_completed=1
     start lethe-tor
