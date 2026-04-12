@@ -76,8 +76,8 @@ log "Current version: ${CURRENT_VERSION:-unknown}, security patch: ${CURRENT_SEC
 log "Resolving IPNS channel: $IPNS_CHANNEL"
 CID=$(ipfs name resolve "$IPNS_CHANNEL" 2>/dev/null)
 if [ -z "$CID" ]; then
-    log "No updates found (IPNS resolution failed)"
-    exit 0
+    log "WARN: IPNS resolution failed — network may be unreachable"
+    exit 2
 fi
 log "IPNS resolved to: $CID"
 
@@ -228,22 +228,24 @@ fi
 log "Downloading $BUILD_FILENAME ($BUILD_CID)..."
 mkdir -p "$OTA_DIR"
 
-if ! ipfs get -o "$PENDING_FILE" "$BUILD_CID" 2>/dev/null; then
+DOWNLOAD_TMP="${PENDING_FILE}.part"
+if ! ipfs get -o "$DOWNLOAD_TMP" "$BUILD_CID" 2>/dev/null; then
     log "ERROR: IPFS download failed for $BUILD_CID"
-    rm -f "$PENDING_FILE"
+    rm -f "$DOWNLOAD_TMP"
     rm -rf "$OTA_DIR/tmp"
     exit 1
 fi
 
 # ── Step 8: SHA256 verification ──
 log "Verifying SHA256..."
-ACTUAL_SHA=$(sha256sum "$PENDING_FILE" | cut -d' ' -f1)
+ACTUAL_SHA=$(sha256sum "$DOWNLOAD_TMP" | cut -d' ' -f1)
 if [ "$ACTUAL_SHA" != "$BUILD_SHA256" ]; then
     log "ERROR: SHA256 mismatch! expected=$BUILD_SHA256 actual=$ACTUAL_SHA"
-    rm -f "$PENDING_FILE"
+    rm -f "$DOWNLOAD_TMP"
     rm -rf "$OTA_DIR/tmp"
     exit 1
 fi
+mv "$DOWNLOAD_TMP" "$PENDING_FILE"
 log "SHA256 verified OK"
 
 write_pending_metadata
