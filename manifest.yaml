@@ -398,9 +398,9 @@ features:
           legal_gate: true
 
   # LETHE agent — personality, voice, integration, and first-boot screens.
-  # Full definition in docs/agent.yaml (extracted for line-length compliance).
+  # Full definition in docs/agent/agent.yaml (extracted for line-length compliance).
   agent:
-    config: "docs/agent.yaml"
+    config: "docs/agent/agent.yaml"
 
   tor:
     description: "Transparent Tor proxy — all user app traffic routed through Tor by default"
@@ -540,9 +540,9 @@ features:
         desc: "Strip GPS, camera, and device metadata from photos before sharing"
 
 # ── First-boot wizard ──
-# Unified onboarding flow defined in docs/first-boot-wizard.yaml.
+# Unified onboarding flow defined in docs/agent/first-boot-wizard.yaml.
 # References feature screens above and sequences them into phases.
-first_boot_wizard_config: "docs/first-boot-wizard.yaml"
+first_boot_wizard_config: "docs/agent/first-boot-wizard.yaml"
 
 build:
   # LineageOS build integration
