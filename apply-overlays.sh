@@ -89,6 +89,14 @@ if [ -f "$OVERLAY_DIR/dead-mans-switch.conf" ]; then
     mkdir -p "system/extras/lethe"
     cp "$OVERLAY_DIR/dead-mans-switch.conf" "system/extras/lethe/"
 
+    # Install runtime scripts
+    RUNTIME_DIR="$SCRIPT_DIR/scripts/runtime"
+    cp "$RUNTIME_DIR/lethe-deadman-boot.sh" "system/bin/"
+    cp "$RUNTIME_DIR/lethe-deadman-monitor.sh" "system/bin/"
+    cp "$RUNTIME_DIR/lethe-deadman-duress.sh" "system/bin/"
+    chmod 755 "system/bin/lethe-deadman-boot.sh" "system/bin/lethe-deadman-monitor.sh" "system/bin/lethe-deadman-duress.sh"
+    echo "  -> Dead man runtime scripts installed."
+
     INIT_DIR="system/core/rootdir"
     if [ -d "$INIT_DIR" ]; then
         cp "$INITRC_DIR/init.lethe-deadman.rc" "$INIT_DIR/"
@@ -188,6 +196,12 @@ if [ -f "$OVERLAY_DIR/tor.conf" ]; then
     mkdir -p "system/etc/tor"
     cp "$OVERLAY_DIR/tor.conf" "system/etc/tor/torrc"
 
+    # Install iptables rules script
+    RUNTIME_DIR="$SCRIPT_DIR/scripts/runtime"
+    cp "$RUNTIME_DIR/lethe-tor-rules.sh" "system/bin/"
+    chmod 755 "system/bin/lethe-tor-rules.sh"
+    echo "  -> Tor rules script installed."
+
     INIT_DIR="system/core/rootdir"
     if [ -d "$INIT_DIR" ]; then
         cp "$INITRC_DIR/init.lethe-tor.rc" "$INIT_DIR/"
@@ -266,6 +280,11 @@ echo "[11/13] Installing LETHE agent as native system component..."
         echo "  -> WARNING: lethe-agent binary not found at $AGENT_BINARY"
         echo "     Build with: cd lethe/agent && ./build.sh $TARGET_ARCH"
     fi
+
+    # Install agent wrapper script (avoids SELinux execute_no_trans on native binary)
+    RUNTIME_DIR="$SCRIPT_DIR/scripts/runtime"
+    cp "$RUNTIME_DIR/lethe-agent-start.sh" "system/bin/"
+    chmod 755 "system/bin/lethe-agent-start.sh"
 
     # Copy static assets (WebView UI)
     if [ -d "$SCRIPT_DIR/static" ]; then

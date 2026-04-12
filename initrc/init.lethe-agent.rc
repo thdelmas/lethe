@@ -1,25 +1,12 @@
 # LETHE — native AI agent layer
-# 1. Starts the Python backend on localhost:8080
-# 2. Registers LETHE as default assist app (long-press home + mascot tap)
-# 3. Signals the Void launcher to show the home screen mascot overlay
+# Starts the Rust backend on localhost:8080 and registers as default assist app.
 
-service lethe-agent /system/extras/lethe/agent/lethe-agent
+service lethe-agent /system/bin/lethe-agent-start.sh
     class late_start
     user root
     group root inet
     disabled
+    seclabel u:r:init:s0
 
 on property:sys.boot_completed=1
     start lethe-agent
-
-    # Set LETHE as default assist app (long-press home)
-    exec -- /system/bin/sh -c "\
-        settings put secure assistant org.osmosis.lethe.agent/.LetheAssistActivity; \
-        settings put secure voice_interaction_service org.osmosis.lethe.agent/.LetheAssistActivity; \
-        log -t lethe-agent 'Registered as default assist app'"
-
-    # Signal Void launcher to show home screen mascot overlay
-    exec -- /system/bin/sh -c "\
-        setprop persist.lethe.agent.ready 1; \
-        am broadcast -a org.osmosis.lethe.AGENT_READY 2>/dev/null; \
-        log -t lethe-agent 'Agent ready — home mascot enabled'"
