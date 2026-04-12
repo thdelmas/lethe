@@ -25,11 +25,20 @@ async fn network_action(Json(req): Json<NetworkRequest>) -> Json<NetworkResponse
     match req {
         NetworkRequest::WifiScan => run_cmd("cmd", &["wifi", "list-scan-results"]).await,
         NetworkRequest::WifiConnect { ssid, password } => {
-            let args = match password {
-                Some(pw) => format!("cmd wifi connect-network '{}' wpa2 '{}'", ssid, pw),
-                None => format!("cmd wifi connect-network '{}' open", ssid),
+            let mut args = vec![
+                "wifi".to_string(),
+                "connect-network".to_string(),
+                ssid,
+            ];
+            match password {
+                Some(pw) => {
+                    args.push("wpa2".to_string());
+                    args.push(pw);
+                }
+                None => args.push("open".to_string()),
             };
-            run_shell(&args).await
+            let str_args: Vec<&str> = args.iter().map(|s| s.as_str()).collect();
+            run_cmd("cmd", &str_args).await
         }
         NetworkRequest::WifiDisconnect => run_cmd("cmd", &["wifi", "forget-network", "all"]).await,
         NetworkRequest::WifiStatus => run_cmd("cmd", &["wifi", "status"]).await,
