@@ -75,52 +75,62 @@ function send() {
       if (result.toolCalls) {
         setState('acting');
         if (result.text) addMessage(result.text, 'lethe');
-        var toolResults = [];
+
+        /* Execute all tool calls (may be async for system tools) */
+        var promises = [];
         for (var i = 0; i < result.toolCalls.length; i++) {
-          var tc = result.toolCalls[i];
-          showStatus(tc.name.replace(/_/g, ' '));
-          var output = executeTool(tc.name, tc.input);
-          toolResults.push({ id: tc.id, name: tc.name, result: output });
+          (function(tc) {
+            showStatus(tc.name.replace(/_/g, ' '));
+            promises.push(
+              Promise.resolve(executeTool(tc.name, tc.input))
+                .then(function(output) {
+                  return { id: tc.id, name: tc.name, result: output };
+                })
+            );
+          })(result.toolCalls[i]);
         }
-        /* Feed tool results back — Anthropic format */
-        if (p.format === 'anthropic') {
-          var acontent = [];
-          if (result.text) acontent.push({ type: 'text', text: result.text });
-          for (var a = 0; a < result.toolCalls.length; a++) {
-            acontent.push({ type: 'tool_use', id: result.toolCalls[a].id,
-              name: result.toolCalls[a].name, input: result.toolCalls[a].input });
+
+        Promise.all(promises).then(function(toolResults) {
+          /* Feed tool results back — Anthropic format */
+          if (p.format === 'anthropic') {
+            var acontent = [];
+            if (result.text) acontent.push({ type: 'text', text: result.text });
+            for (var a = 0; a < result.toolCalls.length; a++) {
+              acontent.push({ type: 'tool_use', id: result.toolCalls[a].id,
+                name: result.toolCalls[a].name, input: result.toolCalls[a].input });
+            }
+            chatHistory.push({ role: 'assistant', content: acontent });
+            for (var b = 0; b < toolResults.length; b++) {
+              chatHistory.push({ role: 'user', content: [{ type: 'tool_result',
+                tool_use_id: toolResults[b].id, content: toolResults[b].result }] });
+            }
+          } else {
+            /* OpenAI format */
+            var amsg = { role: 'assistant', content: result.text || null, tool_calls: [] };
+            for (var c = 0; c < result.toolCalls.length; c++) {
+              amsg.tool_calls.push({ id: result.toolCalls[c].id, type: 'function',
+                'function': { name: result.toolCalls[c].name,
+                  arguments: JSON.stringify(result.toolCalls[c].input) } });
+            }
+            chatHistory.push(amsg);
+            for (var d = 0; d < toolResults.length; d++) {
+              chatHistory.push({ role: 'tool', tool_call_id: toolResults[d].id,
+                content: toolResults[d].result });
+            }
           }
-          chatHistory.push({ role: 'assistant', content: acontent });
-          for (var b = 0; b < toolResults.length; b++) {
-            chatHistory.push({ role: 'user', content: [{ type: 'tool_result',
-              tool_use_id: toolResults[b].id, content: toolResults[b].result }] });
+          /* Follow-up call so LLM can summarize what it did */
+          if (chainDepth < CHAIN_DEPTH_MAX) {
+            chainDepth++;
+            showTyping(); setState('thinking');
+            chatRequest(p, chatHistory).then(function(followUp) {
+              hideTyping(); handleReply(followUp.text || 'Done.');
+            }).catch(function() {
+              hideTyping(); handleReply('Action completed.');
+            });
+          } else {
+            handleReply('Done.');
           }
-        } else {
-          /* OpenAI format */
-          var amsg = { role: 'assistant', content: result.text || null, tool_calls: [] };
-          for (var c = 0; c < result.toolCalls.length; c++) {
-            amsg.tool_calls.push({ id: result.toolCalls[c].id, type: 'function',
-              'function': { name: result.toolCalls[c].name,
-                arguments: JSON.stringify(result.toolCalls[c].input) } });
-          }
-          chatHistory.push(amsg);
-          for (var d = 0; d < toolResults.length; d++) {
-            chatHistory.push({ role: 'tool', tool_call_id: toolResults[d].id,
-              content: toolResults[d].result });
-          }
-        }
-        /* Follow-up call so LLM can summarize what it did */
-        if (chainDepth < CHAIN_DEPTH_MAX) {
-          chainDepth++;
-          showTyping(); setState('thinking');
-          chatRequest(p, chatHistory).then(function(followUp) {
-            hideTyping(); handleReply(followUp.text || 'Done.');
-          }).catch(function() {
-            hideTyping(); handleReply('Action completed.');
-          });
-        } else {
-          handleReply('Done.');
-        }
+        });
         return;
       }
 

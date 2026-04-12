@@ -233,19 +233,30 @@ fi
 
 # ── 11. LETHE agent (native AI layer) ──
 echo "[11/13] Installing LETHE agent as native system component..."
-AGENT_SOURCE="${AGENT_DIR:-${LETHE_DIR:-${BENDER_DIR:-$SCRIPT_DIR/../../bender}}}"
-if [ -d "$AGENT_SOURCE" ]; then
-    # ── 10a. Backend server (Python, runs as system service) ──
+
+    # ── 11a. Backend server (Rust binary, runs as system service) ──
     AGENT_TARGET="system/extras/lethe/agent"
     mkdir -p "$AGENT_TARGET"
-    cp "$AGENT_SOURCE/app.py" "$AGENT_TARGET/"
-    cp "$AGENT_SOURCE/requirements.txt" "$AGENT_TARGET/"
-    cp -r "$AGENT_SOURCE/server" "$AGENT_TARGET/"
-    cp -r "$AGENT_SOURCE/templates" "$AGENT_TARGET/"
-    cp -r "$AGENT_SOURCE/static" "$AGENT_TARGET/"
-    echo "  -> Backend server copied."
 
-    # ── 10b. Native WebView wrapper (system app in /system/app/) ──
+    # Detect target architecture from the build environment
+    TARGET_ARCH="${TARGET_ARCH:-aarch64-linux-android}"
+    AGENT_BINARY="$SCRIPT_DIR/agent/target/$TARGET_ARCH/release/lethe-agent"
+    if [ -f "$AGENT_BINARY" ]; then
+        cp "$AGENT_BINARY" "$AGENT_TARGET/lethe-agent"
+        chmod 755 "$AGENT_TARGET/lethe-agent"
+        echo "  -> Backend binary installed ($TARGET_ARCH)."
+    else
+        echo "  -> WARNING: lethe-agent binary not found at $AGENT_BINARY"
+        echo "     Build with: cd lethe/agent && ./build.sh $TARGET_ARCH"
+    fi
+
+    # Copy static assets (WebView UI)
+    if [ -d "$SCRIPT_DIR/static" ]; then
+        cp -r "$SCRIPT_DIR/static" "$AGENT_TARGET/"
+        echo "  -> Static assets copied."
+    fi
+
+    # ── 11b. Native WebView wrapper (system app in /system/app/) ──
     # A minimal Android app that wraps LETHE's localhost UI in a
     # fullscreen WebView. This makes LETHE appear as a native app:
     # - Shows in launcher with icon
@@ -396,15 +407,15 @@ MANIFEST
     echo "  -> AndroidManifest.xml created."
 
     # Copy icon to mipmap directories
-    if [ -f "$AGENT_SOURCE/static/icon-192.png" ]; then
+    if [ -f "$SCRIPT_DIR/static/icon-192.png" ]; then
         for DPI in mdpi hdpi xhdpi xxhdpi xxxhdpi; do
             mkdir -p "$SYSAPP_DIR/res/mipmap-$DPI"
-            cp "$AGENT_SOURCE/static/icon-192.png" "$SYSAPP_DIR/res/mipmap-$DPI/ic_lethe.png"
+            cp "$SCRIPT_DIR/static/icon-192.png" "$SYSAPP_DIR/res/mipmap-$DPI/ic_lethe.png"
         done
         echo "  -> App icon installed."
     fi
 
-    # ── 10b2. Java source files (security features) ──
+    # ── 11c. Java source files (security features) ──
     JAVA_SOURCE="$SCRIPT_DIR/java/org/osmosis/lethe"
     if [ -d "$JAVA_SOURCE" ]; then
         JAVA_TARGET="$SYSAPP_DIR/src/org/osmosis/lethe/agent"
@@ -414,17 +425,13 @@ MANIFEST
         echo "  -> Java source files copied ($JAVA_COUNT files)."
     fi
 
-    # ── 10c. Init service — backend + default assist registration ──
+    # ── 11d. Init service — backend + default assist registration ──
     INIT_DIR="system/core/rootdir"
     if [ -d "$INIT_DIR" ]; then
         cp "$INITRC_DIR/init.lethe-agent.rc" "$INIT_DIR/"
         echo "  -> Init service installed (backend + assist + notification)."
     fi
     echo "  -> LETHE agent installed as native system component."
-else
-    echo "  -> WARNING: Agent source not found at $AGENT_SOURCE, skipping."
-    echo "     Set AGENT_DIR or LETHE_DIR to override, or place bender/ alongside OSmosis."
-fi
 
 # ── 12. Build fingerprint ──
 echo "[12/13] Setting Lethe build fingerprint..."

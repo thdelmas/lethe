@@ -1,0 +1,27 @@
+[package]
+name = "lethe-agent"
+version = "1.0.0"
+edition = "2021"
+description = "LETHE system agent — HTTP API for device management and LLM proxy"
+license = "GPL-3.0-only"
+
+[[bin]]
+name = "lethe-agent"
+path = "src/main.rs"
+
+[dependencies]
+axum = { version = "0.8", features = ["multipart"] }
+tokio = { version = "1", features = ["rt-multi-thread", "macros", "process", "fs", "io-util", "signal", "sync"] }
+tokio-stream = { version = "0.1", features = ["sync"] }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+tower-http = { version = "0.6", features = ["cors"] }
+hyper = { version = "1", features = ["full"] }
+reqwest = { version = "0.12", default-features = false, features = ["json", "rustls-tls", "multipart", "stream"] }
+
+[profile.release]
+opt-level = "s"
+lto = true
+strip = true
+codegen-units = 1
+panic = "abort"

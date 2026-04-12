@@ -3,9 +3,7 @@
 # 2. Registers LETHE as default assist app (long-press home + mascot tap)
 # 3. Signals the Void launcher to show the home screen mascot overlay
 
-service lethe-agent /system/bin/sh -c "\
-    cd /system/extras/lethe/agent && \
-    python3 -c 'from app import app; app.run(host=\"127.0.0.1\", port=8080, debug=False)'"
+service lethe-agent /system/extras/lethe/agent/lethe-agent
     class late_start
     user root
     group root inet
