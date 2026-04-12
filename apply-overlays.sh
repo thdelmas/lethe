@@ -65,7 +65,14 @@ if [ -f "$OVERLAY_DIR/burner-mode.conf" ]; then
     mkdir -p "system/extras/lethe"
     cp "$OVERLAY_DIR/burner-mode.conf" "system/extras/lethe/"
 
-    # Install the early-init wipe service (template in initrc/).
+    # Install runtime scripts to /system/bin
+    RUNTIME_DIR="$SCRIPT_DIR/scripts/runtime"
+    cp "$RUNTIME_DIR/lethe-burner-wipe.sh" "system/bin/"
+    cp "$RUNTIME_DIR/lethe-mac-rotate.sh" "system/bin/"
+    chmod 755 "system/bin/lethe-burner-wipe.sh" "system/bin/lethe-mac-rotate.sh"
+    echo "  -> Burner runtime scripts installed."
+
+    # Install init service
     INIT_DIR="system/core/rootdir"
     if [ -d "$INIT_DIR" ]; then
         cp "$INITRC_DIR/init.lethe-burner.rc" "$INIT_DIR/"

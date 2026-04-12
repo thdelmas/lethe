@@ -1,50 +1,21 @@
-# Lethe burner mode — early-init wipe service
-# Runs before zygote. Reads config from /persist partition.
+# Lethe burner mode — wipe + identity rotation
+# Uses standalone scripts (inline shell breaks on Android 7.1 init).
 
-on early-init
-    # Mount persist partition to read burner mode preference
-    mount ext4 /dev/block/bootdevice/by-name/persist /persist nosuid nodev noatime
+service lethe-burner-wipe /system/bin/lethe-burner-wipe.sh
+    class main
+    user root
+    group root
+    oneshot
+    seclabel u:r:init:s0
 
-on post-fs-data
-    # Check burner mode toggle (stored on /persist, survives wipe)
-    exec -- /system/bin/sh -c "\
-        ENABLED=$(getprop persist.lethe.burner.enabled); \
-        if [ \"$ENABLED\" = \"true\" ]; then \
-            log -t lethe-burner 'Burner mode active — wiping user data'; \
-            # Preserve LETHE config (API keys) across wipe \
-            LETHE_CFG=/data/data/org.osmosis.lethe.agent/files/config.json; \
-            LETHE_BAK=/data/local/tmp/lethe-config-bak.json; \
-            [ -f \$LETHE_CFG ] && cp \$LETHE_CFG \$LETHE_BAK; \
-            rm -rf /data/app /data/data /data/user /data/user_de /data/misc/wifi /data/misc/bluedroid; \
-            rm -rf /data/media/0/*; \
-            rm -rf /data/system/notification_log; \
-            # Restore config after wipe \
-            if [ -f \$LETHE_BAK ]; then \
-                mkdir -p /data/data/org.osmosis.lethe.agent/files; \
-                cp \$LETHE_BAK /data/data/org.osmosis.lethe.agent/files/config.json; \
-                rm \$LETHE_BAK; \
-                log -t lethe-burner 'Config restored'; \
-            fi; \
-            settings put secure android_id $(cat /dev/urandom | tr -dc 'a-f0-9' | head -c 16); \
-            log -t lethe-burner 'Wipe complete — booting clean session'; \
-        else \
-            log -t lethe-burner 'Burner mode disabled — normal boot'; \
-        fi"
-
-service lethe-mac-rotate /system/bin/sh -c "\
-    ENABLED=\$(getprop persist.lethe.burner.enabled); \
-    if [ \"\$ENABLED\" = \"true\" ]; then \
-        MAC=\$(cat /dev/urandom | tr -dc 'a-f0-9' | head -c 12 | sed 's/../&:/g;s/:\$//'); \
-        ip link set wlan0 down; \
-        ip link set wlan0 address \$MAC; \
-        ip link set wlan0 up; \
-        log -t lethe-burner \"MAC rotated to \$MAC\"; \
-    fi"
+service lethe-mac-rotate /system/bin/lethe-mac-rotate.sh
     class core
+    user root
+    group root inet net_admin
     oneshot
     disabled
+    seclabel u:r:init:s0
 
-# Run MAC rotation early — before WiFi HAL connects with old MAC.
-# post-fs-data runs before zygote and WiFi supplicant.
 on post-fs-data
+    start lethe-burner-wipe
     start lethe-mac-rotate
