@@ -3,6 +3,7 @@ use serde::{Deserialize, Serialize};
 use tokio::fs;
 
 const MAX_READ_BYTES: u64 = 256 * 1024;
+const MAX_WRITE_BYTES: usize = 100 * 1024 * 1024; // 100 MB
 
 // ── List directory ──
 
@@ -84,7 +85,17 @@ async fn read_file(Json(req): Json<ReadRequest>) -> Json<ReadResponse> {
     let truncated = size > MAX_READ_BYTES;
     let bytes = if truncated {
         use tokio::io::AsyncReadExt;
-        let mut f = fs::File::open(&req.path).await.unwrap();
+        let mut f = match fs::File::open(&req.path).await {
+            Ok(f) => f,
+            Err(e) => {
+                return Json(ReadResponse {
+                    content: String::new(),
+                    size,
+                    truncated: false,
+                    error: Some(e.to_string()),
+                })
+            }
+        };
         let mut buf = vec![0u8; MAX_READ_BYTES as usize];
         let n = f.read(&mut buf).await.unwrap_or(0);
         buf.truncate(n);
@@ -127,6 +138,16 @@ pub struct WriteResponse {
 }
 
 async fn write_file(Json(req): Json<WriteRequest>) -> Json<WriteResponse> {
+    if req.content.len() > MAX_WRITE_BYTES {
+        return Json(WriteResponse {
+            ok: false,
+            error: Some(format!(
+                "content too large: {} bytes (max {})",
+                req.content.len(),
+                MAX_WRITE_BYTES
+            )),
+        });
+    }
     match fs::write(&req.path, &req.content).await {
         Ok(()) => Json(WriteResponse {
             ok: true,

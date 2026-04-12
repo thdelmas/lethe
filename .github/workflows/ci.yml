@@ -24,3 +24,25 @@ jobs:
 
       - name: Code quality checks
         run: bash scripts/code-quality-check.sh
+
+  rust-agent:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: aarch64-linux-android,armv7-linux-androideabi,x86_64-linux-android
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: agent
+
+      - name: Check (host)
+        run: cargo check --manifest-path agent/Cargo.toml
+
+      - name: Check (armv7)
+        run: cargo check --manifest-path agent/Cargo.toml --target armv7-linux-androideabi
+
+      - name: Check (aarch64)
+        run: cargo check --manifest-path agent/Cargo.toml --target aarch64-linux-android
