@@ -160,10 +160,16 @@ function handleReply(reply) {
 
   chatHistory.push({ role: 'assistant', content: reply });
   addMessage(reply, 'lethe', { provider: lastProvider, model: lastModel });
-  setState('idle');
-  if (!isRefusal(reply) && viewState === 'home' && Math.random() > 0.5) {
-    setTimeout(function() { playRandomAnim('replied'); }, 1500);
-  }
+
+  /* Brief hold in 'speaking' so the transition doesn't feel instant.
+     Scale delay with reply length — short replies settle faster. */
+  var holdMs = Math.min(800, Math.max(300, reply.length * 3));
+  setTimeout(function() {
+    setState('idle');
+    if (!isRefusal(reply) && viewState === 'home' && Math.random() > 0.5) {
+      setTimeout(function() { playRandomAnim('replied'); }, 1000);
+    }
+  }, holdMs);
 }
 
 /* ═══════════ INPUT ═══════════ */
@@ -276,16 +282,21 @@ function onSpeechError() {
 }
 
 /* ═══════════ SSE ═══════════ */
+var _letheSSE = null;
 if (location.protocol !== 'file:') {
   try {
-    var sse = new EventSource('/api/agent/state');
-    sse.onmessage = function(e) {
+    _letheSSE = new EventSource('/api/agent/state');
+    _letheSSE.onmessage = function(e) {
       try {
         var d = JSON.parse(e.data);
         if (d.state) setState(d.state);
         if (d.status) showStatus(d.status);
       } catch(_) {}
     };
-    sse.onerror = function() { sse.close(); };
+    _letheSSE.onerror = function() { _letheSSE.close(); _letheSSE = null; };
   } catch(_) {}
 }
+/* Clean up SSE on page unload to prevent orphaned connections */
+window.addEventListener('beforeunload', function() {
+  if (_letheSSE) { _letheSSE.close(); _letheSSE = null; }
+});

@@ -187,8 +187,17 @@ function playRandomAnim(context) {
 }
 
 function setBoredom(state) {
-  if (!vidA || boredomState === state) return;
+  if (boredomState === state) return;
   boredomState = state;
+
+  /* Bridge boredom to mascot CSS state so visuals reflect idle progression.
+     Sleep: eyes close, veins dim. Sleepy: subtle dimming. */
+  if (state === 'asleep' && window.letheEmotion) {
+    window.letheEmotion.setState('sleep');
+  } else if (state === 'calm' && window.letheEmotion &&
+             window.letheEmotion.getState() === 'sleep') {
+    window.letheEmotion.setState('idle');
+  }
 }
 
 function checkBoredom() {

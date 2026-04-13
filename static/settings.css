@@ -39,6 +39,10 @@
   cursor: pointer;
 }
 .dev-btn:active { background: #1a3a2a; }
+.dev-btn:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
 .dev-info {
   margin-top: 1rem; padding: 0.5rem;
   background: #0a0a0a; border: 1px solid #1a3a2a;

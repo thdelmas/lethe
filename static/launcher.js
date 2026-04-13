@@ -65,6 +65,10 @@ function openChat() {
   hideBurnerBanner();
   history.pushState({ view: 'chat' }, '');
   if (window.mascot3D) window.mascot3D.setChatVisible(true);
+  /* Reset mascot to attentive idle — don't carry stale state into chat */
+  setState('idle');
+  /* Cancel any in-progress mood transition on 2D canvas */
+  if (typeof moodTransition !== 'undefined') moodTransition = null;
   /* Show native input bar (Android EditText) */
   if (typeof NativeLauncher !== 'undefined' && NativeLauncher.showInputBar) {
     NativeLauncher.showInputBar();
@@ -92,6 +96,8 @@ function closeChat() {
   inputEl.blur();
   showBurnerBanner();
   if (window.mascot3D) window.mascot3D.setChatVisible(false);
+  /* Return mascot to calm idle on home screen */
+  setState('idle');
 }
 
 /* ═══════════ TOUCH RIPPLE ═══════════ */
@@ -116,6 +122,7 @@ homeMascot.addEventListener('touchstart', function(e) {
   // Wake from sleep on any touch
   if (boredomState === 'asleep' || boredomState === 'sleepy') {
     setBoredom('calm');
+    setState('idle');
     if (canvas2d && !letheAnimPlaying) {
       playRandomAnim('wake');
     }
@@ -165,40 +172,56 @@ window.onBackPressed = function() {
   return false;
 };
 
+/* Detect primary input: touch vs keyboard/mouse */
+var hasTouchInput = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
+var defaultHintText = hasTouchInput ? 'tap the guardian' : 'press Enter on the guardian';
+hintEl.textContent = defaultHintText;
+
+/* Show/hide hint with proper screen reader semantics */
+function showHint(text) {
+  hintEl.textContent = text || defaultHintText;
+  hintEl.classList.add('visible');
+  hintEl.removeAttribute('aria-hidden');
+}
+function hideHint() {
+  hintEl.classList.remove('visible');
+  /* Wait for CSS fade-out to complete before hiding from SR */
+  setTimeout(function() {
+    if (!hintEl.classList.contains('visible')) {
+      hintEl.setAttribute('aria-hidden', 'true');
+    }
+  }, 2100); /* matches 2s opacity transition in CSS + buffer */
+}
+
 /* First-visit hints — sequential onboarding */
 if (!localStorage.getItem('lethe_hint_seen')) {
-  setTimeout(function() { hintEl.classList.add('visible'); }, 5000);
+  setTimeout(function() { showHint(); }, 5000);
   homeMascot.addEventListener('click', function once() {
-    hintEl.classList.remove('visible');
+    hideHint();
     localStorage.setItem('lethe_hint_seen', '1');
     homeMascot.removeEventListener('click', once);
-    /* After guardian tap: show swipe-up hint for app drawer */
+    /* After guardian interaction: show navigation hint */
     if (!localStorage.getItem('lethe_swipe_hint_seen')) {
       setTimeout(function() {
-        hintEl.textContent = 'swipe up for apps';
-        hintEl.classList.add('visible');
+        var navHint = hasTouchInput ? 'swipe up for apps' : 'press Escape to go back';
+        showHint(navHint);
         localStorage.setItem('lethe_swipe_hint_seen', '1');
-        setTimeout(function() { hintEl.classList.remove('visible'); hintEl.textContent = 'tap the guardian'; }, 4000);
+        setTimeout(function() { hideHint(); }, 4000);
       }, 3000);
     }
   });
 } else if (!localStorage.getItem('lethe_swipe_hint_seen')) {
-  /* Returning user who tapped guardian but hasn't seen swipe hint yet */
   setTimeout(function() {
-    hintEl.textContent = 'swipe up for apps';
-    hintEl.classList.add('visible');
+    var navHint = hasTouchInput ? 'swipe up for apps' : 'press Escape to go back';
+    showHint(navHint);
     localStorage.setItem('lethe_swipe_hint_seen', '1');
-    setTimeout(function() { hintEl.classList.remove('visible'); hintEl.textContent = 'tap the guardian'; }, 4000);
+    setTimeout(function() { hideHint(); }, 4000);
   }, 5000);
 }
 
 function showHomeNotice(text) {
-  hintEl.textContent = text;
-  hintEl.classList.add('visible');
-  setTimeout(function() {
-    hintEl.classList.remove('visible');
-    hintEl.textContent = 'tap the guardian';
-  }, 2500);
+  showHint(text);
+  setTimeout(function() { hideHint(); }, 2500);
 }
 
 /* ═══════════ AGENT AVAILABILITY ═══════════ */
@@ -252,6 +275,9 @@ var clockEl = document.querySelector('.clock');
 function devOpen() {
   devPanel.style.display = 'block';
   updateDevInfo();
+  /* Focus first interactive element inside the panel */
+  var first = devPanel.querySelector('button, select, input');
+  if (first) first.focus();
 }
 // Triple-tap clock to open dev panel
 var devTapCount = 0;
@@ -289,8 +315,36 @@ clockEl.addEventListener('mouseup', function() {
   if (devClockTimer) { clearTimeout(devClockTimer); devClockTimer = null; }
 });
 
-document.getElementById('dev-close').addEventListener('click', function() {
+function devClose() {
   devPanel.style.display = 'none';
+  /* Return focus to the element that opened the panel */
+  clockEl.focus();
+}
+
+document.getElementById('dev-close').addEventListener('click', devClose);
+
+/* Escape key closes any open panel */
+document.addEventListener('keydown', function(e) {
+  if (e.key !== 'Escape') return;
+  if (devPanel.style.display !== 'none') { devClose(); return; }
+  if (aiInfoPanel && aiInfoPanel.style.display !== 'none') {
+    aiInfoPanel.style.display = 'none'; return;
+  }
+  if (viewState === 'chat') closeChat();
+});
+
+/* Focus trap: keep Tab inside dev panel while it's open */
+devPanel.addEventListener('keydown', function(e) {
+  if (e.key !== 'Tab') return;
+  var focusable = devPanel.querySelectorAll('button, select, input, [tabindex]:not([tabindex="-1"])');
+  if (!focusable.length) return;
+  var first = focusable[0];
+  var last = focusable[focusable.length - 1];
+  if (e.shiftKey && document.activeElement === first) {
+    e.preventDefault(); last.focus();
+  } else if (!e.shiftKey && document.activeElement === last) {
+    e.preventDefault(); first.focus();
+  }
 });
 
 // Animation selector

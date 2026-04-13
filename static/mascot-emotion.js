@@ -166,6 +166,8 @@
 
   function startSpeechAmplitude(mediaStream) {
     stopSpeechAmplitude();
+    /* No point running audio analysis if animations are disabled */
+    if (prefersReducedMotion) return;
     var AC = window.AudioContext || window.webkitAudioContext;
     if (!AC) return;
     try {

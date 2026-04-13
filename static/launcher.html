@@ -51,11 +51,11 @@
            class="mascot-layer mascot-static" style="display:none"/>
     </div>
 
-    <div class="home-hint" id="hint" role="status" aria-live="polite">tap the guardian</div>
+    <div class="home-hint" id="hint" role="status" aria-live="polite" aria-atomic="true">tap the guardian</div>
   </div>
 
   <!-- ══════ DEV PANEL (long-press clock to open) ══════ -->
-  <div class="dev-panel" id="dev-panel" role="dialog" aria-label="Settings" style="display:none">
+  <div class="dev-panel" id="dev-panel" role="dialog" aria-label="Settings" aria-modal="true" style="display:none">
     <div class="dev-header">
       <span>Settings</span>
       <button id="dev-close" class="dev-btn">&times;</button>
@@ -97,9 +97,9 @@
     <div class="dev-section">
       <label>Tier: <span id="dev-tier-info">—</span></label>
       <div class="dev-row">
-        <button class="dev-btn" data-tier="3d">3D</button>
-        <button class="dev-btn" data-tier="2d">2D</button>
-        <button class="dev-btn" data-tier="static">Static</button>
+        <button class="dev-btn" data-tier="3d" aria-label="3D WebGL avatar">3D</button>
+        <button class="dev-btn" data-tier="2d" aria-label="2D animated avatar">2D</button>
+        <button class="dev-btn" data-tier="static" aria-label="Static image avatar">Static</button>
       </div>
     </div>
     <div class="dev-info" id="dev-info"></div>
