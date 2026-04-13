@@ -4,7 +4,7 @@ Tracks which GitHub profiles and repos have been explored via octopus search
 to avoid re-crawling the same networks. Each entry records the origin,
 what was explored, and which issues were created.
 
-**Last updated:** 2026-04-11
+**Last updated:** 2026-04-12
 
 ---
 
@@ -198,6 +198,100 @@ what was explored, and which issues were created.
 | [deltachat](https://github.com/deltachat) | 67 repos: Rust core (867 stars), Android (1.6K), yggmail, WebXDC | [#78](https://github.com/thdelmas/lethe/issues/78) |
 | [holochain](https://github.com/holochain) | 200+ repos: agent-centric DHT (1.4K), android-service-runtime, kitsune2, deepkey | [#79](https://github.com/thdelmas/lethe/issues/79) |
 | [ocapn](https://github.com/ocapn) + [spritely](https://codeberg.org/spritely) | OCapN spec (229 stars), Goblins, capability-based security | [#80](https://github.com/thdelmas/lethe/issues/80) |
+
+---
+
+### Search 5: Awesome lists sweep
+**Date:** 2026-04-12
+**Origin:** Curated GitHub awesome-* lists (8 tentacles in parallel)
+**Full results:** [awesome-lists-full-results.md](awesome-lists-full-results.md)
+
+#### Tentacle A: Privacy (pluja/awesome-privacy, Lissy93/awesome-privacy)
+| Project | What | Issue |
+|---------|------|-------|
+| [celzero/rethink-app](https://github.com/celzero/rethink-app) | No-root firewall + DoH/DoT — replaces multiple LETHE components | [#85](https://github.com/thdelmas/lethe/issues/85) |
+| [briarproject/briar](https://briarproject.org/) | P2P messenger over Tor/WiFi/BLE — mesh-native | [#85](https://github.com/thdelmas/lethe/issues/85) |
+| [mollyim/mollyim-android](https://github.com/mollyim/mollyim-android) | Hardened Signal fork (Tor, encrypted DB) | [#85](https://github.com/thdelmas/lethe/issues/85) |
+| [shufflecake](https://shufflecake.net) | Plausible deniability hidden volumes — extends burner mode | [#85](https://github.com/thdelmas/lethe/issues/85) |
+| [sgasser/pasteguard](https://github.com/sgasser/pasteguard) | PII scrubbing before LLM queries | [#85](https://github.com/thdelmas/lethe/issues/85) |
+| [SnoopSnitch](https://opensource.srlabs.de/projects/snoopsnitch) | IMSI catcher / SS7 attack detection | [#85](https://github.com/thdelmas/lethe/issues/85) |
+| [Helium314/HeliBoard](https://github.com/Helium314/HeliBoard) | Fully offline FOSS keyboard | [#85](https://github.com/thdelmas/lethe/issues/85) |
+
+#### Tentacle B: Self-Hosted (awesome-selfhosted)
+| Project | What | Issue |
+|---------|------|-------|
+| [ollama/ollama](https://github.com/ollama/ollama) | Local LLM runtime — core inference layer | [#83](https://github.com/thdelmas/lethe/issues/83) |
+| [mudler/LocalAI](https://github.com/mudler/LocalAI) | OpenAI-compatible multi-model local API | [#83](https://github.com/thdelmas/lethe/issues/83) |
+| [actualbudget/actual](https://github.com/actualbudget/actual) | Local-first budgeting + bank sync (PreuJust) | — |
+| [cfu288/mere-medical](https://github.com/cfu288/mere-medical) | Offline-first medical records (Bios) | — |
+| [dani-garcia/vaultwarden](https://github.com/dani-garcia/vaultwarden) | Lightweight Bitwarden server (Rust, ARM) | [#85](https://github.com/thdelmas/lethe/issues/85) |
+| [openziti/ziti](https://github.com/openziti/ziti) | Zero-trust mesh overlay network | [#85](https://github.com/thdelmas/lethe/issues/85) |
+| [Start9Labs/start-os](https://github.com/Start9Labs/start-os) | Personal server OS — closest philosophical sibling | — |
+
+#### Tentacle C: LLM / AI (Awesome-LLM, Awesome-AITools)
+| Project | What | Issue |
+|---------|------|-------|
+| [alibaba/MNN](https://github.com/alibaba/MNN) | ~800KB mobile inference with LLM pipeline (14.9K) | [#82](https://github.com/thdelmas/lethe/issues/82) |
+| [microsoft/T-MAC](https://github.com/microsoft/T-MAC) | 20 tok/s on single ARM core for 3B models | [#82](https://github.com/thdelmas/lethe/issues/82) |
+| [BerriAI/litellm](https://github.com/BerriAI/litellm) | Unified SDK for 100+ LLM providers (43K) | [#83](https://github.com/thdelmas/lethe/issues/83) |
+| [Portkey-AI/gateway](https://github.com/Portkey-AI/gateway) | 122KB LLM gateway with fallbacks (11.3K) | [#83](https://github.com/thdelmas/lethe/issues/83) |
+| [cpacker/MemGPT](https://github.com/cpacker/MemGPT) | Letta — tiered memory for stateful agents (22K) | [#83](https://github.com/thdelmas/lethe/issues/83) |
+| [mem0ai/mem0](https://github.com/mem0ai/mem0) | Universal memory layer, self-hostable (52.7K) | [#83](https://github.com/thdelmas/lethe/issues/83) |
+| [agiresearch/AIOS](https://github.com/agiresearch/AIOS) | LLM-embedded OS with agent scheduling (5.5K) | [#83](https://github.com/thdelmas/lethe/issues/83) |
+| [saharNooby/rwkv.cpp](https://github.com/saharNooby/rwkv.cpp) | Linear-attention = constant memory (1.6K) | [#83](https://github.com/thdelmas/lethe/issues/83) |
+
+#### Tentacle D: Security (awesome-security, android-security-awesome)
+| Project | What | Issue |
+|---------|------|-------|
+| [mvt-project/mvt](https://github.com/mvt-project/mvt) | Anti-stalkerware/Pegasus detection (12.3K) | [#86](https://github.com/thdelmas/lethe/issues/86) |
+| [cossacklabs/themis](https://github.com/cossacklabs/themis) | Multi-platform crypto with forward secrecy (2K) | [#86](https://github.com/thdelmas/lethe/issues/86) |
+| [cossacklabs/acra](https://github.com/cossacklabs/acra) | DB-level encryption for sensitive data (1.5K) | [#86](https://github.com/thdelmas/lethe/issues/86) |
+| [evilsocket/opensnitch](https://github.com/evilsocket/opensnitch) | Interactive application firewall (13.4K) | [#86](https://github.com/thdelmas/lethe/issues/86) |
+| [quark-engine](https://github.com/quark-engine/quark-engine) | Android malware scoring (1.7K) | [#86](https://github.com/thdelmas/lethe/issues/86) |
+| [aquasecurity/trivy](https://github.com/aquasecurity/trivy) | Build pipeline CVE scanning (34.5K) | [#86](https://github.com/thdelmas/lethe/issues/86) |
+
+#### Tentacle E: Android (awesome-android, awesome-android-ui)
+| Project | What | Issue |
+|---------|------|-------|
+| [airbnb/lottie-android](https://github.com/airbnb/lottie-android) | Render animations from JSON (35.6K) — mascot | [#87](https://github.com/thdelmas/lethe/issues/87) |
+| [ionic-team/capacitor](https://github.com/ionic-team/capacitor) | Production WebView-native bridge (15.4K) | [#87](https://github.com/thdelmas/lethe/issues/87) |
+| [coshx/drekkar](https://github.com/coshx/drekkar) | WebView-to-JS event bus — exact launcher fit | [#87](https://github.com/thdelmas/lethe/issues/87) |
+| [nisrulz/sensey](https://github.com/nisrulz/sensey) | Sensor-to-gesture for mascot interaction (2.7K) | [#87](https://github.com/thdelmas/lethe/issues/87) |
+| [signalapp/libsignal-protocol-java](https://github.com/signalapp/libsignal-protocol-java) | Forward-secrecy messaging protocol (1.8K) | [#87](https://github.com/thdelmas/lethe/issues/87) |
+| [facebook/rebound](https://github.com/facebook/rebound) | Spring physics for organic mascot motion (5.4K) | [#87](https://github.com/thdelmas/lethe/issues/87) |
+
+#### Tentacle F: Embedded / ARM (awesome-embedded, awesome-iot)
+| Project | What | Issue |
+|---------|------|-------|
+| [Samsung/jerryscript](https://github.com/Samsung/jerryscript) | JS engine <64KB RAM — same hardware class (7.4K) | [#88](https://github.com/thdelmas/lethe/issues/88) |
+| [ARMmbed/mbedtls](https://github.com/ARMmbed/mbedtls) | ARM-native TLS library (6.6K) | [#88](https://github.com/thdelmas/lethe/issues/88) |
+| [seemoo-lab/nexmon](https://github.com/seemoo-lab/nexmon) | Broadcom WiFi firmware patching — Note 2 (2.8K) | [#88](https://github.com/thdelmas/lethe/issues/88) |
+| [nanomq/nanomq](https://github.com/nanomq/nanomq) | Sub-1MB MQTT broker (2.5K) | [#88](https://github.com/thdelmas/lethe/issues/88) |
+| [seL4/seL4](https://github.com/seL4/seL4) | Formally verified microkernel (5.4K) | [#88](https://github.com/thdelmas/lethe/issues/88) |
+| [Microsoft/ELL](https://github.com/Microsoft/ELL) | Compile ML to C++ for ARM Cortex (2.3K) | [#88](https://github.com/thdelmas/lethe/issues/88) |
+
+#### Tentacle G: Health / Fintech (awesome-healthcare, awesome-fintech)
+| Project | What | Issue |
+|---------|------|-------|
+| [google/android-fhir](https://github.com/google/android-fhir) | Android FHIR SDK (Bios) | — |
+| [the-momentum/open-wearables](https://github.com/the-momentum/open-wearables) | Self-hosted unified wearable API (Bios) | — |
+| [quirk.fyi](https://www.quirk.fyi/) | Open-source CBT app (Bios wellness) | — |
+| [yzhao062/pyod](https://github.com/yzhao062/pyod) | Anomaly detection engine (PreuJust, 9.8K) | — |
+| [checkmarble/marble](https://github.com/checkmarble/marble) | Real-time fraud + AML engine (PreuJust) | — |
+| [atenreiro/opensquat](https://github.com/atenreiro/opensquat) | Phishing domain detection (PreuJust) | — |
+| [MISP/MISP](https://github.com/MISP/MISP) | Threat intelligence sharing (PreuJust, 6.2K) | — |
+| [pudo/opensanctions](https://github.com/pudo/opensanctions) | Sanctions screening database (PreuJust) | — |
+
+#### Tentacle H: Voice / Speech (awesome-tts, awesome-speech)
+| Project | What | Issue |
+|---------|------|-------|
+| [alphacep/vosk-api](https://github.com/alphacep/vosk-api) | Offline STT, ~50MB, Android, 20+ languages (14.5K) | [#84](https://github.com/thdelmas/lethe/issues/84) |
+| [2noise/ChatTTS](https://github.com/2noise/ChatTTS) | Dialogue TTS with emotion tokens (39.1K) | [#84](https://github.com/thdelmas/lethe/issues/84) |
+| [myshell-ai/OpenVoice](https://github.com/myshell-ai/OpenVoice) | Voice cloning + emotion, MIT (36.2K) | [#84](https://github.com/thdelmas/lethe/issues/84) |
+| [snakers4/silero-vad](https://github.com/snakers4/silero-vad) | ONNX VAD, enterprise-grade (8.8K) | [#84](https://github.com/thdelmas/lethe/issues/84) |
+| [Picovoice/porcupine](https://github.com/Picovoice/porcupine) | Custom wake words, Android SDK (4.8K) | [#84](https://github.com/thdelmas/lethe/issues/84) |
+| [xiph/rnnoise](https://github.com/xiph/rnnoise) | C real-time noise suppression | [#84](https://github.com/thdelmas/lethe/issues/84) |
+| [FunAudioLLM/SenseVoice](https://github.com/FunAudioLLM/SenseVoice) | ASR + emotion + events in one model (8K) | [#84](https://github.com/thdelmas/lethe/issues/84) |
 
 ---
 
