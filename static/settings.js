@@ -43,9 +43,11 @@ function settingsLoad() {
       needsKey: false, needsEndpoint: false },
     { name: 'anthropic', label: 'Anthropic',
       desc: 'Claude models. Requires an API key from console.anthropic.com',
+      privacy: 'https://www.anthropic.com/privacy',
       needsKey: true, keyHint: 'sk-ant-...', needsEndpoint: false },
     { name: 'openrouter', label: 'OpenRouter',
       desc: 'Access many models with one key. openrouter.ai',
+      privacy: 'https://openrouter.ai/privacy',
       needsKey: true, keyHint: 'sk-or-...', needsEndpoint: false },
     { name: 'custom', label: 'Custom endpoint',
       desc: 'Any OpenAI-compatible API.',
@@ -67,9 +69,12 @@ function settingsLoad() {
       '<span class="status-dot status-on"></span>' :
       '<span class="status-dot status-off"></span>';
 
+    var privacyLink = def.privacy ?
+      ' <a href="' + def.privacy + '" target="_blank" ' +
+      'style="color:var(--accent);font-size:0.6rem">[privacy policy]</a>' : '';
     var html = '<div class="settings-prov-header">' +
       statusDot + '<strong>' + def.label + '</strong></div>' +
-      '<div class="settings-prov-desc">' + def.desc + '</div>';
+      '<div class="settings-prov-desc">' + def.desc + privacyLink + '</div>';
 
     if (def.needsKey) {
       var savedKey = (pc && pc.key) || '';
