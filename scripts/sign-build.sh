@@ -43,11 +43,14 @@ fi
 sha256sum "$ZIP" | cut -d' ' -f1 > "$ZIP.sha256"
 echo "  -> SHA256: $(cat "$ZIP.sha256")"
 
-# Ed25519 detached signature
+# Ed25519 detached signature (use temp file — process substitution unreliable
+# with openssl pkeyutl on some systems)
+HASH_FILE=$(mktemp)
+cat "$ZIP.sha256" | tr -d '\n' > "$HASH_FILE"
 openssl pkeyutl -sign \
     -inkey "$PRIVKEY" \
     -rawin \
-    -in <(sha256sum "$ZIP" | cut -d' ' -f1 | tr -d '\n') \
+    -in "$HASH_FILE" \
     -out "$ZIP.sig"
 echo "  -> Signature: $ZIP.sig"
 
@@ -56,13 +59,15 @@ PUBKEY="$KEYS_DIR/update-pubkey.pem"
 if openssl pkeyutl -verify \
     -pubin -inkey "$PUBKEY" \
     -rawin \
-    -in <(sha256sum "$ZIP" | cut -d' ' -f1 | tr -d '\n') \
+    -in "$HASH_FILE" \
     -sigfile "$ZIP.sig" 2>/dev/null; then
     echo "  -> Signature verified OK."
 else
     echo "ERROR: Signature verification failed!"
     exit 1
 fi
+
+rm -f "$HASH_FILE"
 
 echo ""
 echo "Signed build ready:"
