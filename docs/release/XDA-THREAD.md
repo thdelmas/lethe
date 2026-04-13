@@ -166,7 +166,11 @@ The LETHE agent needs a cloud provider key to respond (local models coming soon)
 
 ## Screenshots
 
-*(screenshots to be added before May 4th)*
+| Home screen | App drawer | Agent chat |
+|:-----------:|:----------:|:----------:|
+| ![Home](screenshots/01-home-screen.png) | ![Drawer](screenshots/02-app-drawer.png) | ![Chat](screenshots/03-agent-chat.png) |
+
+*Galaxy Note II (t0lte) — shallow tier, Android 7.1, sprite avatar*
 
 ---
 
