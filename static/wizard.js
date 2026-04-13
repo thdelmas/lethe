@@ -84,11 +84,26 @@ var wizard = (function() {
     }
   }
 
+  /* ── Tap handler — works on old WebViews where click on divs is unreliable ── */
+  function onTap(el, fn) {
+    var startY = 0;
+    el.addEventListener('touchstart', function(e) {
+      startY = e.touches[0].clientY;
+    }, { passive: true });
+    el.addEventListener('touchend', function(e) {
+      if (Math.abs(e.changedTouches[0].clientY - startY) < 20) {
+        e.preventDefault();
+        fn.call(el);
+      }
+    });
+    el.addEventListener('click', fn);
+  }
+
   /* ── Provider selection on the provider screen ── */
   function setupProviders() {
     var cards = overlay.querySelectorAll('.wizard-provider[data-provider]');
     for (var i = 0; i < cards.length; i++) {
-      cards[i].addEventListener('click', function() {
+      onTap(cards[i], function() {
         var prov = this.getAttribute('data-provider');
         if (prov === 'local') {
           next();
@@ -105,7 +120,7 @@ var wizard = (function() {
   function bindButtons() {
     var btns = overlay.querySelectorAll('[data-action]');
     for (var i = 0; i < btns.length; i++) {
-      btns[i].addEventListener('click', function() {
+      onTap(btns[i], function() {
         var action = this.getAttribute('data-action');
         if (action === 'next') next();
         else if (action === 'skip-all') hide();
