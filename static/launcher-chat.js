@@ -77,13 +77,30 @@ function updatePrivacyBar() {
   if (privacyTrackersEl && deviceState.trackers_blocked !== undefined) {
     privacyTrackersEl.textContent = deviceState.trackers_blocked + ' trackers blocked';
   }
-  /* Battery → mascot mood */
+  /* Battery → mascot mood
+     LETHE IS the phone — every battery state is felt.
+     ≤5%  critical (red mood)    ≤10% warning (yellow mood)
+     ≤15% uneasy (concerned)     charging → calm acknowledgment
+     full → proud                recovery clears concern       */
   if (deviceState.battery !== undefined && window.letheEmotion) {
-    if (deviceState.battery <= 10) {
+    var bat = deviceState.battery;
+    var charging = deviceState.battery_charging === true;
+    if (bat <= 5 && !charging) {
+      letheSetMood('red');
+      window.letheEmotion.setExpression('concerned');
+    } else if (bat <= 10 && !charging) {
       letheSetMood('yellow');
       window.letheEmotion.setExpression('concerned');
-    } else if (deviceState.battery <= 15) {
+    } else if (bat <= 15 && !charging) {
       window.letheEmotion.setExpression('concerned');
+    } else if (bat >= 100 && charging) {
+      letheSetMood('green');
+      window.letheEmotion.setExpression('proud');
+    } else if (charging && bat > 15) {
+      letheSetMood('green');
+    } else if (bat > 15) {
+      /* Healthy and discharging — clear any lingering low-battery mood */
+      letheSetMood('green');
     }
   }
   /* Burner mode banner — show when active, dismissable per session */

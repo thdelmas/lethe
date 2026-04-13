@@ -9,6 +9,7 @@ pub struct DeviceState {
     pub burner_mode: bool,
     pub trackers_blocked: u32,
     pub battery: Option<u8>,
+    pub battery_charging: Option<bool>,
     pub connectivity: String,
     pub dead_mans_switch: bool,
 }
@@ -19,6 +20,7 @@ async fn get_device() -> Json<DeviceState> {
         burner_mode: prop_bool("persist.lethe.burner.enabled").await,
         trackers_blocked: read_tracker_count().await,
         battery: read_battery_level().await,
+        battery_charging: read_battery_charging().await,
         connectivity: detect_connectivity().await,
         dead_mans_switch: prop_bool("persist.lethe.deadman.enabled").await,
     })
@@ -39,6 +41,13 @@ async fn read_battery_level() -> Option<u8> {
         .await
         .ok()
         .and_then(|s| s.trim().parse().ok())
+}
+
+async fn read_battery_charging() -> Option<bool> {
+    fs::read_to_string("/sys/class/power_supply/battery/status")
+        .await
+        .ok()
+        .map(|s| s.trim().eq_ignore_ascii_case("Charging"))
 }
 
 async fn read_tracker_count() -> u32 {

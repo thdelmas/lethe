@@ -127,30 +127,39 @@ function updateAmbient() {
       mascot.style.setProperty('--ambient-brightness', brightness);
       mascot.classList.add('ambient-active');
 
-      /* Low battery → concerned */
-      if (bat.level <= 0.1 && !bat.charging) {
-        setExpression('concerned');
-      }
+      /* Apply battery expression for current state */
+      applyBatteryExpression(bat);
 
       bat.addEventListener('levelchange', function() {
         var b = 0.4 + (bat.level * 0.6);
         mascot.style.setProperty('--ambient-brightness', b);
-        if (bat.level <= 0.1 && !bat.charging) {
-          setExpression('concerned');
-        } else if (bat.level > 0.1 && currentExpr === 'concerned') {
-          setExpression(null);
-        }
+        applyBatteryExpression(bat);
       });
 
       bat.addEventListener('chargingchange', function() {
-        if (bat.charging && bat.level < 0.5) {
-          microExpression('nod');        /* Acknowledgment: plugged in */
+        if (bat.charging) {
+          microExpression('nod');          /* Plugged in — acknowledged */
         }
+        applyBatteryExpression(bat);
       });
     });
   } else {
     mascot.style.setProperty('--ambient-brightness', '1');
     mascot.classList.add('ambient-active');
+  }
+
+  /* Centralized battery → expression mapping.
+     Covers: critical, low, charging, full, recovery. */
+  function applyBatteryExpression(bat) {
+    if (bat.level <= 0.05 && !bat.charging) {
+      setExpression('concerned');
+    } else if (bat.level <= 0.1 && !bat.charging) {
+      setExpression('concerned');
+    } else if (bat.level >= 1.0 && bat.charging) {
+      setExpression('proud');             /* Fully charged */
+    } else if (bat.level > 0.1 && currentExpr === 'concerned') {
+      setExpression(null);                /* Recovery — clear concern */
+    }
   }
 }
 
