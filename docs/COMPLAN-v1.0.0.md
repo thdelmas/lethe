@@ -30,7 +30,7 @@ Today we're releasing LETHE v1.0.0 — a privacy-hardened Android that forgets b
 
 Sometimes the best way to protect someone is to forget them.
 
-It runs on 40+ devices. Including old phones sitting in drawers.
+It runs on 26 devices from 8 brands. Including old phones sitting in drawers.
 
 We're not there yet on the full vision. But this is the first step.
 
@@ -55,7 +55,7 @@ We just released LETHE v1.0.0, a LineageOS overlay that ships with burner mode o
 
 Dead Man's Switch (opt-in) escalates if you stop checking in: lock, wipe, brick. Panic wipe: 5x power button.
 
-40+ devices supported. Built as an overlay so it stays compatible with upstream LineageOS updates.
+26 devices from 8 brands supported. Built as an overlay so it stays compatible with upstream LineageOS updates.
 
 Check your local laws regarding encryption and privacy software before installing.
 
@@ -67,7 +67,7 @@ Title: LETHE v1.0.0 — privacy overlay for LineageOS with burner mode and Tor e
 
 LETHE is an overlay applied at build time on top of LineageOS. It doesn't fork the source — all features are additive. Burner mode (wipe on boot), Tor transparent proxy, Dead Man's Switch, debloated, encrypted by default.
 
-40+ devices, LOS 22.1 (Android 15) for most, 14.1 for legacy (Galaxy Note II).
+26 devices from 8 brands, LOS 22.1 (Android 15) for most, 14.1 for legacy (Galaxy Note II).
 
 Looking for feedback from anyone who wants to test.
 
@@ -99,7 +99,7 @@ LETHE is a privacy-hardened Android overlay on LineageOS. Burner mode is on by d
 
 It started from years of collecting old hardware and finding hard drives full of other people's data. Devices don't forget their owners. We thought they should.
 
-Built as an overlay, not a fork — upstream LineageOS updates still apply cleanly. 40+ devices supported.
+Built as an overlay, not a fork — upstream LineageOS updates still apply cleanly. 26 devices from 8 brands supported.
 
 Check your local laws regarding encryption and privacy software before installing.
 
@@ -112,7 +112,7 @@ Check your local laws regarding encryption and privacy software before installin
 **Where:** Forum thread (ROM section for supported devices)
 **Content:** Device list, install instructions, screenshots, what's different from stock LineageOS. Technical, community tone. Link to GitHub for source.
 
-**TODO:** Write full XDA post closer to release when install process is finalized.
+**DONE:** Full thread drafted in `docs/release/XDA-THREAD.md`. Pending: screenshots (need device photos before May 4).
 
 ---
 
@@ -126,7 +126,7 @@ A privacy-hardened Android that forgets by default. Every reboot wipes your data
 
 Sometimes the best way to protect someone is to forget them.
 
-40+ devices. Old phones in drawers welcome.
+26 devices from 8 brands. Old phones in drawers welcome.
 
 Check your local laws regarding encryption and privacy software before installing.
 

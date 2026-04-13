@@ -18,7 +18,7 @@ OSmosis was built to free hardware from proprietary software. LETHE is where we'
 
 **Panic Wipe.** Press the power button 5 times. Gone.
 
-The OS itself has a face — a cracked stone android with teal bioluminescent veins. It's not an app you install. It's the system. It talks, it watches, it thinks. It connects to local models on weak hardware or cloud LLMs when it can. Its personality is calm, protective, never servile. A guardian, not an assistant.
+The OS itself has a face — a cracked stone android with teal bioluminescent veins. It's not an app you install. It's the system. It talks, it watches, it thinks. It connects to cloud LLMs when you give it a key, and local on-device models are coming in v1.1. Its personality is calm, protective, never servile. A guardian, not an assistant.
 
 ## Supported devices
 
