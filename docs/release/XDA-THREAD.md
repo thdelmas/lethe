@@ -170,6 +170,12 @@ The LETHE agent needs a cloud provider key to respond (local models coming soon)
 
 ---
 
+## Legal
+
+Check your local laws regarding encryption and privacy software before installing. Some countries restrict or ban Tor, VPNs, encryption tools, or AI systems. Full legal disclaimers: [PRIVACY.md](https://github.com/thdelmas/lethe/blob/main/PRIVACY.md)
+
+---
+
 ## Source code
 
 - **LETHE overlay:** [github.com/thdelmas/lethe](https://github.com/thdelmas/lethe)
