@@ -19,8 +19,7 @@ var SpritePlayer = (function() {
   var intervalId = null;
   var msPerFrame = 200;       // default: 5fps
   var direction = 1;          // 1=forward, -1=backward (ping-pong)
-  var pingPong = true;        // play forward then backward for smooth loops
-  var direction = 1;          // 1 = forward, -1 = backward
+  var paused = false;
   var sheets = {};            // cache: name-mood -> Image
   var onSwitch = null;        // callback when animation ends (for one-shot anims)
 
@@ -142,7 +141,18 @@ var SpritePlayer = (function() {
   function setOnSwitch(fn) { onSwitch = fn; }
 
   function setMood(mood) {
+    if (mood === currentMood) return;
+    var oldMood = currentMood;
     currentMood = mood;
+
+    // Evict old mood sheets to prevent unbounded cache growth
+    var keys = Object.keys(sheets);
+    for (var i = 0; i < keys.length; i++) {
+      if (keys[i].indexOf('-' + oldMood) !== -1) {
+        delete sheets[keys[i]];
+      }
+    }
+
     // Reload current animation with new mood
     if (currentName) {
       var wasPlaying = !!intervalId;
@@ -151,15 +161,29 @@ var SpritePlayer = (function() {
     }
   }
 
+  function pause() {
+    if (intervalId) { clearInterval(intervalId); intervalId = null; }
+    paused = true;
+  }
+
+  function resume() {
+    if (!paused || !currentName) return;
+    paused = false;
+    intervalId = setInterval(tick, msPerFrame);
+  }
+
   return {
     init: init,
     play: play,
     stop: stop,
+    pause: pause,
+    resume: resume,
     setSpeed: setSpeed,
     setMood: setMood,
     setOnSwitch: setOnSwitch,
     getFrameCount: function() { return frameCount; },
     getCurrentName: function() { return currentName; },
-    getMood: function() { return currentMood; }
+    getMood: function() { return currentMood; },
+    isPaused: function() { return paused; }
   };
 })();

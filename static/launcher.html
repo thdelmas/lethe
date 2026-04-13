@@ -31,7 +31,8 @@
 
     <div class="home-mascot" id="home-mascot">
       <!-- 3D: WebGL canvas (hidden if not 3d tier) -->
-      <canvas id="mascot-canvas" class="mascot-layer mascot-3d"></canvas>
+      <canvas id="mascot-canvas" class="mascot-layer mascot-3d"
+              aria-label="LETHE guardian — 3D avatar"></canvas>
 
       <!-- 2D: canvas-driven video with crossfade -->
       <div class="mascot-layer mascot-2d" style="display:none">
@@ -50,11 +51,11 @@
            class="mascot-layer mascot-static" style="display:none"/>
     </div>
 
-    <div class="home-hint" id="hint">tap the guardian</div>
+    <div class="home-hint" id="hint" role="status" aria-live="polite">tap the guardian</div>
   </div>
 
   <!-- ══════ DEV PANEL (long-press clock to open) ══════ -->
-  <div class="dev-panel" id="dev-panel" style="display:none">
+  <div class="dev-panel" id="dev-panel" role="dialog" aria-label="Settings" style="display:none">
     <div class="dev-header">
       <span>Settings</span>
       <button id="dev-close" class="dev-btn">&times;</button>

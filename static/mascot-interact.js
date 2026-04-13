@@ -9,6 +9,27 @@
  */
 
 /* ══════════════════════════════════════════
+   Reduced motion detection
+   Respects OS-level accessibility setting.
+   ══════════════════════════════════════════ */
+var reducedMotion = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)');
+var prefersReducedMotion = reducedMotion && reducedMotion.matches;
+
+/* Live-update: user can toggle in system settings without reload */
+if (reducedMotion && reducedMotion.addEventListener) {
+  reducedMotion.addEventListener('change', function(e) {
+    prefersReducedMotion = e.matches;
+    if (prefersReducedMotion) {
+      mascot.classList.remove('gyro-active', 'gaze-active');
+      mascot.style.removeProperty('--gyro-x');
+      mascot.style.removeProperty('--gyro-y');
+      mascot.style.removeProperty('--gaze-x');
+      mascot.style.removeProperty('--gaze-y');
+    }
+  });
+}
+
+/* ══════════════════════════════════════════
    Gyroscope parallax
    Tilt the phone → the avatar shifts in 3D.
    ══════════════════════════════════════════ */
@@ -18,9 +39,9 @@ var gyroBeta0 = 0;
 var gyroGamma0 = 0;
 
 function initGyro() {
-  if (gyroEnabled) return;
+  if (gyroEnabled || prefersReducedMotion) return;
   window.addEventListener('deviceorientation', function(e) {
-    if (e.beta === null) return;
+    if (e.beta === null || prefersReducedMotion) return;
     if (!gyroEnabled) {
       gyroEnabled = true;
       gyroBeta0 = e.beta;
@@ -56,12 +77,15 @@ if (typeof DeviceOrientationEvent !== 'undefined' &&
 var stage = mascot;
 
 function updateGaze(clientX, clientY) {
+  if (prefersReducedMotion) return;
   var rect = stage.getBoundingClientRect();
   var cx = rect.left + rect.width / 2;
   var cy = rect.top + rect.height / 2;
-  /* Normalize to +-1, then scale to pixels */
-  var dx = (clientX - cx) / (window.innerWidth / 2);
-  var dy = (clientY - cy) / (window.innerHeight / 2);
+  /* Normalize relative to viewport, works with keyboard open or rotated */
+  var vw = document.documentElement.clientWidth || window.innerWidth;
+  var vh = document.documentElement.clientHeight || window.innerHeight;
+  var dx = (clientX - cx) / (vw / 2);
+  var dy = (clientY - cy) / (vh / 2);
   var gazeX = Math.max(-6, Math.min(6, dx * 6));
   var gazeY = Math.max(-4, Math.min(4, dy * 4));
   mascot.style.setProperty('--gaze-x', gazeX + 'px');
@@ -83,25 +107,57 @@ document.addEventListener('mousemove', function(e) {
 
 
 /* ══════════════════════════════════════════
-   Touch reactions
-   Tap the mascot → flinch + curious look.
+   Touch / keyboard reactions
+   Tap or press Enter/Space → flinch + curious look.
    ══════════════════════════════════════════ */
 var touchCount = 0;
 
-stage.addEventListener('click', function() {
+/* Make mascot focusable for keyboard users */
+if (stage && !stage.hasAttribute('tabindex')) {
+  stage.setAttribute('tabindex', '0');
+  stage.setAttribute('role', 'button');
+  stage.setAttribute('aria-label', 'LETHE guardian — tap to interact');
+}
+
+function handleMascotActivation() {
   /* Don't react while in alert or thinking */
   if (currentState === 'alert' || currentState === 'thinking') return;
 
   touchCount++;
-  mascot.classList.add('touch-flinch');
+  if (!prefersReducedMotion) {
+    mascot.classList.add('touch-flinch');
+    setTimeout(function() { mascot.classList.remove('touch-flinch'); }, 300);
+  }
   microExpression('surprise');
-  setTimeout(function() { mascot.classList.remove('touch-flinch'); }, 300);
 
   /* After 3 taps, LETHE gets amused */
   if (touchCount >= 3) {
     setExpression('amused');
-    setTimeout(function() { setExpression(null); }, 3000);
     touchCount = 0;
+  }
+}
+
+/* Pointer: immediate press feedback + click activation */
+stage.addEventListener('pointerdown', function() {
+  if (prefersReducedMotion) return;
+  mascot.classList.add('touch-active');
+}, { passive: true });
+
+stage.addEventListener('pointerup', function() {
+  mascot.classList.remove('touch-active');
+}, { passive: true });
+
+stage.addEventListener('pointercancel', function() {
+  mascot.classList.remove('touch-active');
+}, { passive: true });
+
+stage.addEventListener('click', handleMascotActivation);
+
+/* Keyboard: Enter or Space activates the mascot */
+stage.addEventListener('keydown', function(e) {
+  if (e.key === 'Enter' || e.key === ' ') {
+    e.preventDefault();
+    handleMascotActivation();
   }
 });
 

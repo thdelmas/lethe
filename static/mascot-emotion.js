@@ -22,7 +22,17 @@
   var currentExpr = null;
   var stateDecayTimer = null;
   var exprDecayTimer = null;
+  var exprFadeTimer = null;
   var stage = document.getElementById('mascot-stage');
+
+  /* Reduced motion: skip animation, use instant state changes */
+  var reducedMotion = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)');
+  var prefersReducedMotion = reducedMotion && reducedMotion.matches;
+  if (reducedMotion && reducedMotion.addEventListener) {
+    reducedMotion.addEventListener('change', function(e) {
+      prefersReducedMotion = e.matches;
+    });
+  }
 
   // ═══════════ EXPRESSION DECAY ═══════════
   // How long emotional expressions linger before fading.
@@ -92,21 +102,26 @@
 
   function setExpression(name) {
     if (name === currentExpr) return;
-    currentExpr = name;
-    window.currentExpr = name;
 
-    // Clear pending decay
-    if (exprDecayTimer) {
-      clearTimeout(exprDecayTimer);
-      exprDecayTimer = null;
-    }
+    // Clear pending timers
+    if (exprDecayTimer) { clearTimeout(exprDecayTimer); exprDecayTimer = null; }
+    if (exprFadeTimer) { clearTimeout(exprFadeTimer); exprFadeTimer = null; }
 
-    // Apply CSS expression class
-    if (stage) {
+    // Fade out previous expression before applying new one
+    if (stage && currentExpr && !name) {
+      stage.classList.add('mascot-expr-fading');
+      exprFadeTimer = setTimeout(function() {
+        stage.className = stage.className
+          .replace(/\bmascot-expr-\S+/g, '').trim();
+      }, prefersReducedMotion ? 10 : 300);
+    } else if (stage) {
       stage.className = stage.className
         .replace(/\bmascot-expr-\S+/g, '').trim();
       if (name) stage.classList.add('mascot-expr-' + name);
     }
+
+    currentExpr = name;
+    window.currentExpr = name;
 
     // 3D: trigger one-shot for this expression
     if (window.mascot3D && window.mascot3D.playOnce && name) {
@@ -125,14 +140,14 @@
   // ═══════════ MICRO-EXPRESSIONS ═══════════
 
   function microExpression(name) {
-    // Brief 1.5s CSS overlay
-    if (stage) {
+    // Reduced motion: skip CSS animation, still trigger 3D one-shot
+    if (stage && !prefersReducedMotion) {
       var cls = 'micro-' + name;
       stage.classList.add(cls);
       setTimeout(function() { stage.classList.remove(cls); }, 1500);
     }
 
-    // 3D one-shot
+    // 3D one-shot (controlled by its own reduced-motion guard)
     if (window.mascot3D && window.mascot3D.playOnce) {
       var anim = MICRO_ANIM[name];
       if (anim) window.mascot3D.playOnce(anim);

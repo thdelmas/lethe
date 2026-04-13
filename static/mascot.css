@@ -1,20 +1,9 @@
 /* LETHE Mascot — Animated conversation presence
- *
- * CSS animations for the layered mascot SVG.
- * States are applied as classes on the SVG root: .mascot-state-{name}
- * Each state cascades animations to child layer groups.
- *
- * 3D transforms, body movement, and expressions are in mascot-3d.css.
- *
- * Colors:
- *   Teal:  #22e8a0 (healthy / active)
- *   Red:   #ff4444 (alert / threat)
- *   Stone: #2a2a28 (body)
- */
+ * States: .mascot-state-{idle|listening|thinking|speaking|alert|sleep}
+ * Colors: Teal #22e8a0, Red #ff4444, Stone #2a2a28
+ * 3D transforms in mascot-3d.css. */
 
-/* ═══════════════════════════════════════════
-   Base — always-on defaults
-   ═══════════════════════════════════════════ */
+/* ═══ Base defaults ═══ */
 
 .lethe-mascot {
   width: 100%;
@@ -26,17 +15,20 @@
   max-height: 35vh;
 }
 
-/* Layer defaults — everything starts dim and still */
+/* Layer defaults — everything starts dim and still.
+   will-change hints promote heavy layers to GPU compositing. */
 #cracks path {
   stroke: #22e8a0;
   fill: none;
   opacity: 0.3;
   transition: opacity 0.4s ease, stroke 0.4s ease;
+  will-change: opacity, stroke;
 }
 
 #chest_orb {
   opacity: 0.5;
-  transition: opacity 0.4s ease;
+  transition: opacity 0.4s ease, transform 0.3s ease;
+  will-change: transform, opacity;
 }
 
 #eyes ellipse,
@@ -44,6 +36,7 @@
   fill: #22e8a0;
   opacity: 0.8;
   transition: opacity 0.3s ease, fill 0.4s ease;
+  will-change: opacity, fill;
 }
 
 #eye-left-lid,
@@ -51,6 +44,7 @@
   transform: scaleY(0);
   transform-origin: center;
   transition: transform 0.15s ease;
+  will-change: transform;
 }
 
 #antennae {
@@ -59,14 +53,30 @@
 
 #antennae > g {
   transform-origin: bottom center;
+  will-change: transform;
+}
+
+/* Focus ring for keyboard users */
+.home-mascot:focus-visible {
+  outline: 2px solid #22e8a0;
+  outline-offset: 4px;
+  border-radius: 8px;
+}
+
+/* Press feedback — subtle scale on pointer down */
+.home-mascot.touch-active .lethe-mascot {
+  transform: scale(0.97);
+  transition: transform 0.1s ease;
+}
+
+/* Smooth animation crossfade when states change.
+   The 0.3s fade masks jarring keyframe restarts. */
+.lethe-mascot * {
+  animation-fill-mode: both;
 }
 
 
-/* ═══════════════════════════════════════════
-   Keyframes
-   ═══════════════════════════════════════════ */
-
-/* ── Breathing / pulse ── */
+/* ═══ Keyframes ═══ */
 @keyframes bio-pulse {
   0%, 100% { opacity: var(--pulse-max, 0.5); }
   50%      { opacity: var(--pulse-min, 0.2); }
@@ -170,10 +180,7 @@
 }
 
 
-/* ═══════════════════════════════════════════
-   State: IDLE
-   Calm. Slow breathing. Occasional blink.
-   ═══════════════════════════════════════════ */
+/* ═══ State: IDLE — Calm, slow breathing, blink ═══ */
 
 .mascot-state-idle #cracks path {
   --pulse-max: 0.4;
@@ -200,10 +207,7 @@
 }
 
 
-/* ═══════════════════════════════════════════
-   State: LISTENING
-   Attentive. Brighter veins. Orb reactive.
-   ═══════════════════════════════════════════ */
+/* ═══ State: LISTENING — Attentive, bright veins ═══ */
 
 .mascot-state-listening #cracks path {
   --pulse-max: 0.7;
@@ -238,10 +242,7 @@
 }
 
 
-/* ═══════════════════════════════════════════
-   State: THINKING
-   Processing. Veins flow inward to chest.
-   ═══════════════════════════════════════════ */
+/* ═══ State: THINKING — Veins flow inward ═══ */
 
 .mascot-state-thinking #cracks path {
   stroke-dasharray: 8 4;
@@ -268,11 +269,7 @@
 }
 
 
-/* ═══════════════════════════════════════════
-   State: SPEAKING
-   Energy radiates outward. Veins bright.
-   --speech-amplitude (0-1) set by mascot-emotion.js
-   ═══════════════════════════════════════════ */
+/* ═══ State: SPEAKING — Radiate outward, --speech-amplitude ═══ */
 
 .mascot-state-speaking #cracks path {
   stroke-dasharray: 8 4;
@@ -313,10 +310,7 @@
 }
 
 
-/* ═══════════════════════════════════════════
-   State: ALERT
-   Threat. Red bioluminescence. Urgent pulse.
-   ═══════════════════════════════════════════ */
+/* ═══ State: ALERT — Threat, red bioluminescence ═══ */
 
 .mascot-state-alert #cracks path {
   stroke: #ff4444;
@@ -352,10 +346,7 @@
 }
 
 
-/* ═══════════════════════════════════════════
-   State: SLEEP
-   Minimal power. Almost dark.
-   ═══════════════════════════════════════════ */
+/* ═══ State: SLEEP — Minimal power, almost dark ═══ */
 
 .mascot-state-sleep #cracks path {
   --pulse-max: 0.1;
@@ -385,11 +376,17 @@
 }
 
 
-/* ═══════════════════════════════════════════
-   Micro-expression overlays
-   Play once via JS: element.classList.add('micro-*')
-   Remove class after animation completes.
-   ═══════════════════════════════════════════ */
+/* ═══ Expression fade-out — smooth exit instead of instant vanish ═══ */
+
+.mascot-expr-fading #cracks path,
+.mascot-expr-fading #chest_orb,
+.mascot-expr-fading #eyes ellipse,
+.mascot-expr-fading #eyes circle {
+  transition: opacity 0.3s ease, fill 0.3s ease, filter 0.3s ease;
+}
+
+
+/* ═══ Micro-expressions — one-shot CSS overlays ═══ */
 
 .micro-message-received #eyes ellipse,
 .micro-message-received #eyes circle {
@@ -409,9 +406,7 @@
 }
 
 
-/* ═══════════════════════════════════════════
-   Responsive
-   ═══════════════════════════════════════════ */
+/* ═══ Responsive ═══ */
 
 @media (max-width: 360px) {
   .lethe-mascot {
@@ -426,22 +421,26 @@
   .lethe-mascot {
     max-height: 60vh;
     max-width: 30vw;
+    min-width: 150px;
     float: left;
     margin-right: 1rem;
   }
 }
 
 
-/* ═══════════════════════════════════════════
-   Reduced motion — static fallbacks
-   ═══════════════════════════════════════════ */
+/* ═══ Reduced motion — static fallbacks ═══ */
 
 @media (prefers-reduced-motion: reduce) {
   .lethe-mascot,
   .lethe-mascot * {
     animation: none !important;
+    animation-delay: -1ms !important;
     transition-duration: 0.01ms !important;
+    will-change: auto !important;
   }
+
+  /* No press/flinch animation */
+  .home-mascot.touch-active .lethe-mascot { transform: none; }
 
   /* Static glow — no animation, just base opacity */
   #cracks path { opacity: 0.35; }
@@ -449,13 +448,26 @@
   #eyes ellipse, #eyes circle { opacity: 0.9; }
   #eye-left-lid, #eye-right-lid { transform: scaleY(0); }
 
-  /* Alert state still uses color change (no motion) */
+  /* States use color/opacity shifts only (no motion) */
+  .mascot-state-listening #cracks path { opacity: 0.6; }
+  .mascot-state-listening #eyes ellipse,
+  .mascot-state-listening #eyes circle { opacity: 1; }
+
+  .mascot-state-thinking #cracks path { opacity: 0.55; }
+  .mascot-state-thinking #chest_orb { opacity: 0.85; }
+  .mascot-state-thinking #eyes ellipse,
+  .mascot-state-thinking #eyes circle { opacity: 0.6; }
+
+  .mascot-state-speaking #cracks path { opacity: 0.7; }
+  .mascot-state-speaking #chest_orb { opacity: 0.8; }
+
   .mascot-state-alert #cracks path { stroke: #ff4444; opacity: 0.6; }
   .mascot-state-alert #eyes ellipse,
   .mascot-state-alert #eyes circle { fill: #ff4444; }
 
   /* Sleep dims everything */
   .mascot-state-sleep #cracks path { opacity: 0.08; }
+  .mascot-state-sleep #chest_orb { opacity: 0; }
   .mascot-state-sleep #eyes ellipse,
   .mascot-state-sleep #eyes circle { opacity: 0; }
 }

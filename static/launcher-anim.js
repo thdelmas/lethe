@@ -5,6 +5,15 @@ var vidA = document.getElementById('vid-a');
 var vidB = document.getElementById('vid-b');
 var activeVid = vidA;   // currently drawing to canvas
 var nextVid = vidB;     // preloading next video
+
+/* Reduced motion: draw static frame, skip crossfades and boredom animations */
+var _animReducedMotion = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)');
+var animPrefersStatic = _animReducedMotion && _animReducedMotion.matches;
+if (_animReducedMotion && _animReducedMotion.addEventListener) {
+  _animReducedMotion.addEventListener('change', function(e) {
+    animPrefersStatic = e.matches;
+  });
+}
 // Context-aware animation pools — no LLM needed
 // All green to match default mood; mood system handles color shifts separately
 // speed: playbackRate (1 = normal, <1 = slower)
@@ -35,9 +44,18 @@ if (canvas2d) {
 }
 
 // Draw loop — always running, draws active video (and crossfade if transitioning)
+var lastDrawTime = 0;
 function drawLoop() {
   requestAnimationFrame(drawLoop);
   if (!ctx2d) return;
+
+  /* Reduced motion: draw one static frame, skip animation */
+  if (animPrefersStatic && !moodTransition) {
+    if (activeVid.readyState >= 2) {
+      ctx2d.drawImage(activeVid, 0, 0, canvas2d.width, canvas2d.height);
+    }
+    return;
+  }
 
   if (crossfading) {
     var elapsed = Date.now() - crossfadeStart;
@@ -163,7 +181,7 @@ function pickAnim(context) {
 }
 
 function playRandomAnim(context) {
-  if (!vidA || letheAnimPlaying) return;
+  if (!vidA || letheAnimPlaying || animPrefersStatic) return;
   var anim = pickAnim(context || boredomState);
   playVideoAnim(anim.src, anim.speed);
 }
@@ -248,8 +266,13 @@ function letheSetMood(mood) {
 }
 
 // Combined glitch + desaturate in a single getImageData pass (perf: one read/write)
+// Throttled: skip frames when intensity is changing slowly to reduce main-thread blocking
+var glitchFrameCount = 0;
 function applyGlitchDesat(ctx, w, h, glitchIntensity, desatAmount) {
   if (glitchIntensity < 0.05 && desatAmount < 0.05) return;
+  /* Skip every other frame at low intensity — halves pixel processing cost */
+  glitchFrameCount++;
+  if (glitchIntensity < 0.5 && (glitchFrameCount & 1)) return;
   var imgData = ctx.getImageData(0, 0, w, h);
   var data = imgData.data;
   var shift = Math.floor(glitchIntensity * 12 + Math.random() * 6);
