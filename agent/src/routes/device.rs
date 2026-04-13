@@ -32,7 +32,7 @@ async fn prop_bool(key: &str) -> bool {
         .output()
         .await
         .ok()
-        .map(|o| String::from_utf8_lossy(&o.stdout).trim() == "1")
+        .map(|o| matches!(String::from_utf8_lossy(&o.stdout).trim(), "1" | "true"))
         .unwrap_or(false)
 }
 
