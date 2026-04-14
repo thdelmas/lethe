@@ -1,4 +1,5 @@
 pub mod audio;
+pub mod channels;
 pub mod device;
 pub mod files;
 pub mod llm;

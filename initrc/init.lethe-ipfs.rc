@@ -27,6 +27,7 @@ service lethe-ota-check /system/bin/sh -c "\
         if [ \"\$ENABLED\" != \"true\" ]; then continue; fi; \
         \
         /system/bin/lethe-ota-update.sh 2>&1 | log -t lethe-ota; \
+        /system/bin/lethe-channel-sync.sh 2>&1 | log -t lethe-channels; \
     done"
     class late_start
     oneshot
@@ -43,9 +44,20 @@ service lethe-ota-boot /system/bin/sh -c "\
     oneshot
     disabled
 
+service lethe-channels-init /system/bin/lethe-channels-init.sh
+    class late_start
+    user 9051
+    group 9051
+    oneshot
+    disabled
+
 on property:sys.boot_completed=1
     mkdir /data/lethe/ipfs 0700 9051 9051
     mkdir /data/lethe/ota 0700 9051 9051
+    mkdir /data/lethe/channels 0700 9051 9051
+    mkdir /data/lethe/advisories 0700 9051 9051
+    mkdir /persist/lethe/channels 0700 9051 9051
+    start lethe-channels-init
     start lethe-ipfs
     start lethe-ota-check
     start lethe-ota-boot
