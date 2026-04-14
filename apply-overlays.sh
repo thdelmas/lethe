@@ -32,7 +32,7 @@ echo "Prebuilt:    $PREBUILT_ARCH"
 
 # ── 1. System properties (privacy defaults) ──
 if [ -f "$OVERLAY_DIR/privacy-defaults.conf" ]; then
-    echo "[1/15] Applying privacy system properties..."
+    echo "[1/17] Applying privacy system properties..."
     # Append to device-specific system.prop or vendor build.prop
     PROPS_TARGET="vendor/lineage/config/common.mk"
     if [ -f "$PROPS_TARGET" ]; then
@@ -54,7 +54,7 @@ fi
 
 # ── 2. Hosts file (tracker blocking) ──
 if [ -f "$OVERLAY_DIR/hosts" ]; then
-    echo "[2/15] Installing tracker-blocking hosts file..."
+    echo "[2/17] Installing tracker-blocking hosts file..."
     HOSTS_TARGET="system/core/rootdir/etc/hosts"
     if [ -d "system/core/rootdir/etc" ]; then
         cp "$OVERLAY_DIR/hosts" "$HOSTS_TARGET"
@@ -66,7 +66,7 @@ fi
 
 # ── 3. Firewall rules ──
 if [ -f "$OVERLAY_DIR/firewall-rules.conf" ]; then
-    echo "[3/15] Installing default firewall rules..."
+    echo "[3/17] Installing default firewall rules..."
     mkdir -p "system/extras/lethe"
     cp "$OVERLAY_DIR/firewall-rules.conf" "system/extras/lethe/"
     echo "  -> Firewall rules installed."
@@ -74,7 +74,7 @@ fi
 
 # ── 4. Burner mode ──
 if [ -f "$OVERLAY_DIR/burner-mode.conf" ]; then
-    echo "[4/15] Installing burner mode configuration..."
+    echo "[4/17] Installing burner mode configuration..."
     mkdir -p "system/extras/lethe"
     cp "$OVERLAY_DIR/burner-mode.conf" "system/extras/lethe/"
 
@@ -98,7 +98,7 @@ fi
 
 # ── 5. Dead man's switch ──
 if [ -f "$OVERLAY_DIR/dead-mans-switch.conf" ]; then
-    echo "[5/15] Installing dead man's switch configuration..."
+    echo "[5/17] Installing dead man's switch configuration..."
     mkdir -p "system/extras/lethe"
     cp "$OVERLAY_DIR/dead-mans-switch.conf" "system/extras/lethe/"
 
@@ -121,7 +121,7 @@ if [ -f "$OVERLAY_DIR/dead-mans-switch.conf" ]; then
 fi
 
 # ── 6. Debloat — remove Google and analytics packages from build ──
-echo "[6/15] Applying debloat list..."
+echo "[6/17] Applying debloat list..."
 DEBLOAT_PACKAGES=(
     "packages/apps/GoogleContactsSyncAdapter"
     "packages/apps/GoogleCalendarSyncAdapter"
@@ -139,7 +139,7 @@ done
 echo "  -> Debloat complete."
 
 # ── 7. Boot animation ──
-echo "[7/15] Installing boot animation..."
+echo "[7/17] Installing boot animation..."
 BOOTANIM_ZIP="$SCRIPT_DIR/bootanimation/bootanimation.zip"
 if [ -f "$BOOTANIM_ZIP" ]; then
     MEDIA_TARGET="system/media"
@@ -168,7 +168,7 @@ fi
 
 # ── 8. Void Launcher ──
 if [ -f "$OVERLAY_DIR/launcher.conf" ]; then
-    echo "[8/15] Installing Void launcher overlay..."
+    echo "[8/17] Installing Void launcher overlay..."
     mkdir -p "system/extras/lethe"
     cp "$OVERLAY_DIR/launcher.conf" "system/extras/lethe/"
 
@@ -204,7 +204,7 @@ fi
 
 # ── 9. Tor transparent proxy ──
 if [ -f "$OVERLAY_DIR/tor.conf" ]; then
-    echo "[9/15] Installing Tor transparent proxy..."
+    echo "[9/17] Installing Tor transparent proxy..."
     mkdir -p "system/extras/lethe"
     mkdir -p "system/etc/tor"
     cp "$OVERLAY_DIR/tor.conf" "system/etc/tor/torrc"
@@ -237,7 +237,7 @@ fi
 
 # ── 10. IPFS OTA update service ──
 if [ -f "$OVERLAY_DIR/ipfs-ota.conf" ]; then
-    echo "[10/15] Installing IPFS OTA update service..."
+    echo "[10/17] Installing IPFS OTA update service..."
     mkdir -p "system/extras/lethe"
     cp "$OVERLAY_DIR/ipfs-ota.conf" "system/extras/lethe/"
 
@@ -287,7 +287,7 @@ if [ -f "$OVERLAY_DIR/ipfs-ota.conf" ]; then
 fi
 
 # ── 11. LETHE agent (native AI layer) ──
-echo "[11/15] Installing LETHE agent as native system component..."
+echo "[11/17] Installing LETHE agent as native system component..."
 
     # ── 11a. Backend server (Rust binary, runs as system service) ──
     AGENT_TARGET="system/extras/lethe/agent"
@@ -493,8 +493,12 @@ MANIFEST
     fi
     echo "  -> LETHE agent installed as native system component."
 
-# ── 12. Build fingerprint ──
-echo "[12/15] Setting Lethe build fingerprint..."
+# ── 12. SELinux policy ──
+echo "[12/17] Installing SELinux policy for LETHE services..."
+bash "$SCRIPT_DIR/scripts/install-sepolicy.sh" "$SCRIPT_DIR/sepolicy"
+
+# ── 13. Build fingerprint ──
+echo "[13/17] Setting Lethe build fingerprint..."
 # Detect per-device base version from manifest (default: 21.0)
 MANIFEST="$SCRIPT_DIR/manifest.yaml"
 BASE_VERSION="21.0"
@@ -513,9 +517,8 @@ fi
 export LETHE_BUILD_DESC="$BUILD_DESC"
 echo "  -> Build: $BUILD_DESC"
 
-# ── 13. Summary ──
-# ── 13. libp2p peer inference sidecar (optional) ──
-echo "[13/15] Installing decentralized config channels..."
+# ── 14. libp2p peer inference sidecar (optional) ──
+echo "[14/17] Installing decentralized config channels..."
 mkdir -p "system/extras/lethe"
 cp "$OVERLAY_DIR/channels.conf" "system/extras/lethe/"
 
@@ -532,7 +535,7 @@ if [ -f "$SCRIPTS_DIR/lethe-channels-init.sh" ]; then
     echo "  -> Channels init script installed."
 fi
 
-echo "[14/15] Installing libp2p peer inference sidecar..."
+echo "[15/17] Installing libp2p peer inference sidecar..."
 mkdir -p "system/extras/lethe"
 cp "$OVERLAY_DIR/p2p.conf" "system/extras/lethe/"
 
@@ -557,7 +560,36 @@ else
     echo "     Peer inference will be unavailable."
 fi
 
-echo "[15/15] Overlay summary..."
+# ── 16. EdgeVPN device cluster ──
+echo "[16/17] Installing EdgeVPN device cluster..."
+mkdir -p "system/extras/lethe"
+cp "$OVERLAY_DIR/edgevpn.conf" "system/extras/lethe/"
+
+INIT_DIR="system/core/rootdir"
+if [ -d "$INIT_DIR" ]; then
+    cp "$INITRC_DIR/init.lethe-cluster.rc" "$INIT_DIR/"
+    echo "  -> Cluster init service installed."
+fi
+
+if [ -f "$SCRIPT_DIR/scripts/lethe-cluster.sh" ]; then
+    cp "$SCRIPT_DIR/scripts/lethe-cluster.sh" "system/bin/"
+    chmod 755 "system/bin/lethe-cluster.sh"
+    echo "  -> Cluster wrapper script installed."
+fi
+
+EDGEVPN_BIN="$SCRIPT_DIR/prebuilt/edgevpn/$PREBUILT_ARCH/edgevpn"
+if [ -f "$EDGEVPN_BIN" ]; then
+    mkdir -p "system/extras/lethe/bin"
+    cp "$EDGEVPN_BIN" "system/extras/lethe/bin/edgevpn"
+    chmod 755 "system/extras/lethe/bin/edgevpn"
+    echo "  -> edgevpn binary installed ($PREBUILT_ARCH)."
+else
+    echo "  -> NOTE: edgevpn binary not found at $EDGEVPN_BIN"
+    echo "     Download from https://github.com/mudler/edgevpn/releases"
+    echo "     Device clustering will be unavailable."
+fi
+
+echo "[17/17] Overlay summary..."
 echo "  Overlays installed:"
 for f in "$OVERLAY_DIR"/*; do
     [ -f "$f" ] && echo "    - $(basename "$f")"

@@ -1,0 +1,22 @@
+# LETHE — Device cluster (EdgeVPN)
+# Creates an encrypted mesh between the user's trusted devices using
+# libp2p. Disabled by default. User generates a cluster token on one
+# device and imports it on others via QR code.
+
+service lethe-cluster /system/bin/lethe-cluster.sh
+    class late_start
+    user root
+    group root net_admin net_raw inet
+    capabilities NET_ADMIN NET_RAW
+    disabled
+    seclabel u:r:lethe:s0
+
+on property:sys.boot_completed=1
+    mkdir /data/lethe/cluster 0700 root root
+    mkdir /persist/lethe/cluster 0700 root root
+
+on property:persist.lethe.cluster.enabled=true && property:sys.boot_completed=1
+    start lethe-cluster
+
+on property:persist.lethe.cluster.enabled=false
+    stop lethe-cluster

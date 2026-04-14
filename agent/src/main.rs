@@ -36,6 +36,7 @@ async fn main() {
         .merge(routes::network::router())
         .merge(routes::audio::router())
         .merge(routes::channels::router())
+        .merge(routes::cluster::router())
         .merge(routes::peer::router())
         .merge(routes::mesh::router())
         // Stateful routes (LLM proxy needs process handle)
