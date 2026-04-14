@@ -16,7 +16,7 @@ pub struct DeviceState {
 
 async fn get_device() -> Json<DeviceState> {
     Json(DeviceState {
-        tor: prop_bool("persist.lethe.tor.enabled").await,
+        tor: service_running("lethe-tor").await,
         burner_mode: prop_bool("persist.lethe.burner.enabled").await,
         trackers_blocked: read_tracker_count().await,
         battery: read_battery_level().await,
@@ -26,9 +26,26 @@ async fn get_device() -> Json<DeviceState> {
     })
 }
 
+async fn service_running(name: &str) -> bool {
+    // Check Android init service status via the init.svc.* property.
+    let key = format!("init.svc.{name}");
+    tokio::process::Command::new("sh")
+        .arg("-c")
+        .arg(format!("getprop {key}"))
+        .output()
+        .await
+        .ok()
+        .map(|o| String::from_utf8_lossy(&o.stdout).trim() == "running")
+        .unwrap_or(false)
+}
+
 async fn prop_bool(key: &str) -> bool {
-    tokio::process::Command::new("getprop")
-        .arg(key)
+    // Use sh -c to ensure PATH resolution works on all Android versions.
+    // Direct Command::new("getprop") fails silently on Android 7.1 (kernel 3.4.x)
+    // because tokio spawns without inheriting the shell PATH.
+    tokio::process::Command::new("sh")
+        .arg("-c")
+        .arg(format!("getprop {key}"))
         .output()
         .await
         .ok()
