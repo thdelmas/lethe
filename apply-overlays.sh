@@ -13,9 +13,22 @@ OVERLAY_DIR="$SCRIPT_DIR/overlays"
 INITRC_DIR="$SCRIPT_DIR/initrc"
 CODENAME="${1:-}"
 
+# Map Rust/build target names to Android ABI directory names used by prebuilt/.
+# TARGET_ARCH may be set by the build environment or defaults later.
+# PREBUILT_ARCH is the directory name under prebuilt/{tor,ipfs}/.
+case "${TARGET_ARCH:-}" in
+    armv7-linux-androideabi|armeabi-v7a|armv7*)
+        PREBUILT_ARCH="armeabi-v7a"
+        ;;
+    *)
+        PREBUILT_ARCH="arm64-v8a"
+        ;;
+esac
+
 echo "=== Lethe overlay applicator ==="
 echo "Overlay dir: $OVERLAY_DIR"
 echo "Codename:    ${CODENAME:-<all>}"
+echo "Prebuilt:    $PREBUILT_ARCH"
 
 # ── 1. System properties (privacy defaults) ──
 if [ -f "$OVERLAY_DIR/privacy-defaults.conf" ]; then
@@ -210,11 +223,11 @@ if [ -f "$OVERLAY_DIR/tor.conf" ]; then
         echo "  -> WARNING: init dir not found, skipping Tor init service."
     fi
     # Check for prebuilt Tor binary
-    TOR_BINARY="$SCRIPT_DIR/prebuilt/tor/$TARGET_ARCH/tor"
+    TOR_BINARY="$SCRIPT_DIR/prebuilt/tor/$PREBUILT_ARCH/tor"
     if [ -f "$TOR_BINARY" ]; then
         cp "$TOR_BINARY" "system/bin/tor"
         chmod 755 "system/bin/tor"
-        echo "  -> Tor binary installed ($TARGET_ARCH)."
+        echo "  -> Tor binary installed ($PREBUILT_ARCH)."
     else
         echo "  -> WARNING: Tor binary not found at $TOR_BINARY"
         echo "     Extract from Tor Browser APK: lib/<abi>/libTor.so"
@@ -257,6 +270,17 @@ if [ -f "$OVERLAY_DIR/ipfs-ota.conf" ]; then
         echo "  -> WARNING: update-pubkey.pem not found in keys/. Generate with:"
         echo "     openssl genpkey -algorithm Ed25519 -out keys/update-privkey.pem"
         echo "     openssl pkey -in keys/update-privkey.pem -pubout -out keys/update-pubkey.pem"
+    fi
+
+    # Install prebuilt IPFS (Kubo) binary
+    IPFS_BINARY="$SCRIPT_DIR/prebuilt/ipfs/$PREBUILT_ARCH/ipfs"
+    if [ -f "$IPFS_BINARY" ]; then
+        cp "$IPFS_BINARY" "system/bin/ipfs"
+        chmod 755 "system/bin/ipfs"
+        echo "  -> IPFS binary installed ($PREBUILT_ARCH)."
+    else
+        echo "  -> WARNING: IPFS binary not found at $IPFS_BINARY"
+        echo "     Download from https://github.com/ipfs/kubo/releases"
     fi
 
     echo "  -> IPFS OTA overlay installed."

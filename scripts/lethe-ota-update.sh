@@ -31,30 +31,51 @@ TRUST_PUBKEY=$(cfg trust_pubkey_file)
 IPFS_PATH=$(cfg ipfs_repo)
 UPDATE_POLICY=$(cfg update_policy)
 SECURITY_PATCH_POLICY=$(cfg security_patch_policy)
+HTTP_MIRRORS=$(cfg http_mirrors)
+HTTP_PROXY=$(cfg http_proxy)
 OTA_DIR="/data/lethe/ota"
 
 export IPFS_PATH
 
 # ── Sanity checks ──
-if [ -z "$IPNS_CHANNEL" ]; then
-    log "ERROR: ipns_channel not set in config"
-    exit 1
-fi
-
 if [ ! -f "$TRUST_PUBKEY" ]; then
     log "ERROR: trust pubkey not found at $TRUST_PUBKEY"
     exit 1
 fi
 
-# Ensure IPFS daemon is running
-if ! ipfs swarm peers >/dev/null 2>&1; then
-    log "WARN: IPFS daemon not reachable, waiting 30s..."
-    sleep 30
-    if ! ipfs swarm peers >/dev/null 2>&1; then
-        log "ERROR: IPFS daemon still not reachable, aborting"
+# ── Transport selection ──
+# Try IPFS first. If the daemon isn't reachable, fall back to HTTP mirrors.
+USE_IPFS=false
+if command -v ipfs >/dev/null 2>&1; then
+    if ipfs swarm peers >/dev/null 2>&1; then
+        USE_IPFS=true
+        log "Transport: IPFS (daemon running)"
+    else
+        log "WARN: IPFS binary found but daemon not reachable"
+    fi
+else
+    log "WARN: IPFS binary not installed"
+fi
+
+if [ "$USE_IPFS" = "false" ]; then
+    if [ -n "$HTTP_MIRRORS" ]; then
+        log "Transport: HTTP fallback via mirrors"
+    else
+        log "ERROR: no IPFS and no HTTP mirrors configured"
         exit 1
     fi
 fi
+
+# ── HTTP helper ──
+# Downloads a URL via Tor SOCKS proxy. Returns content on stdout.
+http_fetch() {
+    local url="$1"
+    local proxy_flag=""
+    if [ -n "$HTTP_PROXY" ]; then
+        proxy_flag="--proxy $HTTP_PROXY"
+    fi
+    curl -sfL --max-time 60 $proxy_flag "$url" 2>/dev/null
+}
 
 # ── Device identity ──
 DEVICE_CODENAME=$(getprop ro.product.device 2>/dev/null)
@@ -72,26 +93,49 @@ CURRENT_VERSION=$(getprop ro.lethe.version 2>/dev/null)
 CURRENT_SECURITY_PATCH=$(getprop ro.build.version.security_patch 2>/dev/null)
 log "Current version: ${CURRENT_VERSION:-unknown}, security patch: ${CURRENT_SECURITY_PATCH:-unknown}"
 
-# ── Step 1: Resolve IPNS channel ──
-log "Resolving IPNS channel: $IPNS_CHANNEL"
-CID=$(ipfs name resolve "$IPNS_CHANNEL" 2>/dev/null)
-if [ -z "$CID" ]; then
-    log "WARN: IPNS resolution failed — network may be unreachable"
-    exit 2
-fi
-log "IPNS resolved to: $CID"
+# ── Step 1+2: Fetch manifest + signature ──
+MANIFEST_RAW=""
+SIGNATURE_RAW=""
 
-# ── Step 2: Fetch manifest ──
-MANIFEST_RAW=$(ipfs cat "$CID/manifest.json" 2>/dev/null)
+if [ "$USE_IPFS" = "true" ]; then
+    # Try IPFS: resolve IPNS channel, then fetch manifest
+    log "Resolving IPNS channel: $IPNS_CHANNEL"
+    CID=$(ipfs name resolve "$IPNS_CHANNEL" 2>/dev/null)
+    if [ -n "$CID" ]; then
+        log "IPNS resolved to: $CID"
+        MANIFEST_RAW=$(ipfs cat "$CID/manifest.json" 2>/dev/null)
+        SIGNATURE_RAW=$(ipfs cat "$CID/manifest.json.sig" 2>/dev/null)
+    else
+        log "WARN: IPNS resolution failed, trying HTTP fallback..."
+    fi
+fi
+
+# HTTP fallback if IPFS didn't produce a manifest
+if [ -z "$MANIFEST_RAW" ] && [ -n "$HTTP_MIRRORS" ]; then
+    # Try each mirror (comma-separated list)
+    OLD_IFS="$IFS"; IFS=","
+    for mirror in $HTTP_MIRRORS; do
+        mirror=$(echo "$mirror" | tr -d ' ')
+        log "Trying HTTP mirror: $mirror"
+        MANIFEST_RAW=$(http_fetch "$mirror/manifest.json")
+        if [ -n "$MANIFEST_RAW" ]; then
+            SIGNATURE_RAW=$(http_fetch "$mirror/manifest.json.sig")
+            ACTIVE_MIRROR="$mirror"
+            log "Manifest fetched from $mirror"
+            break
+        fi
+        log "WARN: mirror $mirror unreachable"
+    done
+    IFS="$OLD_IFS"
+fi
+
 if [ -z "$MANIFEST_RAW" ]; then
-    log "ERROR: failed to fetch manifest from $CID/manifest.json"
+    log "ERROR: failed to fetch manifest from any source"
     exit 1
 fi
 
-# Fetch detached signature
-SIGNATURE_RAW=$(ipfs cat "$CID/manifest.json.sig" 2>/dev/null)
 if [ -z "$SIGNATURE_RAW" ]; then
-    log "ERROR: no detached signature at $CID/manifest.json.sig"
+    log "ERROR: no detached signature found for manifest"
     exit 1
 fi
 
@@ -224,13 +268,51 @@ else
     log "Update policy: $EFFECTIVE_POLICY"
 fi
 
-# ── Step 7: Download OTA ZIP via IPFS ──
-log "Downloading $BUILD_FILENAME ($BUILD_CID)..."
+# ── Step 7: Download OTA ZIP ──
+log "Downloading $BUILD_FILENAME..."
 mkdir -p "$OTA_DIR"
 
 DOWNLOAD_TMP="${PENDING_FILE}.part"
-if ! ipfs get -o "$DOWNLOAD_TMP" "$BUILD_CID" 2>/dev/null; then
-    log "ERROR: IPFS download failed for $BUILD_CID"
+DOWNLOAD_OK=false
+
+# Try IPFS first if available and we have a CID
+if [ "$USE_IPFS" = "true" ] && [ -n "$BUILD_CID" ]; then
+    log "Downloading via IPFS: $BUILD_CID"
+    if ipfs get -o "$DOWNLOAD_TMP" "$BUILD_CID" 2>/dev/null; then
+        DOWNLOAD_OK=true
+    else
+        log "WARN: IPFS download failed, trying HTTP fallback..."
+    fi
+fi
+
+# HTTP fallback
+if [ "$DOWNLOAD_OK" = "false" ] && [ -n "${ACTIVE_MIRROR:-}" ]; then
+    log "Downloading via HTTP: ${ACTIVE_MIRROR}/${BUILD_FILENAME}"
+    if http_fetch "${ACTIVE_MIRROR}/${BUILD_FILENAME}" > "$DOWNLOAD_TMP"; then
+        if [ -s "$DOWNLOAD_TMP" ]; then
+            DOWNLOAD_OK=true
+        fi
+    fi
+fi
+
+# Try all mirrors if the active one didn't work
+if [ "$DOWNLOAD_OK" = "false" ] && [ -n "$HTTP_MIRRORS" ]; then
+    OLD_IFS="$IFS"; IFS=","
+    for mirror in $HTTP_MIRRORS; do
+        mirror=$(echo "$mirror" | tr -d ' ')
+        log "Trying mirror: ${mirror}/${BUILD_FILENAME}"
+        if http_fetch "${mirror}/${BUILD_FILENAME}" > "$DOWNLOAD_TMP"; then
+            if [ -s "$DOWNLOAD_TMP" ]; then
+                DOWNLOAD_OK=true
+                break
+            fi
+        fi
+    done
+    IFS="$OLD_IFS"
+fi
+
+if [ "$DOWNLOAD_OK" = "false" ]; then
+    log "ERROR: download failed from all sources"
     rm -f "$DOWNLOAD_TMP"
     rm -rf "$OTA_DIR/tmp"
     exit 1
