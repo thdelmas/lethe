@@ -1,6 +1,6 @@
 use axum::http::StatusCode;
 use axum::response::IntoResponse;
-use axum::routing::{get, post, delete};
+use axum::routing::{delete, get};
 use axum::Router;
 use std::path::Path;
 
