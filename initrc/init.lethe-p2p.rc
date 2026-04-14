@@ -1,0 +1,21 @@
+# LETHE — libp2p peer inference sidecar
+# Discovers other LETHE devices on LAN via mDNS, coordinates
+# distributed inference via GossipSub. Exposes localhost HTTP API
+# on port 8082 for the Rust agent.
+#
+# Disabled by default. User enables in Settings > LETHE > Peer Network.
+# Property: persist.lethe.p2p.enabled
+
+service lethe-p2p /system/extras/lethe/bin/lethe-p2p \
+    --listen 127.0.0.1:8082 \
+    --llama-url http://127.0.0.1:8081
+    class late_start
+    user 9052
+    group 9052 inet
+    disabled
+
+on property:persist.lethe.p2p.enabled=true && property:sys.boot_completed=1
+    start lethe-p2p
+
+on property:persist.lethe.p2p.enabled=false
+    stop lethe-p2p

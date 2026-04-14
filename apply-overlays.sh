@@ -32,7 +32,7 @@ echo "Prebuilt:    $PREBUILT_ARCH"
 
 # ── 1. System properties (privacy defaults) ──
 if [ -f "$OVERLAY_DIR/privacy-defaults.conf" ]; then
-    echo "[1/13] Applying privacy system properties..."
+    echo "[1/14] Applying privacy system properties..."
     # Append to device-specific system.prop or vendor build.prop
     PROPS_TARGET="vendor/lineage/config/common.mk"
     if [ -f "$PROPS_TARGET" ]; then
@@ -54,7 +54,7 @@ fi
 
 # ── 2. Hosts file (tracker blocking) ──
 if [ -f "$OVERLAY_DIR/hosts" ]; then
-    echo "[2/13] Installing tracker-blocking hosts file..."
+    echo "[2/14] Installing tracker-blocking hosts file..."
     HOSTS_TARGET="system/core/rootdir/etc/hosts"
     if [ -d "system/core/rootdir/etc" ]; then
         cp "$OVERLAY_DIR/hosts" "$HOSTS_TARGET"
@@ -66,7 +66,7 @@ fi
 
 # ── 3. Firewall rules ──
 if [ -f "$OVERLAY_DIR/firewall-rules.conf" ]; then
-    echo "[3/13] Installing default firewall rules..."
+    echo "[3/14] Installing default firewall rules..."
     mkdir -p "system/extras/lethe"
     cp "$OVERLAY_DIR/firewall-rules.conf" "system/extras/lethe/"
     echo "  -> Firewall rules installed."
@@ -74,7 +74,7 @@ fi
 
 # ── 4. Burner mode ──
 if [ -f "$OVERLAY_DIR/burner-mode.conf" ]; then
-    echo "[4/13] Installing burner mode configuration..."
+    echo "[4/14] Installing burner mode configuration..."
     mkdir -p "system/extras/lethe"
     cp "$OVERLAY_DIR/burner-mode.conf" "system/extras/lethe/"
 
@@ -98,7 +98,7 @@ fi
 
 # ── 5. Dead man's switch ──
 if [ -f "$OVERLAY_DIR/dead-mans-switch.conf" ]; then
-    echo "[5/13] Installing dead man's switch configuration..."
+    echo "[5/14] Installing dead man's switch configuration..."
     mkdir -p "system/extras/lethe"
     cp "$OVERLAY_DIR/dead-mans-switch.conf" "system/extras/lethe/"
 
@@ -121,7 +121,7 @@ if [ -f "$OVERLAY_DIR/dead-mans-switch.conf" ]; then
 fi
 
 # ── 6. Debloat — remove Google and analytics packages from build ──
-echo "[6/13] Applying debloat list..."
+echo "[6/14] Applying debloat list..."
 DEBLOAT_PACKAGES=(
     "packages/apps/GoogleContactsSyncAdapter"
     "packages/apps/GoogleCalendarSyncAdapter"
@@ -139,7 +139,7 @@ done
 echo "  -> Debloat complete."
 
 # ── 7. Boot animation ──
-echo "[7/13] Installing boot animation..."
+echo "[7/14] Installing boot animation..."
 BOOTANIM_ZIP="$SCRIPT_DIR/bootanimation/bootanimation.zip"
 if [ -f "$BOOTANIM_ZIP" ]; then
     MEDIA_TARGET="system/media"
@@ -168,7 +168,7 @@ fi
 
 # ── 8. Void Launcher ──
 if [ -f "$OVERLAY_DIR/launcher.conf" ]; then
-    echo "[8/13] Installing Void launcher overlay..."
+    echo "[8/14] Installing Void launcher overlay..."
     mkdir -p "system/extras/lethe"
     cp "$OVERLAY_DIR/launcher.conf" "system/extras/lethe/"
 
@@ -204,7 +204,7 @@ fi
 
 # ── 9. Tor transparent proxy ──
 if [ -f "$OVERLAY_DIR/tor.conf" ]; then
-    echo "[9/13] Installing Tor transparent proxy..."
+    echo "[9/14] Installing Tor transparent proxy..."
     mkdir -p "system/extras/lethe"
     mkdir -p "system/etc/tor"
     cp "$OVERLAY_DIR/tor.conf" "system/etc/tor/torrc"
@@ -237,7 +237,7 @@ fi
 
 # ── 10. IPFS OTA update service ──
 if [ -f "$OVERLAY_DIR/ipfs-ota.conf" ]; then
-    echo "[10/13] Installing IPFS OTA update service..."
+    echo "[10/14] Installing IPFS OTA update service..."
     mkdir -p "system/extras/lethe"
     cp "$OVERLAY_DIR/ipfs-ota.conf" "system/extras/lethe/"
 
@@ -287,7 +287,7 @@ if [ -f "$OVERLAY_DIR/ipfs-ota.conf" ]; then
 fi
 
 # ── 11. LETHE agent (native AI layer) ──
-echo "[11/13] Installing LETHE agent as native system component..."
+echo "[11/14] Installing LETHE agent as native system component..."
 
     # ── 11a. Backend server (Rust binary, runs as system service) ──
     AGENT_TARGET="system/extras/lethe/agent"
@@ -494,7 +494,7 @@ MANIFEST
     echo "  -> LETHE agent installed as native system component."
 
 # ── 12. Build fingerprint ──
-echo "[12/13] Setting Lethe build fingerprint..."
+echo "[12/14] Setting Lethe build fingerprint..."
 # Detect per-device base version from manifest (default: 21.0)
 MANIFEST="$SCRIPT_DIR/manifest.yaml"
 BASE_VERSION="21.0"
@@ -514,7 +514,33 @@ export LETHE_BUILD_DESC="$BUILD_DESC"
 echo "  -> Build: $BUILD_DESC"
 
 # ── 13. Summary ──
-echo "[13/13] Overlay summary..."
+# ── 13. libp2p peer inference sidecar (optional) ──
+echo "[13/14] Installing libp2p peer inference sidecar..."
+mkdir -p "system/extras/lethe"
+cp "$OVERLAY_DIR/p2p.conf" "system/extras/lethe/"
+
+INIT_DIR="system/core/rootdir"
+if [ -d "$INIT_DIR" ]; then
+    cp "$INITRC_DIR/init.lethe-p2p.rc" "$INIT_DIR/"
+    echo "  -> P2P init service installed."
+else
+    echo "  -> WARNING: init dir not found, skipping P2P init service."
+fi
+
+# Install prebuilt lethe-p2p binary
+P2P_BINARY="$SCRIPT_DIR/prebuilt/p2p/$PREBUILT_ARCH/lethe-p2p"
+if [ -f "$P2P_BINARY" ]; then
+    mkdir -p "system/extras/lethe/bin"
+    cp "$P2P_BINARY" "system/extras/lethe/bin/lethe-p2p"
+    chmod 755 "system/extras/lethe/bin/lethe-p2p"
+    echo "  -> lethe-p2p binary installed ($PREBUILT_ARCH)."
+else
+    echo "  -> NOTE: lethe-p2p binary not found at $P2P_BINARY"
+    echo "     Build with: cd lethe/p2p && bash build.sh"
+    echo "     Peer inference will be unavailable."
+fi
+
+echo "[14/14] Overlay summary..."
 echo "  Overlays installed:"
 for f in "$OVERLAY_DIR"/*; do
     [ -f "$f" ] && echo "    - $(basename "$f")"

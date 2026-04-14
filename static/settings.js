@@ -37,6 +37,58 @@ function settingsLoad() {
   if (!container) return;
   container.innerHTML = '';
 
+  /* ── Peer Network toggle ── */
+  var peerSection = document.createElement('div');
+  peerSection.className = 'settings-provider';
+  var p2pEnabled = letheConfig && letheConfig.p2p_enabled;
+  var peerStatusDot = p2pEnabled ?
+    '<span class="status-dot status-on"></span>' :
+    '<span class="status-dot status-off"></span>';
+  peerSection.innerHTML =
+    '<div class="settings-prov-header">' + peerStatusDot +
+    '<strong>Peer Network</strong></div>' +
+    '<div class="settings-prov-desc">' +
+    'Share inference with nearby LETHE devices over LAN. ' +
+    'No data leaves the local network. Only the current prompt is sent — ' +
+    'no conversation history or memory is shared.</div>' +
+    '<label class="settings-toggle">' +
+    '<input type="checkbox" id="p2p-toggle"' + (p2pEnabled ? ' checked' : '') + '/>' +
+    ' Enable peer inference (mDNS discovery)</label>' +
+    '<div id="peer-status" class="settings-prov-desc" style="margin-top:0.3rem"></div>';
+  container.appendChild(peerSection);
+
+  /* Check peer sidecar health if enabled */
+  if (p2pEnabled) {
+    fetch('http://127.0.0.1:8080/v1/peers/health')
+      .then(function(r) { return r.json(); })
+      .then(function(d) {
+        var el = document.getElementById('peer-status');
+        if (el && d.status === 'ok') {
+          el.textContent = 'Sidecar running. ' + (d.peer_count || 0) + ' peer(s) discovered.';
+          el.style.color = 'var(--accent)';
+        }
+      })
+      .catch(function() {
+        var el = document.getElementById('peer-status');
+        if (el) { el.textContent = 'Sidecar not running.'; el.style.color = '#888'; }
+      });
+  }
+
+  var p2pToggle = document.getElementById('p2p-toggle');
+  if (p2pToggle) {
+    p2pToggle.addEventListener('change', function() {
+      if (letheConfig) {
+        letheConfig.p2p_enabled = p2pToggle.checked;
+        persistConfig();
+        /* Set Android system property to start/stop the sidecar */
+        if (typeof NativeLauncher !== 'undefined' && NativeLauncher.setSystemProp) {
+          NativeLauncher.setSystemProp('persist.lethe.p2p.enabled',
+            p2pToggle.checked ? 'true' : 'false');
+        }
+      }
+    });
+  }
+
   var providerDefs = [
     { name: 'local', label: 'Local (on-device)',
       desc: 'Runs on this phone. Fully offline. No data leaves the device.',

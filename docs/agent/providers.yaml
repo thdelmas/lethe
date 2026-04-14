@@ -130,6 +130,19 @@ providers:
         tasks: ["vision"]
         notes: "MoE VLM with UI localization (ScreenSpot F1: 80.4). Agent can understand and interact with app screens. Deeproot tier."
 
+  peer:
+    type: "peer"
+    engine: "libp2p"
+    endpoint: "http://127.0.0.1:8080"
+    requires_internet: false
+    requires_api_key: false
+    notes: >
+      Peer inference via libp2p. Discovers other LETHE devices on the
+      local network via mDNS, queries their available models, and
+      forwards inference requests over libp2p streams. No conversation
+      context is shared — only the current prompt and completion.
+      Opt-in only (persist.lethe.p2p.enabled).
+
   anthropic:
     type: "cloud"
     api_format: "anthropic"
@@ -196,13 +209,13 @@ providers:
 tasks:
   chat:
     desc: "General conversation"
-    priority: ["local", "cloud"]
+    priority: ["local", "peer", "cloud"]
     fallback_message: >
       I can hear you, but my thinking is limited to what runs
       on this device right now.
   code:
     desc: "Code generation, debugging, refactoring"
-    priority: ["cloud", "local"]
+    priority: ["peer", "cloud", "local"]
     required_models: ["claude-opus-4-6", "claude-sonnet-4-6", "qwen3-3b"]
     fallback_message: >
       Code tasks need a more capable model. Add an Anthropic

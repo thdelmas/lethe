@@ -41,8 +41,10 @@ function defaultConfig() {
   return {
     version: 1,
     active_provider: null,
+    p2p_enabled: false,
     providers: {
       local: { endpoint: 'http://127.0.0.1:8080', key: null, model: null },
+      peer: { endpoint: 'http://127.0.0.1:8080', key: null, model: null },
       anthropic: { endpoint: 'https://api.anthropic.com',
         key: null, model: 'claude-sonnet-4-6' },
       openrouter: { endpoint: 'https://openrouter.ai/api/v1',
@@ -62,6 +64,9 @@ function rebuildProviders() {
     { name: 'local', endpoint: cfg.local.endpoint || 'http://127.0.0.1:8080',
       format: 'openai', needsKey: false,
       key: cfg.local.key, model: cfg.local.model },
+    { name: 'peer', endpoint: cfg.peer.endpoint || 'http://127.0.0.1:8080',
+      format: 'openai', needsKey: false, isPeer: true,
+      key: cfg.peer.key, model: cfg.peer.model },
     { name: 'anthropic', endpoint: cfg.anthropic.endpoint || 'https://api.anthropic.com',
       format: 'anthropic', needsKey: true,
       key: cfg.anthropic.key, model: cfg.anthropic.model || 'claude-sonnet-4-6' },
@@ -81,8 +86,8 @@ function getProvider() {
     var p = resolveProvider(letheConfig.active_provider);
     if (p) return p;
   }
-  /* Auto: local first if online, then cloud in order */
-  var order = ['local', 'anthropic', 'openrouter', 'custom'];
+  /* Auto: local first, then peer network, then cloud in order */
+  var order = ['local', 'peer', 'anthropic', 'openrouter', 'custom'];
   for (var i = 0; i < order.length; i++) {
     var r = resolveProvider(order[i]);
     if (r) return r;
@@ -95,6 +100,7 @@ function resolveProvider(name) {
     if (providers[i].name !== name) continue;
     var p = providers[i];
     if (p.name === 'local' && !agentAvailable) return null;
+    if (p.name === 'peer' && (!letheConfig || !letheConfig.p2p_enabled)) return null;
     if (p.needsKey && !p.key) return null;
     if (!p.endpoint) return null;
     return p;
