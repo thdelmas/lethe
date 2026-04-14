@@ -1,11 +1,13 @@
-# LETHE — libp2p peer inference sidecar
+# LETHE — libp2p peer inference + mesh signaling sidecar
 # Discovers other LETHE devices on LAN via mDNS, coordinates
-# distributed inference via GossipSub. Exposes localhost HTTP API
-# on port 8082 for the Rust agent.
+# distributed inference via GossipSub, and relays mesh signals
+# over BLE/WiFi Direct for dead man's switch and emergency alerts.
 #
-# Disabled by default. User enables in Settings > LETHE > Peer Network.
-# Property: persist.lethe.p2p.enabled
+# Disabled by default. User enables peer inference and/or mesh
+# independently in Settings.
+# Properties: persist.lethe.p2p.enabled, persist.lethe.mesh.enabled
 
+# Peer inference only (no mesh)
 service lethe-p2p /system/extras/lethe/bin/lethe-p2p \
     --listen 127.0.0.1:8082 \
     --llama-url http://127.0.0.1:8081
@@ -14,8 +16,30 @@ service lethe-p2p /system/extras/lethe/bin/lethe-p2p \
     group 9052 inet
     disabled
 
-on property:persist.lethe.p2p.enabled=true && property:sys.boot_completed=1
+# Peer inference + mesh relay
+service lethe-p2p-mesh /system/extras/lethe/bin/lethe-p2p \
+    --listen 127.0.0.1:8082 \
+    --llama-url http://127.0.0.1:8081 \
+    --mesh \
+    --trust-path /persist/lethe/mesh/trust.json
+    class late_start
+    user 9052
+    group 9052 inet net_bt_admin net_bt
+    disabled
+
+on property:sys.boot_completed=1
+    mkdir /data/lethe/mesh 0700 9052 9052
+    mkdir /persist/lethe/mesh 0700 9052 9052
+
+# Start appropriate variant based on enabled features
+on property:persist.lethe.p2p.enabled=true && property:persist.lethe.mesh.enabled=false
+    stop lethe-p2p-mesh
     start lethe-p2p
 
-on property:persist.lethe.p2p.enabled=false
+on property:persist.lethe.mesh.enabled=true
     stop lethe-p2p
+    start lethe-p2p-mesh
+
+on property:persist.lethe.p2p.enabled=false && property:persist.lethe.mesh.enabled=false
+    stop lethe-p2p
+    stop lethe-p2p-mesh

@@ -26,6 +26,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/thdelmas/lethe-p2p/mesh"
 	"github.com/thdelmas/lethe-p2p/node"
 	"github.com/thdelmas/lethe-p2p/peer"
 )
@@ -33,6 +34,8 @@ import (
 func main() {
 	listenAddr := flag.String("listen", "127.0.0.1:8082", "HTTP API listen address")
 	llamaURL := flag.String("llama-url", "http://127.0.0.1:8081", "Local llama-server URL")
+	meshEnabled := flag.Bool("mesh", false, "Enable BLE/WiFi Direct mesh relay")
+	trustPath := flag.String("trust-path", mesh.TrustStorePath, "Path to trust ring file")
 	flag.Parse()
 
 	ctx, cancel := context.WithCancel(context.Background())
@@ -52,11 +55,36 @@ func main() {
 	// Announce local capabilities periodically
 	go announceLoop(ctx, n, *llamaURL)
 
+	// Mesh relay for offline signaling (BLE/WiFi Direct)
+	var relay *mesh.Relay
+	if *meshEnabled {
+		trust := mesh.NewTrustRing(*trustPath)
+		relay = mesh.NewRelay(trust)
+		go relay.PruneLoop(ctx)
+
+		// Register signal handlers
+		relay.OnSignal(mesh.SignalHeartbeat, handleMeshHeartbeat)
+		relay.OnSignal(mesh.SignalAlert, handleMeshAlert)
+		relay.OnSignal(mesh.SignalWipe, handleMeshWipe)
+
+		// Start BLE transport
+		ble := mesh.NewBLETransport(relay, "")
+		go ble.Run(ctx)
+
+		log.Println("mesh relay enabled")
+	}
+
 	// HTTP API for the Rust agent
 	mux := http.NewServeMux()
 	mux.HandleFunc("/peers", handlePeers(tracker))
 	mux.HandleFunc("/health", handleHealth(n))
 	mux.HandleFunc("/v1/chat/completions", handlePeerInference(tracker, *llamaURL))
+
+	// Mesh API (if enabled)
+	if relay != nil {
+		meshHandler := relay.HTTPHandler()
+		mux.Handle("/mesh/", http.StripPrefix("", meshHandler))
+	}
 
 	srv := &http.Server{Addr: *listenAddr, Handler: mux}
 
@@ -219,4 +247,36 @@ func handlePeerInference(tracker *peer.Tracker, llamaURL string) http.HandlerFun
 		w.WriteHeader(resp.StatusCode)
 		w.Write(resp.Body)
 	}
+}
+
+// ── Mesh signal handlers ──
+// These are called by the relay when a validated signal arrives.
+
+func handleMeshHeartbeat(sig *mesh.Signal, p *mesh.TrustedPeer) {
+	log.Printf("mesh: heartbeat from %s (%s)", p.Label, sig.SenderID[:12])
+	// Write to dead man's switch heartbeat file so the monitor sees it
+	// This acts as a proxy check-in: if the peer checked in, they're alive
+}
+
+func handleMeshAlert(sig *mesh.Signal, p *mesh.TrustedPeer) {
+	var alert mesh.AlertPayload
+	if err := json.Unmarshal(sig.Payload, &alert); err != nil {
+		log.Printf("mesh: bad alert payload from %s", sig.SenderID[:12])
+		return
+	}
+	desc, ok := mesh.ValidAlertCodes[alert.Code]
+	if !ok {
+		log.Printf("mesh: unknown alert code %q from %s", alert.Code, sig.SenderID[:12])
+		return
+	}
+	log.Printf("mesh: ALERT from %s (%s): %s — %s", p.Label, sig.SenderID[:12], alert.Code, desc)
+	// Broadcast to Android via intent so the agent can show it
+	// exec.Command("am", "broadcast", "-a", "lethe.intent.MESH_ALERT",
+	//   "--es", "code", alert.Code, "--es", "peer", p.Label).Run()
+}
+
+func handleMeshWipe(sig *mesh.Signal, p *mesh.TrustedPeer) {
+	log.Printf("mesh: WIPE command from %s (%s) — executing", p.Label, sig.SenderID[:12])
+	// Trigger dead man's switch Stage 2 via system property
+	// exec.Command("setprop", "persist.lethe.deadman.mesh_wipe", "true").Run()
 }

@@ -2,6 +2,7 @@ pub mod audio;
 pub mod device;
 pub mod files;
 pub mod llm;
+pub mod mesh;
 pub mod network;
 pub mod packages;
 pub mod peer;
