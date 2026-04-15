@@ -49,7 +49,7 @@ function send() {
   /* Stability: reset chain depth on user input */
   chainDepth = 0;
 
-  var p = getProvider();
+  var p = getProviderForTask('chat');
   if (!p) {
     addMessage(text, 'user');
     addMessage('No thinking core. Connect a provider in Settings.', 'lethe');
@@ -67,8 +67,15 @@ function send() {
   chatHistory[0] = { role: 'system', content: buildSystemPrompt() };
 
   chainDepth++;
-  chatRequest(p, chatHistory)
-    .then(function(result) {
+  chatRequestForTask('chat', chatHistory, function(attemptP) {
+    p = attemptP;
+    lastProvider = p.name;
+    lastModel = p.model || '';
+    showStatus(p.name);
+  })
+    .then(function(outcome) {
+      var result = outcome.result;
+      p = outcome.provider;
       hideTyping();
 
       /* Tool-call handling: execute tools, send results back to LLM */
@@ -139,10 +146,19 @@ function send() {
     .catch(function(err) {
       hideTyping(); setState('alert');
       chainDepth = 0;
-      console.log('LETHE chat error: ' + (err ? err.message || err : 'unknown'));
-      addMessage(p.name === 'local'
-        ? 'My local core is not running.'
-        : 'Lost contact with ' + p.name + '. (' + (err ? err.message || '' : '') + ')', 'lethe');
+      var tried = (err && err.errors) ? err.errors.length : 1;
+      console.log('LETHE chat error after ' + tried +
+        ' provider(s): ' + (err ? err.message || err : 'unknown'));
+      var msg;
+      if (tried > 1) {
+        msg = 'All providers failed. Check keys and connection.';
+      } else if (p.name === 'local') {
+        msg = 'My local core is not running.';
+      } else {
+        msg = 'Lost contact with ' + p.name +
+          '. (' + (err ? err.message || '' : '') + ')';
+      }
+      addMessage(msg, 'lethe');
       setTimeout(function() { setState('idle'); }, 3000);
     });
 }

@@ -11,6 +11,7 @@ mod routes;
 
 use axum::Router;
 use routes::llm::LlmState;
+use routes::router::RouterState;
 use routes::state::AgentState;
 use std::net::SocketAddr;
 use std::sync::Arc;
@@ -25,6 +26,7 @@ async fn main() {
 
     let llm = Arc::new(LlmState::new());
     let agent = Arc::new(AgentState::new());
+    let router_state = RouterState::load_or_empty();
 
     let app = Router::new()
         // Stateless routes
@@ -41,6 +43,8 @@ async fn main() {
         .merge(routes::mesh::router())
         // Stateful routes (LLM proxy needs process handle)
         .merge(routes::llm::router().with_state(llm))
+        // Task-based router (resolves task → ordered provider candidates)
+        .merge(routes::router::router().with_state(router_state))
         // Stateful routes (SSE needs broadcast channel)
         .merge(routes::state::router().with_state(agent))
         .layer(cors);

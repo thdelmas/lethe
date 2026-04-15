@@ -8,6 +8,7 @@ pub mod mesh;
 pub mod network;
 pub mod packages;
 pub mod peer;
+pub mod router;
 pub mod shell;
 pub mod state;
 pub mod sysinfo;

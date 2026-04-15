@@ -35,6 +35,8 @@ function persistConfig() {
     localStorage.setItem('lethe_config', json);
   }
   rebuildProviders();
+  /* Key set may have changed — refresh the router plan. */
+  if (typeof refreshRouterPlan === 'function') refreshRouterPlan('chat');
 }
 
 function defaultConfig() {
@@ -148,5 +150,102 @@ function parseApiError(provider, err) {
   return r;
 }
 
+/* ── Task-based router ──────────────────────────────────────────────
+ * Authoritative router lives in the Rust agent (POST /v1/route/plan).
+ * We cache the plan per task so selection stays synchronous. Cache
+ * refreshes whenever provider config changes (see settings save path).
+ * If the agent is unreachable we silently fall back to getProvider(). */
+var routerPlanCache = {};
+
+function configuredCloudProviders() {
+  var out = [];
+  if (!letheConfig) return out;
+  var cp = letheConfig.providers;
+  if (cp.anthropic && cp.anthropic.key) out.push('anthropic');
+  if (cp.openrouter && cp.openrouter.key) out.push('openrouter');
+  return out;
+}
+
+function refreshRouterPlan(task, cb) {
+  task = task || 'chat';
+  var body = { task: task, configured_cloud: configuredCloudProviders() };
+  fetch('http://127.0.0.1:8080/v1/route/plan', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body)
+  }).then(function(r) { return r.ok ? r.json() : null; })
+    .then(function(d) {
+      if (d && d.candidates) routerPlanCache[task] = d;
+      if (cb) cb();
+    }).catch(function() { if (cb) cb(); });
+}
+
+/* Full ordered candidate list for a task. Each candidate is a
+ * frontend provider object (with model overridden from the plan).
+ * Falls back to [getProvider()] if the plan cache is empty. */
+function candidatesForTask(task) {
+  var plan = routerPlanCache[task || 'chat'];
+  var out = [];
+  if (plan && plan.candidates) {
+    var seen = {};
+    for (var i = 0; i < plan.candidates.length; i++) {
+      var c = plan.candidates[i];
+      if (seen[c.provider]) continue;
+      var r = resolveProvider(c.provider);
+      if (!r) continue;
+      seen[c.provider] = true;
+      var copy = {};
+      for (var k in r) if (r.hasOwnProperty(k)) copy[k] = r[k];
+      if (c.model) copy.model = c.model;
+      out.push(copy);
+    }
+  }
+  if (!out.length) {
+    var fallback = getProvider();
+    if (fallback) out.push(fallback);
+  }
+  return out;
+}
+
+/* Synchronous first-choice pick — the head of candidatesForTask(). */
+function getProviderForTask(task) {
+  var cands = candidatesForTask(task);
+  return cands.length ? cands[0] : null;
+}
+
+/* Walk the candidate list, calling chatRequest() on each in order.
+ * First success wins. On every attempt, onAttempt(p) is invoked so the
+ * caller can update UI (status line, lastProvider). Resolves with
+ * { result, provider } — the successful provider so tool-call
+ * follow-ups stay with the same upstream. */
+function chatRequestForTask(task, msgs, onAttempt) {
+  var cands = candidatesForTask(task);
+  if (!cands.length) return Promise.reject(new Error('no_provider'));
+  var errors = [];
+  function attempt(i) {
+    if (i >= cands.length) {
+      var e = new Error('all_failed');
+      e.errors = errors;
+      return Promise.reject(e);
+    }
+    var p = cands[i];
+    if (onAttempt) onAttempt(p);
+    return chatRequest(p, msgs).then(
+      function(result) { return { result: result, provider: p }; },
+      function(err) {
+        errors.push({ provider: p.name, message: err && err.message });
+        console.log('LETHE fallthrough: ' + p.name +
+          ' failed (' + (err && err.message) + '), trying next');
+        return attempt(i + 1);
+      }
+    );
+  }
+  return attempt(0);
+}
+
 /* Load on startup */
 reloadConfig();
+/* Prime the chat plan after config loads. Agent may not be up yet —
+ * refreshRouterPlan silently no-ops on failure, and the cache will
+ * remain empty (getProviderForTask falls back to getProvider). */
+setTimeout(function() { refreshRouterPlan('chat'); }, 250);

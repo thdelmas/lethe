@@ -470,10 +470,15 @@ first_boot_setup:
         Your conversations leave this device. See PRIVACY.md for details.
       options:
         - label: "Local only"
-          desc: "Private. No data leaves this device. Basic chat."
+          desc: >
+            Private. A small model (~450 MB) downloads after setup from
+            Settings > Models. No data leaves this device.
           action: "skip_provider_setup"
           icon: "shield"
           data_flow: "local"
+          post_select_notice: >
+            Open Settings > Models after setup to download Qwen 3 (0.6B).
+            Until then, I can greet you but not think for you.
         - label: "Anthropic"
           desc: "Claude models. Powerful reasoning and code."
           action: "input_api_key"
