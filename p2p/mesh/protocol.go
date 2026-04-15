@@ -3,6 +3,27 @@
 // Only structured signals cross the mesh — never conversation content.
 // Signals are signed with the device's Ed25519 key and encrypted to
 // the recipient's public key. Unknown signals are silently dropped.
+//
+// Why no conversation content (this rule is load-bearing, do not relax):
+//
+//  1. Relays are untrusted. Signals hop through strangers in range;
+//     that only works because the schema is closed and the payloads
+//     are small. Routing conversation through strangers leaks metadata
+//     even when the content is encrypted.
+//  2. Traffic analysis. Uniform signal size + fixed cadence + five
+//     signal types = noise to a passive observer. Conversation has
+//     length distributions and dialogue rhythm that de-anonymize.
+//  3. Regulatory classification. A "device management signal" mesh is
+//     not a communication service. A conversation-carrying mesh likely
+//     is — triggering lawful intercept, data retention, and telecom
+//     licensing. LETHE points users at Briar/Molly for messaging.
+//  4. Forensic hygiene for relays. A 512-byte signed heartbeat on a
+//     stranger's phone is nothing; a relayed conversation fragment is
+//     evidence. The size + schema rules protect relayers too.
+//  5. Protocol discipline. "Unknown signals silently dropped" is only
+//     enforceable because SignalType is a closed set. Arbitrary
+//     payloads collapse that invariant and turn every future addition
+//     into a security review.
 package mesh
 
 import (
