@@ -220,7 +220,8 @@ features:
       config_partition: "persist"   # Settings stored on /persist, not wiped with /data
       first_boot_prompt: true       # On first boot, explain burner mode and how to disable it
     triggers:
-      panic_button: true            # Long-press power 5× to trigger instant wipe
+      panic_button: true            # Long-press power 5× — triggers 5s cancel window before wipe
+      panic_button_cooloff_s: 5     # Cancel window on lockscreen. Prevents pocket-dial wipes.
       scheduled_wipe: false         # Optional: auto-wipe after N days
       sim_change: false             # Optional: wipe if SIM card is swapped
       usb_signal: true              # OSmosis can trigger wipe via USB command
@@ -281,8 +282,24 @@ features:
             This is separate from your lock PIN. You'll enter it once
             a day (or however often you chose) to prove you're still
             in control. Pick something you'll remember under stress.
+          warning: >
+            If you forget this, your data is gone. Three wrong attempts
+            lock the device immediately. Pick something you'll remember
+            at 3am or under duress.
           input: passphrase
           confirm: true             # User types it twice
+
+        - screen: passphrase_hint
+          title: "Store a hint somewhere safe"
+          body: >
+            Not the passphrase — a hint only you would understand.
+            Write it on paper, store it in a password manager, give
+            it to a lawyer. If stress erases the passphrase from
+            your mind, a hint may recover it. Skip this if you're
+            confident.
+          input: hint
+          optional: true
+          not_stored_on_device: true    # Hint prompt is display-only — LETHE never keeps it
 
         - screen: duress_pin
           title: "Set a duress PIN (optional)"
@@ -290,6 +307,13 @@ features:
             A duress PIN looks like it unlocks your phone normally.
             Behind the scenes, it starts wiping everything. The person
             watching sees a home screen. Your data is already gone.
+          legal_notice: >
+            In some jurisdictions, intentionally destroying data you
+            are required to preserve (for ongoing litigation, as a
+            regulated-data custodian, or under a court order) is a
+            crime. Consult a lawyer in your jurisdiction before
+            enabling this feature if there is any chance of such
+            obligations applying to you.
           input: pin
           optional: true
 

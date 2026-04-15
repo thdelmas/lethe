@@ -149,6 +149,54 @@ PreuJust does not provide personalized investment advice, access bank accounts, 
 financial decisions on your behalf. Do not use PreuJust as a substitute for professional
 financial advice.
 
+## When NOT to enable Dead Man's Switch or Duress PIN
+
+These features destroy your data when they fire. That is the point — and
+it is also the main way they can hurt you. Before enabling either, think
+honestly about whether your situation matches what they are designed for.
+
+**Dead Man's Switch is not right for you if:**
+
+- You travel to regions with unreliable cellular or Wi-Fi coverage. A weekend
+  off-grid can expire the grace period and wipe everything.
+- You may be hospitalized, institutionalized, or otherwise unable to reach
+  the device for days. Missed check-ins during medical emergencies destroy
+  the records your family may need.
+- You might forget the passphrase under stress or over time. Three wrong
+  attempts lock the device immediately; the safety nets are thin by design.
+- You rely on the device to hold data you are legally required to preserve —
+  medical records you are the custodian of, financial records under SOX or
+  equivalent, records under a litigation hold, or regulated personal data
+  under GDPR.
+- The people you would list as "trusted contacts" for future alert channels
+  are not reliably available, or might misinterpret an alert and escalate
+  in ways you did not intend (welfare check, police dispatch to your
+  location).
+
+**Duress PIN is not right for you if:**
+
+- You may be involved in civil litigation, criminal proceedings, or
+  regulatory enforcement. In many jurisdictions, intentional destruction of
+  data you are legally required to preserve is a crime (US 18 USC §1519
+  obstruction, UK Criminal Justice Act, and equivalents), even when the
+  data is your own.
+- You do not have a clear understanding of the specific threat you are
+  defending against. Duress PIN is a targeted tool, not a general hardening
+  measure; enabling it "just in case" adds legal exposure without
+  proportional benefit.
+- You share the device with anyone who does not know the feature exists.
+  A family member or roommate entering the duress PIN by accident will
+  wipe your data with no warning.
+
+**If you are unsure**, leave both features disabled. Burner mode, Tor
+routing, hardened messenger choices, and the rest of LETHE's defaults
+already provide a strong privacy posture without any destructive trigger.
+You can enable DMS or Duress PIN later in Settings once your situation is
+clearer.
+
+**Consult a lawyer** in your jurisdiction if there is any chance legal
+preservation obligations may apply to you.
+
 ## Children
 
 LETHE is not designed for or directed at children under 13. The AI agent does not
