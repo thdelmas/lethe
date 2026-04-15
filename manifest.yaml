@@ -510,10 +510,30 @@ features:
         package: "at.bitfire.davdroid"
         desc: "CalDAV/CardDAV sync — replaces Google contacts/calendar sync"
     recommended:
-      - id: signal
-        name: "Signal"
-        package: "org.thoughtcrime.securesms"
-        desc: "Encrypted messaging"
+      - id: molly-foss
+        name: "Molly-FOSS"
+        package: "im.molly.foss"
+        desc: "Hardened Signal fork — encrypted DB at rest, Tor routing, no Google Play Services"
+        notes: >
+          Uses the Signal network (keeps the network effect: your existing
+          contacts are reachable) but hardens the client for LETHE's threat
+          model. Encrypted database with RAM-wipe on lock, Tor routing out
+          of the box, reproducible builds. Molly-FOSS variant removes
+          Google Firebase — polls via WebSocket instead. Trades some battery
+          life for the privacy posture. Still requires a phone number (Signal
+          network constraint); pair with Briar for anonymous / mesh contacts.
+      - id: briar
+        name: "Briar"
+        package: "org.briarproject.briar.android"
+        desc: "BLE + WiFi + Tor mesh messenger — no phone number, no servers, works offline"
+        notes: >
+          Architectural fit with LETHE's BLE mesh (same radio infrastructure
+          already used for dead man's switch relay). No phone number or
+          email required; contacts added via QR code or Bluetooth proximity.
+          P2P — no servers to seize. Async delivery requires a mutual
+          online contact to relay. No disappearing messages. Battery-heavy
+          on old hardware. Positioned as the anonymous / dissident / offline
+          option; pair with Molly for existing-contact reach.
       - id: newpipe
         name: "NewPipe"
         package: "org.schabi.newpipe"

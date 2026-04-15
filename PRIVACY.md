@@ -94,6 +94,23 @@ Review each provider's privacy policy before configuring their service.
 - The Tor circuit is isolated per app to prevent cross-app correlation
 - No traffic bypasses the Tor firewall rules
 
+## Messaging
+
+LETHE recommends two messengers, positioned by threat model:
+
+- **Molly-FOSS** — hardened Signal fork using the Signal network.
+  Encrypted database at rest, Tor routing, no Google Play Services.
+  Use for existing contacts who are already on Signal. Requires a
+  phone number (Signal network constraint).
+- **Briar** — BLE + WiFi direct + Tor mesh messenger. No phone number,
+  no email, no servers. Shares BLE transport with LETHE's dead man's
+  switch mesh. Use for anonymous, offline, or dissident scenarios.
+
+Stock Signal is not recommended. Its phone-number registration
+requirement conflicts with LETHE's identity-rotation and burner-device
+posture. Users who still want it can install it via Aurora Store;
+LETHE does not pre-install or actively recommend it.
+
 ## User rights
 
 You have full control over your data:
