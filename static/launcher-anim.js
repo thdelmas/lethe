@@ -125,8 +125,11 @@ function startCrossfade() {
         crossfadeAlpha = 0;
         crossfadeStart = Date.now();
         // After this crossfade, letheAnimPlaying = false
+        // Guard: timeout after 5s to prevent leak if crossfade is interrupted
+        var checkCount = 0;
         var checkDone = setInterval(function() {
-          if (!crossfading) {
+          checkCount++;
+          if (!crossfading || checkCount > 100) {
             clearInterval(checkDone);
             letheAnimPlaying = false;
           }

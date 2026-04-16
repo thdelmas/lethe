@@ -121,6 +121,30 @@ function agentGet(path) {
     .catch(function(e) { return 'Backend unreachable: ' + e.message; });
 }
 
+/* Confirmation dialog for irreversible actions (calls, SMS).
+ * Reuses the consent dialog style from settings.css. */
+function confirmAction(description, callback) {
+  var overlay = document.createElement('div');
+  overlay.className = 'consent-overlay';
+  overlay.innerHTML =
+    '<div class="consent-dialog">' +
+    '<div class="consent-title">Confirm action</div>' +
+    '<div class="consent-body"></div>' +
+    '<div class="consent-actions">' +
+    '<button class="dev-btn consent-cancel">Cancel</button>' +
+    '<button class="dev-btn consent-accept">Confirm</button>' +
+    '</div></div>';
+  /* Set description via textContent to prevent injection */
+  overlay.querySelector('.consent-body').textContent = description;
+  document.body.appendChild(overlay);
+  overlay.querySelector('.consent-cancel').addEventListener('click', function() {
+    overlay.remove(); callback(false);
+  });
+  overlay.querySelector('.consent-accept').addEventListener('click', function() {
+    overlay.remove(); callback(true);
+  });
+}
+
 /* executeTool — always returns a Promise<string> */
 function executeTool(name, input) {
   var nl = (typeof NativeLauncher !== 'undefined') ? NativeLauncher : null;
@@ -143,19 +167,36 @@ function executeTool(name, input) {
     case 'set_alarm':
     case 'toggle_flashlight':
     case 'open_app':
-    case 'make_call':
-    case 'send_sms':
     case 'add_contact':
       if (nl && nl.executeAction) {
         nl.executeAction(name, JSON.stringify(input || {}));
-        var labels = {
-          make_call: 'Calling ' + ((input && input.number) || '') + '.',
-          send_sms: 'SMS sent to ' + ((input && input.number) || '') + '.',
-          add_contact: 'Opening contact form for ' + ((input && input.name) || '') + '.'
-        };
-        return Promise.resolve(labels[name] || name.replace(/_/g, ' ') + ' done.');
+        return Promise.resolve('Opening contact form for ' + ((input && input.name) || '') + '.');
       }
       return Promise.resolve('This action requires a newer system build.');
+
+    /* Calls and SMS require explicit user confirmation —
+       an LLM hallucinating a number must never make a real call. */
+    case 'make_call':
+    case 'send_sms':
+      if (!nl || !nl.executeAction) {
+        return Promise.resolve('This action requires a newer system build.');
+      }
+      return new Promise(function(resolve) {
+        var desc = name === 'make_call'
+          ? 'Call ' + ((input && input.number) || 'unknown')
+          : 'Send SMS to ' + ((input && input.number) || 'unknown') +
+            ': "' + ((input && input.message) || '').substring(0, 80) + '"';
+        confirmAction(desc, function(approved) {
+          if (approved) {
+            nl.executeAction(name, JSON.stringify(input || {}));
+            resolve(name === 'make_call'
+              ? 'Calling ' + ((input && input.number) || '') + '.'
+              : 'SMS sent to ' + ((input && input.number) || '') + '.');
+          } else {
+            resolve('User declined. Action cancelled.');
+          }
+        });
+      });
     case 'read_sms':
       if (nl && nl.readSms) {
         return Promise.resolve(nl.readSms(JSON.stringify(input || {})));

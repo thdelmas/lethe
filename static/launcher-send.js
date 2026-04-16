@@ -300,11 +300,17 @@ function onSpeechError() {
   btnMic.classList.remove('recording'); setState('idle');
 }
 
-/* ═══════════ SSE ═══════════ */
+/* ═══════════ SSE (with reconnect) ═══════════ */
 var _letheSSE = null;
-if (location.protocol !== 'file:') {
+var _sseRetryDelay = 2000;
+var _sseMaxDelay = 60000;
+var _sseClosing = false;
+
+function connectSSE() {
+  if (_sseClosing || location.protocol === 'file:') return;
   try {
     _letheSSE = new EventSource('/api/agent/state');
+    _letheSSE.onopen = function() { _sseRetryDelay = 2000; };
     _letheSSE.onmessage = function(e) {
       try {
         var d = JSON.parse(e.data);
@@ -312,10 +318,19 @@ if (location.protocol !== 'file:') {
         if (d.status) showStatus(d.status);
       } catch(_) {}
     };
-    _letheSSE.onerror = function() { _letheSSE.close(); _letheSSE = null; };
+    _letheSSE.onerror = function() {
+      _letheSSE.close();
+      _letheSSE = null;
+      /* Exponential backoff reconnect (cap at 60s) */
+      setTimeout(connectSSE, _sseRetryDelay);
+      _sseRetryDelay = Math.min(_sseRetryDelay * 2, _sseMaxDelay);
+    };
   } catch(_) {}
 }
+connectSSE();
+
 /* Clean up SSE on page unload to prevent orphaned connections */
 window.addEventListener('beforeunload', function() {
+  _sseClosing = true;
   if (_letheSSE) { _letheSSE.close(); _letheSSE = null; }
 });
