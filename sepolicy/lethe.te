@@ -1,0 +1,49 @@
+# LETHE — SELinux policy
+#
+# Two-domain architecture:
+#   1. Burner-wipe and dead man's switch run in INIT context (seclabel u:r:init:s0)
+#      because init already has file deletion permissions (system_data_file, etc.)
+#      that neverallow rules restrict to init/system_server/installd only.
+#   2. Network services (tor, agent, ipfs, p2p) run in LETHE domain
+#      because they need capabilities (net_admin, net_bind_service) that
+#      init doesn't grant by default.
+#
+# The lethe_exec file type labels all LETHE binaries/scripts so init
+# can execute them via execute_no_trans (the original bug this fixes).
+
+type lethe, domain;
+type lethe_exec, exec_type, file_type;
+
+# ── Init can execute LETHE-labeled scripts/binaries ──
+# This is the core fix: init couldn't execute_no_trans on system_file-labeled
+# scripts. With lethe_exec label + this rule, init runs them directly.
+allow init lethe_exec:file { read open getattr execute execute_no_trans };
+
+# ── LETHE domain (for network services: tor, agent, ipfs, p2p) ──
+init_daemon_domain(lethe)
+
+# Execute LETHE binaries from within lethe domain
+allow lethe lethe_exec:file { read open getattr execute execute_no_trans };
+allow lethe system_file:dir { search getattr };
+allow lethe system_file:file { read open getattr execute execute_no_trans };
+
+# Shell/toolbox for wrapper scripts
+allow lethe shell_exec:file { read open getattr execute execute_no_trans };
+allow lethe toolbox_exec:file { read open getattr execute execute_no_trans };
+
+# Network capabilities (tor, agent, ipfs)
+allow lethe self:capability { net_admin net_bind_service net_raw };
+allow lethe self:tcp_socket { create connect bind listen accept setopt getopt read write };
+allow lethe self:udp_socket { create connect bind setopt getopt read write };
+allow lethe self:netlink_route_socket { create bind read write nlmsg_write };
+
+# Properties (read persist.lethe.*)
+allow lethe property_socket:sock_file write;
+allow lethe init:unix_stream_socket connectto;
+set_prop(lethe, system_prop)
+
+# /proc access (read UUID for MAC rotation from within lethe domain)
+allow lethe proc:file { read open getattr };
+
+# Logging
+allow lethe devpts:chr_file { read write open getattr };

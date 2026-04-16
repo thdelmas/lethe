@@ -1,0 +1,4 @@
+# LETHE — property contexts
+# Labels persist.lethe.* properties so the lethe domain can read/write them.
+
+persist.lethe.          u:object_r:system_prop:s0

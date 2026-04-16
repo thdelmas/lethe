@@ -1,0 +1,29 @@
+# LETHE — SELinux file context labels
+# Applied at build time via BOARD_SEPOLICY_DIRS.
+# Labels LETHE binaries and scripts so init can execute them.
+
+# Shell scripts — init can execute_no_trans to shell domain
+/system/bin/lethe-burner-wipe\.sh       u:object_r:lethe_exec:s0
+/system/bin/lethe-mac-rotate\.sh        u:object_r:lethe_exec:s0
+/system/bin/lethe-agent-start\.sh       u:object_r:lethe_exec:s0
+/system/bin/lethe-tor-rules\.sh         u:object_r:lethe_exec:s0
+/system/bin/lethe-deadman-boot\.sh      u:object_r:lethe_exec:s0
+/system/bin/lethe-deadman-monitor\.sh   u:object_r:lethe_exec:s0
+/system/bin/lethe-deadman-duress\.sh    u:object_r:lethe_exec:s0
+/system/bin/lethe-ota-update\.sh        u:object_r:lethe_exec:s0
+/system/bin/lethe-channel-sync\.sh      u:object_r:lethe_exec:s0
+/system/bin/lethe-channels-init\.sh     u:object_r:lethe_exec:s0
+/system/bin/lethe-cluster\.sh           u:object_r:lethe_exec:s0
+
+# Native binaries
+/system/bin/tor                                     u:object_r:lethe_exec:s0
+/system/bin/ipfs                                    u:object_r:lethe_exec:s0
+/system/extras/lethe/agent/lethe-agent              u:object_r:lethe_exec:s0
+/system/extras/lethe/bin/lethe-p2p                  u:object_r:lethe_exec:s0
+
+# Config and data directories
+/system/etc/tor(/.*)?                   u:object_r:system_file:s0
+/system/etc/lethe(/.*)?                 u:object_r:system_file:s0
+/system/extras/lethe(/.*)?              u:object_r:system_file:s0
+/data/lethe(/.*)?                       u:object_r:system_data_file:s0
+/persist/lethe(/.*)?                    u:object_r:system_data_file:s0

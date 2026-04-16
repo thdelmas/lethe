@@ -19,6 +19,7 @@ service lethe-ipfs /system/bin/sh -c "\
     user 9051
     group 9051 inet
     disabled
+    seclabel u:r:lethe:s0
 
 service lethe-ota-check /system/bin/sh -c "\
     while true; do \
@@ -32,6 +33,7 @@ service lethe-ota-check /system/bin/sh -c "\
     class late_start
     oneshot
     disabled
+    seclabel u:r:lethe:s0
 
 # One-shot check shortly after boot (5 min delay for connectivity).
 service lethe-ota-boot /system/bin/sh -c "\
@@ -43,6 +45,7 @@ service lethe-ota-boot /system/bin/sh -c "\
     class late_start
     oneshot
     disabled
+    seclabel u:r:lethe:s0
 
 service lethe-channels-init /system/bin/lethe-channels-init.sh
     class late_start
@@ -50,6 +53,7 @@ service lethe-channels-init /system/bin/lethe-channels-init.sh
     group 9051
     oneshot
     disabled
+    seclabel u:r:lethe:s0
 
 on property:sys.boot_completed=1
     mkdir /data/lethe/ipfs 0700 9051 9051

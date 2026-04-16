@@ -7,7 +7,7 @@ service lethe-tor /system/bin/tor -f /system/etc/tor/torrc
     group root inet net_admin
     capabilities NET_ADMIN NET_BIND_SERVICE
     disabled
-    seclabel u:r:init:s0
+    seclabel u:r:lethe:s0
 
 service lethe-tor-rules /system/bin/lethe-tor-rules.sh
     class main
@@ -15,7 +15,7 @@ service lethe-tor-rules /system/bin/lethe-tor-rules.sh
     group root inet net_admin
     oneshot
     disabled
-    seclabel u:r:init:s0
+    seclabel u:r:lethe:s0
 
 on post-fs-data
     mkdir /data/lethe 0700 root root

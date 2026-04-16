@@ -15,6 +15,7 @@ service lethe-p2p /system/extras/lethe/bin/lethe-p2p \
     user 9052
     group 9052 inet
     disabled
+    seclabel u:r:lethe:s0
 
 # Peer inference + mesh relay
 service lethe-p2p-mesh /system/extras/lethe/bin/lethe-p2p \
@@ -26,6 +27,7 @@ service lethe-p2p-mesh /system/extras/lethe/bin/lethe-p2p \
     user 9052
     group 9052 inet net_bt_admin net_bt
     disabled
+    seclabel u:r:lethe:s0
 
 on property:sys.boot_completed=1
     mkdir /data/lethe/mesh 0700 9052 9052

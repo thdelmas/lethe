@@ -6,7 +6,7 @@ service lethe-agent /system/bin/lethe-agent-start.sh
     user root
     group root inet
     disabled
-    seclabel u:r:init:s0
+    seclabel u:r:lethe:s0
 
 on property:sys.boot_completed=1
     start lethe-agent
