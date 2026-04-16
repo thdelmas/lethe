@@ -153,9 +153,12 @@ stage.addEventListener('pointercancel', function() {
 
 stage.addEventListener('click', handleMascotActivation);
 
-/* Keyboard: Enter or Space activates the mascot */
+/* Keyboard: Enter opens chat, Space triggers interaction */
 stage.addEventListener('keydown', function(e) {
-  if (e.key === 'Enter' || e.key === ' ') {
+  if (e.key === 'Enter') {
+    e.preventDefault();
+    if (typeof openChat === 'function') openChat();
+  } else if (e.key === ' ') {
     e.preventDefault();
     handleMascotActivation();
   }
@@ -204,17 +207,26 @@ function updateAmbient() {
     mascot.classList.add('ambient-active');
   }
 
-  /* Centralized battery → expression mapping.
-     Covers: critical, low, charging, full, recovery. */
+  /* Centralized battery → Plutchik emotion mapping.
+     Intensity scales with severity: apprehension → fear → terror. */
   function applyBatteryExpression(bat) {
+    var emo = window.letheEmotion || {};
+    if (typeof emo.setEmotion !== 'function') {
+      /* Fallback if emotion engine not loaded yet */
+      if (bat.level <= 0.1 && !bat.charging) setExpression('concerned');
+      else if (bat.level >= 1.0 && bat.charging) setExpression('proud');
+      return;
+    }
     if (bat.level <= 0.05 && !bat.charging) {
-      setExpression('concerned');
+      emo.setEmotion('fear', 0.85);       /* Terror — critical */
     } else if (bat.level <= 0.1 && !bat.charging) {
-      setExpression('concerned');
+      emo.setEmotion('fear', 0.55);       /* Fear — warning */
+    } else if (bat.level <= 0.15 && !bat.charging) {
+      emo.setEmotion('fear', 0.3);        /* Apprehension — uneasy */
     } else if (bat.level >= 1.0 && bat.charging) {
-      setExpression('proud');             /* Fully charged */
-    } else if (bat.level > 0.1 && currentExpr === 'concerned') {
-      setExpression(null);                /* Recovery — clear concern */
+      emo.setEmotion('joy', 0.75);        /* Ecstasy — fully charged */
+    } else if (bat.level > 0.15) {
+      emo.setEmotion('trust', 0.15);      /* Acceptance — recovery */
     }
   }
 }

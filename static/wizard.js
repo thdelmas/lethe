@@ -103,7 +103,13 @@ var wizard = (function() {
   function setupProviders() {
     var cards = overlay.querySelectorAll('.wizard-provider[data-provider]');
     for (var i = 0; i < cards.length; i++) {
-      onTap(cards[i], function() {
+      /* Make cards keyboard-accessible */
+      cards[i].setAttribute('tabindex', '0');
+      cards[i].setAttribute('role', 'button');
+      cards[i].setAttribute('aria-label',
+        'Select ' + cards[i].querySelector('.wizard-provider-name').textContent);
+
+      var handler = function() {
         var prov = this.getAttribute('data-provider');
         if (prov === 'local') {
           next();
@@ -112,6 +118,13 @@ var wizard = (function() {
         /* Open settings panel for API key entry, then advance */
         hide();
         if (typeof settingsOpen === 'function') settingsOpen();
+      };
+      onTap(cards[i], handler);
+      cards[i].addEventListener('keydown', function(e) {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault();
+          handler.call(this);
+        }
       });
     }
   }

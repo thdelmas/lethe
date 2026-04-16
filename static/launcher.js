@@ -98,6 +98,8 @@ function closeChat() {
   if (window.mascot3D) window.mascot3D.setChatVisible(false);
   /* Return mascot to calm idle on home screen */
   setState('idle');
+  /* Restore focus to mascot for keyboard navigation */
+  homeMascot.focus();
 }
 
 /* ═══════════ TOUCH RIPPLE ═══════════ */
@@ -155,20 +157,41 @@ homeMascot.addEventListener('touchend', function(e) {
 homeMascot.addEventListener('click', function(e) {
   lastInteraction = Date.now();
   spawnRipple(e.clientX, e.clientY);
-  playRandomAnim('tap');
+  /* Touch devices use touchend — this only fires on mouse click.
+     Match touch behavior: short click opens chat. */
+  if (!hasTouchInput) openChat();
 });
 
 /* Tap mini mascot in chat → go home */
 chatMascotImg.addEventListener('click', closeChat);
 
+/* Swipe down on chat header → close chat */
+var chatHeader = document.querySelector('.chat-header');
+var swipeStartY = 0;
+var swipeStartTime = 0;
+chatHeader.addEventListener('touchstart', function(e) {
+  swipeStartY = e.touches[0].clientY;
+  swipeStartTime = Date.now();
+}, { passive: true });
+chatHeader.addEventListener('touchend', function(e) {
+  var dy = e.changedTouches[0].clientY - swipeStartY;
+  var dt = Date.now() - swipeStartTime;
+  /* Swipe down: >50px distance, <400ms, downward direction */
+  if (dy > 50 && dt < 400) {
+    closeChat();
+  }
+});
+
 /* Back button → go home */
 window.addEventListener('popstate', function() {
   if (viewState === 'chat') closeChat();
+  else if (viewState === 'drawer' && typeof closeDrawer === 'function') closeDrawer();
 });
 
 /* Android back via Java bridge */
 window.onBackPressed = function() {
   if (viewState === 'chat') { closeChat(); return true; }
+  if (viewState === 'drawer' && typeof closeDrawer === 'function') { closeDrawer(); return true; }
   return false;
 };
 
@@ -323,13 +346,19 @@ function devClose() {
 
 document.getElementById('dev-close').addEventListener('click', devClose);
 
-/* Escape key closes any open panel */
+/* Escape key closes any open panel (innermost first) */
 document.addEventListener('keydown', function(e) {
   if (e.key !== 'Escape') return;
+  var sp = document.getElementById('settings-panel');
+  if (sp && sp.style.display !== 'none') {
+    if (typeof settingsClose === 'function') settingsClose();
+    return;
+  }
   if (devPanel.style.display !== 'none') { devClose(); return; }
   if (aiInfoPanel && aiInfoPanel.style.display !== 'none') {
     aiInfoPanel.style.display = 'none'; return;
   }
+  if (viewState === 'drawer' && typeof closeDrawer === 'function') { closeDrawer(); return; }
   if (viewState === 'chat') closeChat();
 });
 
@@ -347,11 +376,27 @@ devPanel.addEventListener('keydown', function(e) {
   }
 });
 
+// Animation definitions for dev panel + sprite player speed lookup
+var letheAnimations = [
+  { name: 'idle',     speed: 200 },
+  { name: 'warmup',   speed: 100 },
+  { name: 'thinking', speed: 100 },
+  { name: 'listening',speed: 100 },
+  { name: 'speaking', speed: 100 },
+  { name: 'nod',      speed: 80 },
+  { name: 'deny',     speed: 80 },
+  { name: 'wave',     speed: 100 },
+  { name: 'alert',    speed: 60 },
+  { name: 'confirm',  speed: 80 },
+  { name: 'sleep',    speed: 200 },
+  { name: 'wake',     speed: 100 }
+];
+
 // Animation selector
 document.getElementById('dev-anim').addEventListener('change', function() {
   var name = this.value;
   var isIdle = (name === 'idle');
-    var found = letheAnimations.filter(function(a) { return a.name === name; })[0];
+  var found = letheAnimations.filter(function(a) { return a.name === name; })[0];
   var spd = found ? found.speed : 100;
   SpritePlayer.play(name, { speed: spd, loop: isIdle });
   letheAnimPlaying = !isIdle;
@@ -381,9 +426,14 @@ document.getElementById('dev-mood').addEventListener('change', function() {
   letheSetMood(this.value);
 });
 
-// Tier buttons
+// Tier buttons — highlight current tier
 var tierBtns = devPanel.querySelectorAll('[data-tier]');
 for (var i = 0; i < tierBtns.length; i++) {
+  if (tierBtns[i].getAttribute('data-tier') === window.letheTier) {
+    tierBtns[i].style.borderColor = 'var(--accent)';
+    tierBtns[i].style.color = '#fff';
+    tierBtns[i].setAttribute('aria-pressed', 'true');
+  }
   tierBtns[i].addEventListener('click', function() {
     localStorage.setItem('lethe_avatar_tier', this.getAttribute('data-tier'));
     location.reload();

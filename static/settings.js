@@ -128,39 +128,53 @@ function settingsLoad() {
       statusDot + '<strong>' + def.label + '</strong></div>' +
       '<div class="settings-prov-desc">' + def.desc + privacyLink + '</div>';
 
+    section.innerHTML = html;
+    container.appendChild(section);
+
+    /* Create inputs via DOM API (not innerHTML) to prevent XSS from
+       stored keys/endpoints injected via QR pairing. */
     if (def.needsKey) {
-      var savedKey = (pc && pc.key) || '';
-      var maskedKey = savedKey ? savedKey.substring(0, 8) + '...' : '';
-      html += '<input class="settings-input" type="password" ' +
-        'data-provider="' + def.name + '" data-field="key" ' +
-        'placeholder="' + (def.keyHint || 'API key') + '" ' +
-        'value="' + savedKey + '"/>';
+      var keyInput = document.createElement('input');
+      keyInput.className = 'settings-input';
+      keyInput.type = 'password';
+      keyInput.setAttribute('data-provider', def.name);
+      keyInput.setAttribute('data-field', 'key');
+      keyInput.placeholder = def.keyHint || 'API key';
+      keyInput.setAttribute('aria-label', def.label + ' API key');
+      keyInput.value = (pc && pc.key) || '';
+      section.appendChild(keyInput);
     }
 
     if (def.needsEndpoint) {
-      var savedEndpoint = (pc && pc.endpoint) || '';
-      html += '<input class="settings-input" type="url" ' +
-        'data-provider="custom" data-field="endpoint" ' +
-        'placeholder="https://your-server.com/v1" ' +
-        'value="' + savedEndpoint + '"/>';
+      var epInput = document.createElement('input');
+      epInput.className = 'settings-input';
+      epInput.type = 'url';
+      epInput.setAttribute('data-provider', 'custom');
+      epInput.setAttribute('data-field', 'endpoint');
+      epInput.placeholder = 'https://your-server.com/v1';
+      epInput.setAttribute('aria-label', 'Custom endpoint URL');
+      epInput.value = (pc && pc.endpoint) || '';
+      section.appendChild(epInput);
     }
 
     // Model selector
     var models = modelCatalog[def.name] || [];
     if (models.length) {
       var savedModel = (pc && pc.model) || '';
-      html += '<select class="settings-input settings-model" ' +
-        'data-provider="' + def.name + '" data-field="model">';
+      var select = document.createElement('select');
+      select.className = 'settings-input settings-model';
+      select.setAttribute('data-provider', def.name);
+      select.setAttribute('data-field', 'model');
+      select.setAttribute('aria-label', def.label + ' model');
       for (var j = 0; j < models.length; j++) {
-        var sel = models[j].id === savedModel ? ' selected' : '';
-        html += '<option value="' + models[j].id + '"' + sel + '>' +
-          models[j].label + '</option>';
+        var opt = document.createElement('option');
+        opt.value = models[j].id;
+        opt.textContent = models[j].label;
+        if (models[j].id === savedModel) opt.selected = true;
+        select.appendChild(opt);
       }
-      html += '</select>';
+      section.appendChild(select);
     }
-
-    section.innerHTML = html;
-    container.appendChild(section);
   }
 }
 
