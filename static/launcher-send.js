@@ -171,7 +171,10 @@ function handleReply(reply) {
   }
   if (isRefusal(reply)) {
     microExpression('deny');
-    if (window.letheEmotion) window.letheEmotion.setExpression('concerned');
+    /* Refusal → disapproval dyad (surprise + sadness): LETHE regrets declining */
+    if (window.letheEmotion && window.letheEmotion.setEmotion) {
+      window.letheEmotion.setEmotion('sadness', 0.4);
+    }
   }
 
   chatHistory.push({ role: 'assistant', content: reply });

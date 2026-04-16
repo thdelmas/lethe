@@ -149,6 +149,30 @@ if (vidA && canvas2d) {
     }, { once: true });
   });
   drawLoop();
+
+  /* Create spark particles — rising from cracks around the mascot.
+     CSS handles animation via custom properties (launcher.css). */
+  var sparkContainer = document.querySelector('.mascot-2d');
+  if (sparkContainer) {
+    var sparkDefs = [
+      { x: '25%', y: '20%', dur: '2.5s', delay: '0s',    drift: '4px' },
+      { x: '70%', y: '25%', dur: '3s',   delay: '0.8s',  drift: '-3px' },
+      { x: '40%', y: '15%', dur: '2.8s', delay: '1.5s',  drift: '5px' },
+      { x: '55%', y: '30%', dur: '3.2s', delay: '0.3s',  drift: '-6px' },
+      { x: '30%', y: '35%', dur: '2.6s', delay: '2.1s',  drift: '3px' },
+      { x: '65%', y: '22%', dur: '2.9s', delay: '1.2s',  drift: '-4px' }
+    ];
+    for (var si = 0; si < sparkDefs.length; si++) {
+      var sp = document.createElement('div');
+      sp.className = 'spark';
+      sp.style.setProperty('--x', sparkDefs[si].x);
+      sp.style.setProperty('--y', sparkDefs[si].y);
+      sp.style.setProperty('--dur', sparkDefs[si].dur);
+      sp.style.setProperty('--delay', sparkDefs[si].delay);
+      sp.style.setProperty('--drift', sparkDefs[si].drift);
+      sparkContainer.appendChild(sp);
+    }
+  }
 }
 
 function playVideoAnim(src, speed) {

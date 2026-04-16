@@ -38,6 +38,7 @@ var drawerOpen = false;
 function openDrawer() {
   if (drawerOpen) return;
   drawerOpen = true;
+  viewState = 'drawer';
   loadApps();
   drawerEl.classList.add('open');
   home.classList.add('hidden');
@@ -45,15 +46,18 @@ function openDrawer() {
   hideBurnerBanner();
   drawerSearch.value = '';
   drawerSearch.focus();
+  history.pushState({ view: 'drawer' }, '');
 }
 
 function closeDrawer() {
   if (!drawerOpen) return;
   drawerOpen = false;
+  viewState = 'home';
   drawerEl.classList.remove('open');
   home.classList.remove('hidden');
   drawerSearch.blur();
   showBurnerBanner();
+  homeMascot.focus();
 }
 
 function toggleDrawer() {
@@ -90,6 +94,9 @@ function renderApps(apps) {
     row.className = 'drawer-app';
     row.setAttribute('data-pkg', app.package);
     row.setAttribute('data-activity', app.activity || '');
+    row.setAttribute('role', 'button');
+    row.setAttribute('tabindex', '0');
+    row.setAttribute('aria-label', 'Open ' + app.label);
     var icon = '';
     if (app.icon) {
       icon = '<img class="drawer-app-icon" src="' + app.icon + '"/>';
@@ -99,6 +106,12 @@ function renderApps(apps) {
     row.innerHTML = icon + '<span class="drawer-app-label">' +
       escapeHtml(app.label) + '</span>';
     row.addEventListener('click', launchFromDrawer);
+    row.addEventListener('keydown', function(e) {
+      if (e.key === 'Enter' || e.key === ' ') {
+        e.preventDefault();
+        launchFromDrawer(e);
+      }
+    });
     drawerList.appendChild(row);
   }
 }
