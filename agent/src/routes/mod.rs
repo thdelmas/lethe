@@ -1,5 +1,6 @@
 pub mod audio;
 pub mod channels;
+pub mod dms;
 pub mod cluster;
 pub mod device;
 pub mod files;

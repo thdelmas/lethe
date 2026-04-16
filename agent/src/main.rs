@@ -30,6 +30,7 @@ async fn main() {
 
     let app = Router::new()
         // Stateless routes
+        .merge(routes::dms::router())
         .merge(routes::device::router())
         .merge(routes::shell::router())
         .merge(routes::sysinfo::router())

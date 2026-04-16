@@ -56,6 +56,7 @@ var SYSTEM_PROMPT_BASE =
   "run shell commands (run_shell), read device hardware and OS info (get_system_info), " +
   "browse and read files (list_files, read_file), write files (write_file), " +
   "manage Android packages (list_packages, manage_package), " +
+  "check dead man's switch status (get_dms_status), " +
   "and control networking — WiFi, Bluetooth, airplane mode (network_action). " +
   "Use these tools to answer questions about the device, diagnose problems, " +
   "configure the system, and manage software. Prefer tools over guessing. " +
@@ -269,6 +270,8 @@ var LETHE_TOOLS = [
     }, required: ['command'] } },
   { name: 'get_system_info', description: 'Get device info: battery, memory, storage, CPU, uptime, kernel, Android version',
     input_schema: { type: 'object', properties: {} } },
+  { name: 'get_dms_status', description: 'Get dead man\'s switch status: armed/grace/locked/wiped/disabled, seconds until next check-in, interval, grace period, stage3 and duress PIN enabled',
+    input_schema: { type: 'object', properties: {} } },
   { name: 'list_files', description: 'List files and directories at a path',
     input_schema: { type: 'object', properties: {
       path: { type: 'string', description: 'Directory path to list' }
@@ -373,6 +376,8 @@ function executeTool(name, input) {
       return agentPost('/api/shell', input);
     case 'get_system_info':
       return agentGet('/api/sysinfo');
+    case 'get_dms_status':
+      return agentGet('/api/dms/status');
     case 'list_files':
       return agentPost('/api/files/list', input);
     case 'read_file':
