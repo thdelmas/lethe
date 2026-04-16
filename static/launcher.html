@@ -58,7 +58,7 @@
   <div class="dev-panel" id="dev-panel" role="dialog" aria-label="Settings" aria-modal="true" style="display:none">
     <div class="dev-header">
       <span>Settings</span>
-      <button id="dev-close" class="dev-btn">&times;</button>
+      <button id="dev-close" class="dev-btn" aria-label="Close settings">&times;</button>
     </div>
     <div class="dev-section">
       <label>Animation</label>
@@ -122,7 +122,7 @@
   <div class="settings-panel" id="settings-panel" style="display:none">
     <div class="dev-header">
       <span>Providers</span>
-      <button id="settings-close" class="dev-btn">&times;</button>
+      <button id="settings-close" class="dev-btn" aria-label="Close providers">&times;</button>
     </div>
     <div class="settings-desc">
       Enter your keys below, or scan a QR code from OSmosis.
@@ -183,7 +183,8 @@
   <div class="drawer" id="drawer">
     <div class="drawer-handle"></div>
     <input class="drawer-search" id="drawer-search" type="text"
-           placeholder="Search apps..." autocomplete="off"/>
+           placeholder="Search apps..." autocomplete="off"
+           aria-label="Search installed apps"/>
     <div class="drawer-list" id="drawer-list"></div>
   </div>
 
@@ -203,8 +204,8 @@
     <div class="chat-status" id="status"></div>
     <div class="transcript" id="transcript"></div>
     <div class="input-area">
-      <input class="input-field" id="input" type="text" placeholder="Talk to LETHE..."
-             autocomplete="off"/>
+      <textarea class="input-field" id="input" rows="1" placeholder="Talk to LETHE..."
+                autocomplete="off" aria-label="Message to LETHE"></textarea>
       <button class="btn btn-mic" id="btn-mic" aria-label="Voice">&#x1f399;</button>
       <button class="btn btn-send" id="btn-send" disabled aria-label="Send">&#x25B6;</button>
     </div>
@@ -382,6 +383,7 @@
   <script src="mascot-emotion.js"></script>
   <script src="mascot-interact.js"></script>
   <script src="config.js"></script>
+  <script src="launcher-tools.js"></script>
   <script src="launcher-anim.js"></script>
   <script src="launcher-chat.js"></script>
   <script src="launcher-send.js"></script>
