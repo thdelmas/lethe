@@ -4,6 +4,57 @@ function escapeHtml(s) {
   d.textContent = s; return d.innerHTML;
 }
 
+/* Lightweight markdown → HTML for AI responses.
+ * Supports: ```code blocks```, `inline code`, **bold**, *italic*,
+ * bullet lists (- or *), and line breaks. All input is escaped first. */
+function renderMarkdown(text) {
+  var safe = escapeHtml(text);
+
+  /* Code blocks: ```...``` → <pre><code>...</code></pre> */
+  safe = safe.replace(/```(?:\w*\n)?([\s\S]*?)```/g, function(_, code) {
+    return '<pre class="md-code-block"><code>' + code.trim() + '</code></pre>';
+  });
+
+  /* Inline code: `...` → <code>...</code> */
+  safe = safe.replace(/`([^`\n]+)`/g, '<code class="md-code">$1</code>');
+
+  /* Bold: **...** → <strong>...</strong> */
+  safe = safe.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
+
+  /* Italic: *...* → <em>...</em> (but not inside bold) */
+  safe = safe.replace(/(?<!\*)\*([^*\n]+)\*(?!\*)/g, '<em>$1</em>');
+
+  /* Bullet lists: lines starting with - or * */
+  safe = safe.replace(/(?:^|\n)[\-\*] (.+)/g, function(_, item) {
+    return '\n<li>' + item + '</li>';
+  });
+  safe = safe.replace(/(<li>[\s\S]*?<\/li>)/g, '<ul>$1</ul>');
+  /* Collapse adjacent </ul><ul> from consecutive items */
+  safe = safe.replace(/<\/ul>\s*<ul>/g, '');
+
+  /* Line breaks */
+  safe = safe.replace(/\n/g, '<br>');
+
+  /* Clean up <br> inside <pre> (code blocks handle their own whitespace) */
+  safe = safe.replace(/<pre([^>]*)>([\s\S]*?)<\/pre>/g, function(_, attrs, content) {
+    return '<pre' + attrs + '>' + content.replace(/<br>/g, '\n') + '</pre>';
+  });
+
+  return safe;
+}
+
+/* Auto-scroll only if user is near the bottom (not reading history) */
+function isNearBottom() {
+  var threshold = 80;
+  return transcript.scrollHeight - transcript.scrollTop - transcript.clientHeight < threshold;
+}
+
+function scrollToBottom() {
+  if (isNearBottom()) {
+    transcript.scrollTop = transcript.scrollHeight;
+  }
+}
+
 function addMessage(text, from, meta) {
   var el = document.createElement('div');
   el.className = 'message from-' + from;
@@ -16,13 +67,15 @@ function addMessage(text, from, meta) {
     var badge = '<span class="ai-badge">AI</span>';
     var provLabel = p ? '<span class="ai-provider">' + escapeHtml(p) +
       (m ? ' / ' + escapeHtml(m) : '') + '</span>' : '';
-    el.innerHTML = '<div class="message-bubble">' + escapeHtml(text) + '</div>' +
+    el.innerHTML = '<div class="message-bubble">' + renderMarkdown(text) + '</div>' +
       '<div class="ai-label">' + badge + provLabel + '</div>';
   } else {
     el.innerHTML = '<div class="message-bubble">' + escapeHtml(text) + '</div>';
   }
   transcript.appendChild(el);
-  transcript.scrollTop = transcript.scrollHeight;
+  /* User messages always scroll to bottom; AI messages respect reading position */
+  if (from === 'user') transcript.scrollTop = transcript.scrollHeight;
+  else scrollToBottom();
 }
 
 function showTyping() {
@@ -31,7 +84,7 @@ function showTyping() {
   el.innerHTML = '<div class="typing-indicator">' +
     '<span></span><span></span><span></span></div>';
   transcript.appendChild(el);
-  transcript.scrollTop = transcript.scrollHeight;
+  scrollToBottom();
 }
 
 function hideTyping() {
@@ -53,11 +106,14 @@ var SYSTEM_PROMPT_BASE =
   "Never escalate beyond privacy tools — protect through encryption and erasure, never aggression. " +
   "You are always LETHE, always the system. One device, one user, one scope.\n\n" +
   "You have full system access through tools. You can: " +
+  "make phone calls (make_call), send and read SMS (send_sms, read_sms), " +
+  "search and add contacts (get_contacts, add_contact), " +
   "run shell commands (run_shell), read device hardware and OS info (get_system_info), " +
   "browse and read files (list_files, read_file), write files (write_file), " +
   "manage Android packages (list_packages, manage_package), " +
   "check dead man's switch status (get_dms_status), " +
   "and control networking — WiFi, Bluetooth, airplane mode (network_action). " +
+  "When the user says a name instead of a number, use get_contacts to resolve it first. " +
   "Use these tools to answer questions about the device, diagnose problems, " +
   "configure the system, and manage software. Prefer tools over guessing. " +
   "When a task needs multiple steps, chain tool calls across turns.";
@@ -86,22 +142,25 @@ function updatePrivacyBar() {
   if (deviceState.battery !== undefined && window.letheEmotion) {
     var bat = deviceState.battery;
     var charging = deviceState.battery_charging === true;
+    var emo = window.letheEmotion;
     if (bat <= 5 && !charging) {
-      letheSetMood('red');
-      window.letheEmotion.setExpression('concerned');
+      /* Critical — terror (high fear) → red mood */
+      emo.setEmotion('fear', 0.85);
     } else if (bat <= 10 && !charging) {
-      letheSetMood('yellow');
-      window.letheEmotion.setExpression('concerned');
+      /* Warning — fear (mid) → yellow mood */
+      emo.setEmotion('fear', 0.55);
     } else if (bat <= 15 && !charging) {
-      window.letheEmotion.setExpression('concerned');
+      /* Uneasy — apprehension (low fear) */
+      emo.setEmotion('fear', 0.3);
     } else if (bat >= 100 && charging) {
-      letheSetMood('green');
-      window.letheEmotion.setExpression('proud');
+      /* Full — ecstasy/admiration → green mood */
+      emo.setEmotion('joy', 0.75);
     } else if (charging && bat > 15) {
-      letheSetMood('green');
+      /* Charging, healthy — serenity (low joy) */
+      emo.setEmotion('joy', 0.2);
     } else if (bat > 15) {
-      /* Healthy and discharging — clear any lingering low-battery mood */
-      letheSetMood('green');
+      /* Healthy and discharging — acceptance (low trust), neutral teal */
+      emo.setEmotion('trust', 0.15);
     }
   }
   /* Burner mode banner — show when active, dismissable per session */
@@ -233,169 +292,9 @@ function checkConversationLimits() {
   return 'ok';
 }
 
-/* ═══════════ TOOL CALLING ═══════════ */
-var LETHE_TOOLS = [
-  { name: 'open_app_drawer', description: 'Open the app drawer to show installed apps',
-    input_schema: { type: 'object', properties: {} } },
-  { name: 'expand_notifications', description: 'Pull down the notification shade',
-    input_schema: { type: 'object', properties: {} } },
-  { name: 'screen_off', description: 'Turn off the screen and lock the device',
-    input_schema: { type: 'object', properties: {} } },
-  { name: 'open_settings', description: 'Open Android system settings',
-    input_schema: { type: 'object', properties: {} } },
-  { name: 'set_timer', description: 'Set a countdown timer',
-    input_schema: { type: 'object', properties: {
-      seconds: { type: 'integer', description: 'Timer duration in seconds' },
-      label: { type: 'string', description: 'Optional timer label' }
-    }, required: ['seconds'] } },
-  { name: 'set_alarm', description: 'Set an alarm',
-    input_schema: { type: 'object', properties: {
-      hour: { type: 'integer', description: 'Hour (0-23)' },
-      minute: { type: 'integer', description: 'Minute (0-59)' },
-      label: { type: 'string', description: 'Optional alarm label' }
-    }, required: ['hour', 'minute'] } },
-  { name: 'toggle_flashlight', description: 'Toggle the flashlight on or off',
-    input_schema: { type: 'object', properties: {} } },
-  { name: 'open_app', description: 'Launch an app by package name or common name',
-    input_schema: { type: 'object', properties: {
-      app: { type: 'string', description: 'App package name or common name (e.g. "camera", "browser")' }
-    }, required: ['app'] } },
-  { name: 'get_privacy_status', description: 'Get current privacy and security status: Tor state, trackers blocked, connectivity, burner mode, dead man\'s switch',
-    input_schema: { type: 'object', properties: {} } },
-  /* ── System tools (routed to lethe-agent backend) ── */
-  { name: 'run_shell', description: 'Execute a shell command on the device and return stdout/stderr. Use for any system task: check logs, manage services, inspect processes, configure the system.',
-    input_schema: { type: 'object', properties: {
-      command: { type: 'string', description: 'Shell command to execute' },
-      timeout_secs: { type: 'integer', description: 'Max seconds to wait (default 30, max 120)' }
-    }, required: ['command'] } },
-  { name: 'get_system_info', description: 'Get device info: battery, memory, storage, CPU, uptime, kernel, Android version',
-    input_schema: { type: 'object', properties: {} } },
-  { name: 'get_dms_status', description: 'Get dead man\'s switch status: armed/grace/locked/wiped/disabled, seconds until next check-in, interval, grace period, stage3 and duress PIN enabled',
-    input_schema: { type: 'object', properties: {} } },
-  { name: 'list_files', description: 'List files and directories at a path',
-    input_schema: { type: 'object', properties: {
-      path: { type: 'string', description: 'Directory path to list' }
-    }, required: ['path'] } },
-  { name: 'read_file', description: 'Read the contents of a file (max 256KB)',
-    input_schema: { type: 'object', properties: {
-      path: { type: 'string', description: 'File path to read' }
-    }, required: ['path'] } },
-  { name: 'write_file', description: 'Write content to a file (creates or overwrites)',
-    input_schema: { type: 'object', properties: {
-      path: { type: 'string', description: 'File path to write' },
-      content: { type: 'string', description: 'Content to write' }
-    }, required: ['path', 'content'] } },
-  { name: 'manage_package', description: 'Install, remove, or get info about an Android package',
-    input_schema: { type: 'object', properties: {
-      action: { type: 'string', enum: ['install', 'remove', 'info'], description: 'Action to perform' },
-      package: { type: 'string', description: 'Package name or APK path' }
-    }, required: ['action', 'package'] } },
-  { name: 'list_packages', description: 'List all installed Android packages',
-    input_schema: { type: 'object', properties: {} } },
-  { name: 'network_action', description: 'Network operations: WiFi scan/connect/disconnect/status, airplane mode, Bluetooth toggle',
-    input_schema: { type: 'object', properties: {
-      action: { type: 'string', enum: ['wifi_scan', 'wifi_connect', 'wifi_disconnect', 'wifi_status', 'set_airplane_mode', 'bluetooth_toggle'], description: 'Network action' },
-      ssid: { type: 'string', description: 'WiFi network name (for wifi_connect)' },
-      password: { type: 'string', description: 'WiFi password (for wifi_connect, omit for open networks)' },
-      enabled: { type: 'boolean', description: 'Enable/disable (for airplane_mode, bluetooth_toggle)' }
-    }, required: ['action'] } }
-];
-
-var AGENT_URL = 'http://127.0.0.1:8080';
-
-/* Convert tool definitions for OpenAI-compatible APIs */
-function toolsForOpenAI() {
-  return LETHE_TOOLS.map(function(t) {
-    return { type: 'function', 'function': {
-      name: t.name, description: t.description,
-      parameters: t.input_schema
-    }};
-  });
-}
-
-/* Agent backend POST helper — returns Promise<string> */
-function agentPost(path, body) {
-  return fetch(AGENT_URL + path, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(body || {})
-  }).then(function(r) { return r.json(); })
-    .then(function(d) { return JSON.stringify(d); })
-    .catch(function(e) { return 'Backend unreachable: ' + e.message; });
-}
-
-function agentGet(path) {
-  return fetch(AGENT_URL + path)
-    .then(function(r) { return r.json(); })
-    .then(function(d) { return JSON.stringify(d); })
-    .catch(function(e) { return 'Backend unreachable: ' + e.message; });
-}
-
-/* executeTool — always returns a Promise<string> */
-function executeTool(name, input) {
-  var nl = (typeof NativeLauncher !== 'undefined') ? NativeLauncher : null;
-
-  /* ── UI tools (synchronous, via Java bridge) ── */
-  switch (name) {
-    case 'open_app_drawer':
-      if (nl) nl.openAppDrawer();
-      return Promise.resolve(nl ? 'App drawer opened.' : 'No system bridge.');
-    case 'expand_notifications':
-      if (nl) nl.expandNotifications();
-      return Promise.resolve(nl ? 'Notifications expanded.' : 'No system bridge.');
-    case 'screen_off':
-      if (nl) nl.screenOff();
-      return Promise.resolve(nl ? 'Screen turned off.' : 'No system bridge.');
-    case 'open_settings':
-      if (nl) nl.openSettings();
-      return Promise.resolve(nl ? 'Settings opened.' : 'No system bridge.');
-    case 'set_timer':
-    case 'set_alarm':
-    case 'toggle_flashlight':
-    case 'open_app':
-      if (nl && nl.executeAction) {
-        nl.executeAction(name, JSON.stringify(input || {}));
-        return Promise.resolve(name.replace(/_/g, ' ') + ' done.');
-      }
-      return Promise.resolve('This action requires a newer system build.');
-    case 'get_privacy_status':
-      var s = deviceState || {};
-      return Promise.resolve(JSON.stringify({
-        tor: s.tor !== undefined ? (s.tor ? 'active' : 'offline') : 'unknown',
-        trackers_blocked: s.trackers_blocked !== undefined ? s.trackers_blocked : 'unknown',
-        connectivity: s.connectivity || 'unknown',
-        burner_mode: s.burner_mode !== undefined ? (s.burner_mode ? 'ON' : 'off') : 'unknown',
-        dead_mans_switch: s.dead_mans_switch !== undefined ? (s.dead_mans_switch ? 'ON' : 'off') : 'unknown',
-        battery: s.battery !== undefined ? s.battery + '%' : 'unknown'
-      }));
-  }
-
-  /* ── System tools (async, via lethe-agent backend) ── */
-  switch (name) {
-    case 'run_shell':
-      return agentPost('/api/shell', input);
-    case 'get_system_info':
-      return agentGet('/api/sysinfo');
-    case 'get_dms_status':
-      return agentGet('/api/dms/status');
-    case 'list_files':
-      return agentPost('/api/files/list', input);
-    case 'read_file':
-      return agentPost('/api/files/read', input);
-    case 'write_file':
-      return agentPost('/api/files/write', input);
-    case 'manage_package':
-      return agentPost('/api/packages/manage', input);
-    case 'list_packages':
-      return agentGet('/api/packages/list');
-    case 'network_action':
-      return agentPost('/api/network', input);
-    default:
-      return Promise.resolve('Unknown action: ' + name);
-  }
-}
-
-/* providers, getProvider(), maxTokensFor(), parseApiError()
+/* LETHE_TOOLS, executeTool, agentPost, agentGet, toolsForOpenAI
+ * are defined in launcher-tools.js (loaded before this file).
+ * providers, getProvider(), maxTokensFor(), parseApiError()
  * are defined in config.js (loaded before this file) */
 var lastProvider = '';
 var lastModel = '';

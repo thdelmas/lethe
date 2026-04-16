@@ -44,17 +44,18 @@ import org.json.JSONObject;
  * The keyboard resizes around the native EditText — no WebView keyboard bugs.
  */
 public class LetheActivity extends Activity {
-
     private static final String TAG = "lethe-launcher";
     private WebView webView;
     private LinearLayout inputBar;
     private EditText inputField;
     private BroadcastReceiver pairReceiver;
+    private LethePhone phone;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         LetheConfig.initConfigDir(this);
+        phone = new LethePhone(this);
 
         getWindow().setSoftInputMode(
             WindowManager.LayoutParams.SOFT_INPUT_ADJUST_RESIZE);
@@ -398,41 +399,64 @@ public class LetheActivity extends Activity {
 
         @JavascriptInterface
         public void executeAction(String action, String argsJson) {
-            runOnUiThread(() -> {
-                try {
-                    JSONObject args = new JSONObject(argsJson);
-                    switch (action) {
-                        case "set_timer":
-                            Intent t = new Intent(
-                                AlarmClock.ACTION_SET_TIMER);
-                            t.putExtra(AlarmClock.EXTRA_LENGTH,
-                                args.optInt("seconds", 60));
-                            if (args.has("label"))
-                                t.putExtra(AlarmClock.EXTRA_MESSAGE,
-                                    args.getString("label"));
-                            t.putExtra(AlarmClock.EXTRA_SKIP_UI, true);
-                            t.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
-                            startActivity(t);
-                            break;
-                        case "toggle_flashlight":
-                            if (Build.VERSION.SDK_INT >= 23) {
-                                android.hardware.camera2.CameraManager cm =
-                                    (android.hardware.camera2.CameraManager)
-                                        getSystemService(
-                                            Context.CAMERA_SERVICE);
-                                cm.setTorchMode(
-                                    cm.getCameraIdList()[0], true);
-                            }
-                            break;
-                        case "open_app":
-                            String name = args.optString("app", "");
-                            launchApp(resolveApp(name), "");
-                            break;
+            runOnUiThread(() -> { try {
+                JSONObject args = new JSONObject(argsJson);
+                switch (action) {
+                    case "set_timer": {
+                        Intent t = new Intent(AlarmClock.ACTION_SET_TIMER);
+                        t.putExtra(AlarmClock.EXTRA_LENGTH, args.optInt("seconds", 60));
+                        if (args.has("label"))
+                            t.putExtra(AlarmClock.EXTRA_MESSAGE, args.getString("label"));
+                        t.putExtra(AlarmClock.EXTRA_SKIP_UI, true);
+                        t.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+                        startActivity(t);
+                        break;
                     }
-                } catch (Exception e) {
-                    Log.e(TAG, "executeAction: " + action, e);
+                    case "set_alarm": {
+                        Intent a = new Intent(AlarmClock.ACTION_SET_ALARM);
+                        a.putExtra(AlarmClock.EXTRA_HOUR, args.optInt("hour", 8));
+                        a.putExtra(AlarmClock.EXTRA_MINUTES, args.optInt("minute", 0));
+                        if (args.has("label"))
+                            a.putExtra(AlarmClock.EXTRA_MESSAGE, args.getString("label"));
+                        a.putExtra(AlarmClock.EXTRA_SKIP_UI, true);
+                        a.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+                        startActivity(a);
+                        break;
+                    }
+                    case "toggle_flashlight":
+                        if (Build.VERSION.SDK_INT >= 23) {
+                            var cm = (android.hardware.camera2.CameraManager)
+                                getSystemService(Context.CAMERA_SERVICE);
+                            cm.setTorchMode(cm.getCameraIdList()[0], true);
+                        }
+                        break;
+                    case "open_app":
+                        launchApp(resolveApp(args.optString("app", "")), "");
+                        break;
+                    case "make_call":
+                        phone.makeCall(args.optString("number", ""));
+                        break;
+                    case "send_sms":
+                        phone.sendSms(args.optString("number", ""),
+                            args.optString("message", ""));
+                        break;
+                    case "add_contact":
+                        phone.addContact(args);
+                        break;
                 }
-            });
+            } catch (Exception e) {
+                Log.e(TAG, "executeAction: " + action, e);
+            } });
+        }
+
+        @JavascriptInterface
+        public String readSms(String argsJson) {
+            return phone.readSms(argsJson);
+        }
+
+        @JavascriptInterface
+        public String getContacts(String query) {
+            return phone.getContacts(query);
         }
 
         private String resolveApp(String n) {
