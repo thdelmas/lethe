@@ -4,7 +4,7 @@ Tracks which GitHub profiles and repos have been explored via octopus search
 to avoid re-crawling the same networks. Each entry records the origin,
 what was explored, and which issues were created.
 
-**Last updated:** 2026-04-12
+**Last updated:** 2026-04-14
 
 ---
 
@@ -295,6 +295,73 @@ what was explored, and which issues were created.
 
 ---
 
+### Search 6: ANSSI-FR (French National Cybersecurity Agency)
+**Date:** 2026-04-14
+**Origin:** https://github.com/ANSSI-FR (74 public repos)
+
+#### Tentacle A: Cryptography
+| User/Org | Focus | Issue |
+|----------|-------|-------|
+| [ANSSI-FR/MLA](https://github.com/ANSSI-FR/MLA) | Pure Rust archive format with PQC encryption, compression, signatures (368 stars) | [#89](https://github.com/thdelmas/lethe/issues/89) |
+| [ANSSI-FR/libecc](https://github.com/ANSSI-FR/libecc) | Side-channel resistant ECC library in C (263 stars, archived) | [#89](https://github.com/thdelmas/lethe/issues/89) |
+| [ANSSI-FR/libdrbg](https://github.com/ANSSI-FR/libdrbg) | NIST SP 800-90A DRBG implementation (18 stars, archived) | [#89](https://github.com/thdelmas/lethe/issues/89) |
+| [ANSSI-FR/IPECC](https://github.com/ANSSI-FR/IPECC) | ECC hardware acceleration in VHDL (46 stars) | [#89](https://github.com/thdelmas/lethe/issues/89) |
+| [cryspen/libcrux](https://github.com/cryspen/libcrux) | Formally verified crypto, PQ-ready, Rust (218 stars) | [#89](https://github.com/thdelmas/lethe/issues/89) |
+| [rustpq/pqcrypto](https://github.com/rustpq/pqcrypto) | Rust post-quantum crypto bindings (393 stars) | [#89](https://github.com/thdelmas/lethe/issues/89) |
+
+#### Tentacle B: Android & Mobile
+| User/Org | Focus | Issue |
+|----------|-------|-------|
+| [ANSSI-FR/cry-me](https://github.com/ANSSI-FR/cry-me) | Kotlin Android crypto messaging app (180 stars) | [#90](https://github.com/thdelmas/lethe/issues/90) |
+| [ANSSI-FR/ultrablue](https://github.com/ANSSI-FR/ultrablue) | Kotlin TPM attestation over Bluetooth (174 stars) | [#90](https://github.com/thdelmas/lethe/issues/90) |
+| [ANSSI-FR/DroidWorks](https://github.com/ANSSI-FR/DroidWorks) | Rust Android analysis/manipulation tooling (5 stars, archived) | [#90](https://github.com/thdelmas/lethe/issues/90) |
+| [seemoo-lab/CellGuard](https://github.com/seemoo-lab/CellGuard) | Cellular surveillance detection (362 stars) — starred by e2r3p13 | [#90](https://github.com/thdelmas/lethe/issues/90) |
+
+#### Tentacle C: Data diodes & Network security
+| User/Org | Focus | Issue |
+|----------|-------|-------|
+| [ANSSI-FR/lidi](https://github.com/ANSSI-FR/lidi) | Rust unidirectional data transfer with FEC (92 stars) | [#91](https://github.com/thdelmas/lethe/issues/91) |
+| [ANSSI-FR/eurydice](https://github.com/ANSSI-FR/eurydice) | Python data diode file transfer with web UI (154 stars) | [#91](https://github.com/thdelmas/lethe/issues/91) |
+| [ANSSI-FR/py5sig](https://github.com/ANSSI-FR/py5sig) | 5G signalling fuzzer (11 stars) | [#91](https://github.com/thdelmas/lethe/issues/91) |
+| [FCSC-FR/couic](https://github.com/FCSC-FR/couic) | XDP network filtering with REST API, Rust (27 stars) | [#91](https://github.com/thdelmas/lethe/issues/91) |
+
+#### Tentacle D: Hardware & Firmware security
+| User/Org | Focus | Issue |
+|----------|-------|-------|
+| [ANSSI-FR/chipsec-check](https://github.com/ANSSI-FR/chipsec-check) | Hardware security requirement testing (50 stars) | [#92](https://github.com/thdelmas/lethe/issues/92) |
+| [ANSSI-FR/bootcode_parser](https://github.com/ANSSI-FR/bootcode_parser) | Boot record integrity parser (96 stars) | [#92](https://github.com/thdelmas/lethe/issues/92) |
+| [ANSSI-FR/pciemem](https://github.com/ANSSI-FR/pciemem) | Physical memory access via PCIe/USB3380 (15 stars) | [#92](https://github.com/thdelmas/lethe/issues/92) |
+| [ANSSI-FR/usb_authentication](https://github.com/ANSSI-FR/usb_authentication) | USB device authentication in kernel (5 stars) | [#92](https://github.com/thdelmas/lethe/issues/92) |
+| [ANSSI-FR/scep](https://github.com/ANSSI-FR/scep) | Linux Security Module (8 stars, archived) | [#92](https://github.com/thdelmas/lethe/issues/92) |
+
+#### Tentacle E: Sister agency (CEA-SEC)
+| User/Org | Focus | Issue |
+|----------|-------|-------|
+| [cea-sec/usbsas](https://github.com/cea-sec/usbsas) | Secure USB mass storage reading, Rust (370 stars) | [#93](https://github.com/thdelmas/lethe/issues/93) |
+| [cea-sec/TorPylle](https://github.com/cea-sec/TorPylle) | Python/Scapy Tor protocol implementation (98 stars) | [#93](https://github.com/thdelmas/lethe/issues/93) |
+| [cea-sec/miasm](https://github.com/cea-sec/miasm) | Reverse engineering framework (3855 stars) | [#93](https://github.com/thdelmas/lethe/issues/93) |
+
+#### Tentacle F: Contributor star networks
+| User/Org | Focus | Issue |
+|----------|-------|-------|
+| [dsprenkels/sss-rs](https://github.com/dsprenkels/sss-rs) | Shamir Secret Sharing in Rust (50 stars) — dead man's switch key splitting | [#94](https://github.com/thdelmas/lethe/issues/94) |
+| [landlock-lsm/rust-landlock](https://github.com/landlock-lsm/rust-landlock) | Rust Landlock sandboxing bindings (234 stars) | [#92](https://github.com/thdelmas/lethe/issues/92) |
+| [ANSSI-FR/rust-guide](https://github.com/ANSSI-FR/rust-guide) | Secure Rust development recommendations (637 stars) | [#92](https://github.com/thdelmas/lethe/issues/92) |
+| [ANSSI-FR/ASCAD](https://github.com/ANSSI-FR/ASCAD) | Side-channel analysis with deep learning (239 stars, archived) | [#89](https://github.com/thdelmas/lethe/issues/89) |
+
+**Key contributors (tentacles for future exploration):**
+| Contributor | Expertise | Priority |
+|-------------|-----------|----------|
+| [rben-dev](https://github.com/rben-dev) | ANSSI crypto lead — ECC, PQC, side-channels, embedded crypto, DRBG, hardware (Wookey USB) | CRITICAL |
+| [extiop](https://github.com/extiop) | MLA lead — PQC archives, Rust security. Stars: GrapheneOS, libcrux, Landlock, SimpleXMQ | HIGH |
+| [commial](https://github.com/commial) | MLA + AD — binary analysis (miasm, angr), network recon (IVRE), Rust | HIGH |
+| [e2r3p13](https://github.com/e2r3p13) | ultrablue lead — mobile security, jailbreaks, forensics, kernel exploitation, MVT | HIGH |
+| [r3dlight](https://github.com/r3dlight) | lidi — embedded Rust (STM32, RISC-V), seL4, Landlock, PQ crypto, Creusot, Rust bootloaders | HIGH |
+| [ad-anssi](https://github.com/ad-anssi) | DroidWorks + lidi — Rust Android tooling, formal verification (Creusot) | MEDIUM |
+| [kerneis-anssi](https://github.com/kerneis-anssi) | ultrablue + chipsec — TPM, firmware, hardware verification | MEDIUM |
+
+---
+
 ## Unexplored leads (future searches)
 
 Profiles/orgs discovered but not yet explored as octopus origins:
@@ -319,3 +386,11 @@ Profiles/orgs discovered but not yet explored as octopus origins:
 - [hpk42](https://github.com/hpk42) — Delta Chat founder, pytest creator
 - [sepfy](https://github.com/sepfy) — libpeer author (correct handle), xiaopi, ESP32 WebRTC
 - [thestinger](https://github.com/thestinger) — GrapheneOS founder, allocator, sandboxing
+
+### From Search 6 (ANSSI-FR)
+- [rben-dev](https://github.com/rben-dev) — ANSSI crypto lead. ECC, PQC, Wookey secure USB, DRBG. CRITICAL priority.
+- [extiop](https://github.com/extiop) — MLA lead. Stars GrapheneOS, libcrux, Landlock, SimpleXMQ.
+- [commial](https://github.com/commial) — Binary analysis, miasm, angr, IVRE network recon.
+- [e2r3p13](https://github.com/e2r3p13) — Mobile security, jailbreaks, forensics. Stars MVT, CellGuard.
+- [r3dlight](https://github.com/r3dlight) — Embedded Rust, seL4, Landlock, PQ crypto, Rust bootloaders.
+- [cea-sec](https://github.com/cea-sec) — Sister agency. TorPylle, miasm, usbsas. Full org sweep needed.

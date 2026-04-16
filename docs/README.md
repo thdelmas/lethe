@@ -1,5 +1,9 @@
 # Lethe — Internal Docs
 
+## Overview
+
+- [FEATURES.md](FEATURES.md) — Human-readable feature index (manifest.yaml is source of truth)
+
 ## agent/
 LETHE agent personality, safety constraints, LLM routing, and onboarding.
 
