@@ -18,15 +18,13 @@ var home = document.getElementById('home');
 var chatEl = document.getElementById('chat');
 var homeMascot = document.getElementById('home-mascot');
 var chatMascotImg = document.querySelector('.chat-mascot');
-var transcript = document.getElementById('transcript');
-var inputEl = document.getElementById('input');
-var btnSend = document.getElementById('btn-send');
-var btnMic = document.getElementById('btn-mic');
-var statusEl = document.getElementById('status');
+/* transcript, inputEl, btnSend, btnMic, statusEl defined in launcher-chat.js */
 var hintEl = document.getElementById('hint');
 var clockH = document.getElementById('clock-h');
 var clockM = document.getElementById('clock-m');
 var clockDate = document.getElementById('clock-date');
+var chatClockH = document.getElementById('chat-clock-h');
+var chatClockM = document.getElementById('chat-clock-m');
 
 var DAYS = ['SUNDAY','MONDAY','TUESDAY','WEDNESDAY','THURSDAY','FRIDAY','SATURDAY'];
 var MONTHS = ['JANUARY','FEBRUARY','MARCH','APRIL','MAY','JUNE',
@@ -35,10 +33,14 @@ var MONTHS = ['JANUARY','FEBRUARY','MARCH','APRIL','MAY','JUNE',
 /* ═══════════ CLOCK ═══════════ */
 function updateClock() {
   var d = new Date();
-  clockH.textContent = String(d.getHours()).padStart(2, '0');
-  clockM.textContent = String(d.getMinutes()).padStart(2, '0');
+  var h = String(d.getHours()).padStart(2, '0');
+  var m = String(d.getMinutes()).padStart(2, '0');
+  clockH.textContent = h;
+  clockM.textContent = m;
   clockDate.textContent = DAYS[d.getDay()] + ' \u00b7 ' +
     d.getDate() + ' ' + MONTHS[d.getMonth()];
+  if (chatClockH) chatClockH.textContent = h;
+  if (chatClockM) chatClockM.textContent = m;
 }
 updateClock();
 setInterval(updateClock, 10000);
