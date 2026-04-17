@@ -77,15 +77,10 @@ var SpritePlayer = (function() {
       0, 0,
       canvas.width, canvas.height
     );
-    if (mirrorCtx && mirrorCanvas) {
+    if (mirrorCtx && mirrorCanvas && canvas) {
       mirrorCtx.clearRect(0, 0, mirrorCanvas.width, mirrorCanvas.height);
-      mirrorCtx.drawImage(
-        currentSheet,
-        0, frameIndex * frameHeight,
-        frameWidth, frameHeight,
-        0, 0,
-        mirrorCanvas.width, mirrorCanvas.height
-      );
+      mirrorCtx.drawImage(canvas, 0, 0,
+        mirrorCanvas.width, mirrorCanvas.height);
     }
   }
 

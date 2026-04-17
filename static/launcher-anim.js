@@ -259,10 +259,29 @@ if (vidA) scheduleIdleLoop();
 var spriteCanvas = document.getElementById('mascot-canvas-sprite');
 if (window.letheTier === 'sprite' && spriteCanvas && typeof SpritePlayer !== 'undefined') {
   SpritePlayer.init(spriteCanvas);
-  var chatSpriteCanvas = document.getElementById('chat-mascot-sprite');
-  if (chatSpriteCanvas) SpritePlayer.setMirror(chatSpriteCanvas);
   SpritePlayer.play('idle', { speed: 42, loop: true });
   console.log('LETHE sprite: idle animation started');
+
+  /* Chat mascot — independent sprite drawing to chat canvas */
+  var chatSpriteCanvas = document.getElementById('chat-mascot-sprite');
+  if (chatSpriteCanvas) {
+    var chatCtx = chatSpriteCanvas.getContext('2d');
+    var chatSheet = new Image();
+    chatSheet.onload = function() {
+      var fw = chatSheet.width;
+      var fh = fw; /* square frames */
+      var fc = Math.round(chatSheet.height / fh);
+      var fi = 0, dir = 1;
+      setInterval(function() {
+        fi += dir;
+        if (fi >= fc - 1) { fi = fc - 1; dir = -1; }
+        else if (fi <= 0) { fi = 0; dir = 1; }
+        chatCtx.clearRect(0, 0, 48, 48);
+        chatCtx.drawImage(chatSheet, 0, fi * fh, fw, fh, 0, 0, 48, 48);
+      }, 42);
+    };
+    chatSheet.src = 'mascot-idle-green.sprite.png';
+  }
 
   /* Override playRandomAnim to use sprites instead of video */
   window._origPlayRandomAnim = typeof playRandomAnim === 'function' ? playRandomAnim : null;

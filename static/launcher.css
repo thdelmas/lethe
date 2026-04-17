@@ -35,8 +35,7 @@ html, body {
 }
 
 .home.hidden {
-  position: fixed;
-  left: -200vw;
+  height: 0; overflow: hidden;
   pointer-events: none;
 }
 
@@ -415,13 +414,15 @@ video.mascot-video::-webkit-media-controls-enclosure {
   filter: drop-shadow(0 0 12px rgba(34, 232, 160, 0.08));
 }
 
-/* ── Chat mascot (head crop from full-body PNG) ── */
+/* ── Chat mascot (animated sprite in square frame) ── */
 .chat-mascot {
-  width: 44px; height: 44px; min-width: 44px;
-  background: url('mascot.png') no-repeat 50% 2%;
-  background-size: 200% auto;
-  border-radius: 6px;
+  width: 48px; height: 48px; min-width: 48px;
+  position: relative;
   cursor: pointer;
+  z-index: 5;
+}
+.chat-mascot canvas {
+  width: 48px; height: 48px;
   filter: drop-shadow(0 0 6px rgba(34,232,160,0.2));
 }
 
