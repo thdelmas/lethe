@@ -1,3 +1,11 @@
+/* ═══════════ SHARED DOM REFS ═══════════ */
+/* Defined here (before launcher-send.js) so all scripts can use them */
+var transcript = document.getElementById('transcript');
+var inputEl = document.getElementById('input');
+var btnSend = document.getElementById('btn-send');
+var btnMic = document.getElementById('btn-mic');
+var statusEl = document.getElementById('status');
+
 /* ═══════════ MESSAGES ═══════════ */
 function escapeHtml(s) {
   var d = document.createElement('div');

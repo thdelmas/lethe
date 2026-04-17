@@ -35,24 +35,22 @@ html, body {
 }
 
 .home.hidden {
-  opacity: 0;
-  transform: scale(0.96);
-  pointer-events: none;
+  display: none;
 }
 
 /* ── Clock ── */
-.clock { text-align: center; margin-bottom: 1.5rem; }
+.clock { text-align: center; margin-bottom: 0.8rem; }
 
 .clock-hours, .clock-minutes {
-  font-size: 72px; font-weight: 200;
+  font-size: 48px; font-weight: 200;
   line-height: 1; letter-spacing: -0.02em;
 }
 
 .clock-dot {
   display: block;
-  width: 6px; height: 6px; border-radius: 50%;
+  width: 4px; height: 4px; border-radius: 50%;
   background: var(--accent);
-  margin: 4px auto;
+  margin: 3px auto;
   animation: dot-pulse 3.5s ease-in-out infinite;
 }
 
@@ -62,7 +60,7 @@ html, body {
 }
 
 .clock-date {
-  font-size: 11px; font-weight: 400;
+  font-size: 9px; font-weight: 400;
   text-transform: uppercase; letter-spacing: 0.18em;
   color: var(--text-dim); margin-top: 6px;
 }
@@ -70,7 +68,7 @@ html, body {
 /* ── Mascot container ── */
 .home-mascot {
   position: relative;
-  width: 85vw; height: 85vw;
+  width: 92vw; height: 92vw;
   max-width: 480px; max-height: 480px;
   margin-top: 1rem; cursor: pointer;
 }
@@ -507,6 +505,17 @@ video.mascot-video::-webkit-media-controls-enclosure {
 }
 .chat-mascot {
   display: flex; align-items: center; justify-content: center;
+}
+/* Mini clock shown in chat header next to mascot */
+.chat-clock {
+  display: flex; align-items: baseline; gap: 4px;
+  font-size: 20px; font-weight: 200; color: var(--text);
+  opacity: 0.5; margin-left: 0.4rem;
+}
+.chat-clock-dot {
+  width: 3px; height: 3px; border-radius: 50%;
+  background: var(--accent); opacity: 0.6;
+  align-self: center;
 }
 .chat-info-btn, .chat-settings-btn {
   background: none; border: 1px solid #22e8a030;
