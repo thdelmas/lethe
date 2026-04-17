@@ -51,19 +51,14 @@ function renderMarkdown(text) {
   return safe;
 }
 
-/* Auto-scroll only if user is near the bottom (not reading history) */
-function isNearBottom() {
-  var threshold = 80;
-  return transcript.scrollHeight - transcript.scrollTop - transcript.clientHeight < threshold;
-}
-
 function scrollToBottom() {
-  if (isNearBottom()) {
-    transcript.scrollTop = transcript.scrollHeight;
-  }
+  transcript.scrollTop = transcript.scrollHeight;
 }
 
 function addMessage(text, from, meta) {
+  /* Always remove typing indicator before inserting a message
+     so dots never get stuck between messages */
+  hideTyping();
   var el = document.createElement('div');
   el.className = 'message from-' + from;
   if (from === 'lethe') {
@@ -81,12 +76,11 @@ function addMessage(text, from, meta) {
     el.innerHTML = '<div class="message-bubble">' + escapeHtml(text) + '</div>';
   }
   transcript.appendChild(el);
-  /* User messages always scroll to bottom; AI messages respect reading position */
-  if (from === 'user') transcript.scrollTop = transcript.scrollHeight;
-  else scrollToBottom();
+  transcript.scrollTop = transcript.scrollHeight;
 }
 
 function showTyping() {
+  hideTyping();
   var el = document.createElement('div');
   el.className = 'message from-lethe'; el.id = 'typing';
   el.innerHTML = '<div class="typing-indicator">' +

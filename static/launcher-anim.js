@@ -259,6 +259,8 @@ if (vidA) scheduleIdleLoop();
 var spriteCanvas = document.getElementById('mascot-canvas-sprite');
 if (window.letheTier === 'sprite' && spriteCanvas && typeof SpritePlayer !== 'undefined') {
   SpritePlayer.init(spriteCanvas);
+  var chatSpriteCanvas = document.getElementById('chat-mascot-sprite');
+  if (chatSpriteCanvas) SpritePlayer.setMirror(chatSpriteCanvas);
   SpritePlayer.play('idle', { speed: 42, loop: true });
   console.log('LETHE sprite: idle animation started');
 

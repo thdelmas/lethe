@@ -58,6 +58,15 @@ var SpritePlayer = (function() {
     };
   }
 
+  /* Mirror canvas: chat header shows the same sprite at small size */
+  var mirrorCanvas = null, mirrorCtx = null;
+
+  function setMirror(canvasEl) {
+    mirrorCanvas = canvasEl;
+    mirrorCtx = canvasEl ? canvasEl.getContext('2d') : null;
+    console.log('LETHE sprite: mirror ' + (mirrorCtx ? 'OK' : 'FAILED'));
+  }
+
   function drawFrame() {
     if (!currentSheet || !ctx) return;
     ctx.clearRect(0, 0, canvas.width, canvas.height);
@@ -68,6 +77,16 @@ var SpritePlayer = (function() {
       0, 0,
       canvas.width, canvas.height
     );
+    if (mirrorCtx && mirrorCanvas) {
+      mirrorCtx.clearRect(0, 0, mirrorCanvas.width, mirrorCanvas.height);
+      mirrorCtx.drawImage(
+        currentSheet,
+        0, frameIndex * frameHeight,
+        frameWidth, frameHeight,
+        0, 0,
+        mirrorCanvas.width, mirrorCanvas.height
+      );
+    }
   }
 
   function tick() {
@@ -180,6 +199,7 @@ var SpritePlayer = (function() {
     resume: resume,
     setSpeed: setSpeed,
     setMood: setMood,
+    setMirror: setMirror,
     setOnSwitch: setOnSwitch,
     getFrameCount: function() { return frameCount; },
     getCurrentName: function() { return currentName; },
