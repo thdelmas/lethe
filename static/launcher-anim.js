@@ -262,22 +262,31 @@ if (window.letheTier === 'sprite' && spriteCanvas && typeof SpritePlayer !== 'un
   SpritePlayer.play('idle', { speed: 42, loop: true });
   console.log('LETHE sprite: idle animation started');
 
-  /* Chat mascot — independent sprite drawing to chat canvas */
+  /* Chat mascot — independent sprite drawing to chat canvas.
+     Sprite frames are 320x320 but the mascot body sits at roughly
+     x=100..220, y=10..185 within each frame. Crop to that region
+     so the mascot fills the 48px chat avatar. */
   var chatSpriteCanvas = document.getElementById('chat-mascot-sprite');
   if (chatSpriteCanvas) {
     var chatCtx = chatSpriteCanvas.getContext('2d');
     var chatSheet = new Image();
     chatSheet.onload = function() {
-      var fw = chatSheet.width;
-      var fh = fw; /* square frames */
+      var fw = chatSheet.width;  /* 320 */
+      var fh = fw;               /* square frames */
       var fc = Math.round(chatSheet.height / fh);
       var fi = 0, dir = 1;
+      /* Crop region within each frame (mascot body bounds + margin) */
+      var cx = 90, cy = 5, cw = 140, ch = 180;
+      var cvsW = chatSpriteCanvas.width;
+      var cvsH = chatSpriteCanvas.height;
       setInterval(function() {
         fi += dir;
         if (fi >= fc - 1) { fi = fc - 1; dir = -1; }
         else if (fi <= 0) { fi = 0; dir = 1; }
-        chatCtx.clearRect(0, 0, 48, 48);
-        chatCtx.drawImage(chatSheet, 0, fi * fh, fw, fh, 0, 0, 48, 48);
+        chatCtx.clearRect(0, 0, cvsW, cvsH);
+        chatCtx.drawImage(chatSheet,
+          cx, (fi * fh) + cy, cw, ch,
+          0, 0, cvsW, cvsH);
       }, 42);
     };
     chatSheet.src = 'mascot-idle-green.sprite.png';

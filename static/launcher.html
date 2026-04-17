@@ -172,12 +172,7 @@
     <span class="privacy-trackers" id="privacy-trackers"></span>
   </div>
 
-  <!-- ══════ BURNER WARNING (persistent banner when burner mode active) ══════ -->
-  <div class="burner-banner" id="burner-banner" style="display:none">
-    <span class="burner-icon">&#x26a0;</span>
-    Burner mode — photos, files, and data are erased on reboot
-    <button id="burner-dismiss" class="burner-close">&times;</button>
-  </div>
+  <!-- Burner mode warning moved to Android notification panel (BootReceiver) -->
 
   <!-- ══════ APP DRAWER (slides up on swipe) ══════ -->
   <div class="drawer" id="drawer">
@@ -192,7 +187,7 @@
   <div class="chat" id="chat">
     <div class="chat-header">
       <div class="chat-mascot">
-        <canvas id="chat-mascot-sprite" width="48" height="48"></canvas>
+        <canvas id="chat-mascot-sprite" width="160" height="160"></canvas>
       </div>
       <div class="chat-clock" id="chat-clock">
         <span id="chat-clock-h">00</span>
