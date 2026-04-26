@@ -8,6 +8,61 @@ Briar, Session, Tox, Magic Wormhole, Veilid, Nym, OnionShare, Ricochet.
 
 ---
 
+## Implementation status & release roadmap
+
+Release pivot: v1.0.0 ships **2026-05-04**. The roadmap below collapses
+the original three-phase plan to fit that window honestly.
+
+### v1.0.0 — Phase 1 (preview) — 2026-05-04
+
+`LetheMeshService` in the system app does BLE LE advertising/scanning
+of HMAC-SHA256-tagged 21-byte heartbeats over service UUID
+`4c455448-454d-4553-4831-000000000001`. Self-contained (no third-party
+deps), keyed off a 32-byte secret in the app's private data dir,
+anti-replay via per-device sequence number. Sufficient for dead man's
+switch "I'm-still-here" signaling between trusted LETHE devices.
+
+**v1.0 blockers (9-day window from 2026-04-25):**
+- Smoke test BLE advertise + scan + HMAC verify on at least two real
+  devices (one Pixel, one older device — Galaxy Note II era — to
+  confirm BLE LE Advertiser support on the supported-device floor).
+- Settings UI toggle wired to `persist.lethe.mesh.enabled` so users
+  don't need `setprop` shell access. (Currently boot-only — see
+  `BootReceiver` start branch; runtime toggle requires reboot.)
+- `RELEASE-v1.0.0.md` + `FEATURES.md` mark mesh as **preview**:
+  signaling-only, no message content, range ~10–30m line-of-sight.
+- No trust-ring import/export UX yet — first peers will share keys
+  out-of-band (QR or manual file copy). Document this clearly.
+
+**v1.0 explicitly out of scope:**
+- WiFi-Direct transport (`persist.lethe.mesh.wifi_direct` is a no-op).
+- Cross-device alarm relay beyond BLE radio range.
+- Settings UI for the mesh trust ring (peer add/remove).
+
+### v1.1 — Phase 2 — Briar bramble-core bridge (target ~2026-07)
+
+Bridge to Briar's `bramble-core` so deadman alarms can relay over the
+user's Briar contact graph when local BLE range is exceeded.
+Trade-off: pulls in Dagger DI, H2, libsodium, and the full
+contact-management stack. Integration sketch:
+- Vendor `bramble-core` + `bramble-android` as a privileged JAR or
+  embed in the system app process (GPLv3 — system_ext is fine).
+- Wrap Briar's `BluetoothPlugin` so it shares the same trust ring file
+  as `LetheMeshService` (eliminates duplicate adverts).
+- Add a relay-only "deadman-signal" `ClientId` so LETHE alarms ride the
+  Briar sync flow without exposing any personal Briar contacts.
+
+Also in v1.1: trust-ring management UI (QR-based peer pairing,
+per-peer revocation), runtime toggle without reboot.
+
+### v1.2 — Phase 3 — Iroh + Yggdrasil (target later in 2026)
+
+Iroh as the `lethe-p2p` sidecar (closes the gap in
+`initrc/init.lethe-p2p.rc`); Yggdrasil as a parallel always-on IPv6
+backbone alongside the existing EdgeVPN cluster.
+
+---
+
 ## 1. Storage & Sync
 
 ### Iroh (n0/number0) — P1

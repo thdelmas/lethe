@@ -73,6 +73,32 @@ public final class LetheConfig {
         }
     }
 
+    public static boolean isMeshEnabled() {
+        return "true".equals(get("persist.lethe.mesh.enabled", "false"));
+    }
+
+    public static boolean isMeshBleEnabled() {
+        return "true".equals(get("persist.lethe.mesh.ble", "true"));
+    }
+
+    public static long getMeshBleIntervalMs() {
+        try {
+            return Long.parseLong(
+                get("persist.lethe.mesh.ble_interval", "1000"));
+        } catch (NumberFormatException e) {
+            return 1000L;
+        }
+    }
+
+    public static int getMeshMaxPeers() {
+        try {
+            return Integer.parseInt(
+                get("persist.lethe.mesh.max_peers", "16"));
+        } catch (NumberFormatException e) {
+            return 16;
+        }
+    }
+
     /** Read a line from a file, returning defaultValue on any error. */
     public static String readFile(String path, String defaultValue) {
         File f = new File(path);
