@@ -424,80 +424,15 @@
   }
 
   // ═══════════ SPEECH AMPLITUDE ═══════════
-  // Extract real-time amplitude from audio and feed to renderers.
-  // The orb and veins pulse with LETHE's voice.
-
-  var audioCtx = null;
-  var analyser = null;
-  var amplitudeData = null;
-  var amplitudeRaf = null;
-  var audioSource = null;
+  // Implementation moved to mascot-amplitude.js. Thin shims below
+  // preserve the letheEmotion.start/stopSpeechAmplitude() API so
+  // launcher-send.js callers don't need to change.
 
   function startSpeechAmplitude(mediaStream) {
-    stopSpeechAmplitude();
-    /* No point running audio analysis if animations are disabled */
-    if (prefersReducedMotion) return;
-    var AC = window.AudioContext || window.webkitAudioContext;
-    if (!AC) return;
-    try {
-      audioCtx = new AC();
-      analyser = audioCtx.createAnalyser();
-      analyser.fftSize = 256;
-      analyser.smoothingTimeConstant = 0.7;
-      amplitudeData = new Uint8Array(analyser.frequencyBinCount);
-
-      audioSource = audioCtx.createMediaStreamSource(mediaStream);
-      audioSource.connect(analyser);
-      pollAmplitude();
-    } catch (e) { /* AudioContext not available */ }
+    if (window.letheAmplitude) window.letheAmplitude.start(mediaStream);
   }
-
-  function pollAmplitude() {
-    if (!analyser) return;
-    analyser.getByteFrequencyData(amplitudeData);
-
-    // RMS amplitude normalized to 0-1
-    var sum = 0;
-    for (var i = 0; i < amplitudeData.length; i++) {
-      sum += amplitudeData[i] * amplitudeData[i];
-    }
-    var rms = Math.sqrt(sum / amplitudeData.length) / 255;
-
-    // Feed to 3D renderer
-    if (window.mascot3D && window.mascot3D.setSpeechAmplitude) {
-      window.mascot3D.setSpeechAmplitude(rms);
-    }
-
-    // Feed to 2D CSS
-    var el = document.getElementById('home-mascot');
-    if (el) {
-      el.style.setProperty('--speech-amplitude', rms.toFixed(3));
-    }
-
-    amplitudeRaf = requestAnimationFrame(pollAmplitude);
-  }
-
   function stopSpeechAmplitude() {
-    if (amplitudeRaf) {
-      cancelAnimationFrame(amplitudeRaf);
-      amplitudeRaf = null;
-    }
-    if (audioSource) {
-      audioSource.disconnect();
-      audioSource = null;
-    }
-    if (audioCtx) {
-      audioCtx.close().catch(function() {});
-      audioCtx = null;
-    }
-    analyser = null;
-
-    // Reset renderers
-    if (window.mascot3D && window.mascot3D.setSpeechAmplitude) {
-      window.mascot3D.setSpeechAmplitude(0);
-    }
-    var el = document.getElementById('home-mascot');
-    if (el) el.style.setProperty('--speech-amplitude', '0');
+    if (window.letheAmplitude) window.letheAmplitude.stop();
   }
 
   // ═══════════ EXPORTS ═══════════
