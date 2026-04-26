@@ -37,6 +37,17 @@ public class BootReceiver extends BroadcastReceiver {
             Log.i(TAG, "Panic press monitor started");
         }
 
+        // Start mesh BLE signaling if enabled
+        if (LetheConfig.isMeshEnabled()) {
+            Intent mesh = new Intent(context, LetheMeshService.class);
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                context.startForegroundService(mesh);
+            } else {
+                context.startService(mesh);
+            }
+            Log.i(TAG, "Mesh service started");
+        }
+
         // Show persistent burner mode notification
         if ("true".equals(
                 LetheConfig.get("persist.lethe.burner.enabled", "false"))) {
@@ -44,7 +55,7 @@ public class BootReceiver extends BroadcastReceiver {
         }
     }
 
-    private void showBurnerNotification(Context context) {
+    static void showBurnerNotification(Context context) {
         NotificationManager nm = (NotificationManager)
             context.getSystemService(Context.NOTIFICATION_SERVICE);
         if (nm == null) return;

@@ -66,6 +66,14 @@ Silence is the trigger: no signal is ever sent. Check-in via bland "Scheduled ma
 - Separate dead-man passphrase, optional duress PIN
 - **Escalation:** lock (immediate) → wipe (+1h) → brick (+2h, opt-in, OSmosis USB recovery only)
 
+### Mesh signaling — **preview** (OFF by default)
+BLE heartbeat between trusted LETHE devices for offline dead man's switch
+relay. Carries no message content — only structured "I'm alive" signals
+(HMAC-SHA256-tagged, anti-replay, ~21 bytes per advert). Range is BLE
+line-of-sight (~10–30m). v1.1 will bridge to Briar's contact graph for
+cross-range relay; v1.2 adds Iroh + Yggdrasil for IP-layer mesh. See
+[research/gems-decentralized-mesh.md](research/gems-decentralized-mesh.md#implementation-status--release-roadmap).
+
 ---
 
 ## Interface
