@@ -53,6 +53,7 @@ function defaultConfig() {
     version: 1,
     active_provider: null,
     p2p_enabled: false,
+    mesh_enabled: false,
     /* Empty means every known model is enabled. Entries are
        "<provider>/<model>": true — user-disabled models the router must skip. */
     disabled_models: {},

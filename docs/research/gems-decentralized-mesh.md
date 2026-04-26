@@ -26,11 +26,15 @@ switch "I'm-still-here" signaling between trusted LETHE devices.
 - Smoke test BLE advertise + scan + HMAC verify on at least two real
   devices (one Pixel, one older device — Galaxy Note II era — to
   confirm BLE LE Advertiser support on the supported-device floor).
-- Settings UI toggle wired to `persist.lethe.mesh.enabled` so users
-  don't need `setprop` shell access. (Currently boot-only — see
-  `BootReceiver` start branch; runtime toggle requires reboot.)
+  **Still pending.**
+- ~~Settings UI toggle wired to `persist.lethe.mesh.enabled`.~~ Done
+  2026-04-26: `renderMeshToggle` in `static/settings.js` writes the
+  prop via `NativeLauncher.setSystemProp` (whitelisted bridge in
+  `LetheActivity`) and starts/stops `LetheMeshService` on the same
+  call, so the toggle takes effect without reboot.
 - `RELEASE-v1.0.0.md` + `FEATURES.md` mark mesh as **preview**:
   signaling-only, no message content, range ~10–30m line-of-sight.
+  FEATURES.md done 2026-04-26; RELEASE-v1.0.0.md still pending.
 - No trust-ring import/export UX yet — first peers will share keys
   out-of-band (QR or manual file copy). Document this clearly.
 

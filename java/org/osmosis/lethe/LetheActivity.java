@@ -293,6 +293,38 @@ public class LetheActivity extends Activity {
             return LetheConfig.savePersistedConfig(json);
         }
 
+        /* Settings panel toggles map to system properties. Whitelist only:
+         * never let WebView JS write arbitrary system properties. Side
+         * effect: persist.lethe.mesh.enabled also starts/stops the mesh
+         * service so the toggle works without reboot. */
+        @JavascriptInterface
+        public void setSystemProp(String key, String value) {
+            if (key == null || value == null) return;
+            switch (key) {
+                case "persist.lethe.mesh.enabled":
+                case "persist.lethe.mesh.ble":
+                case "persist.lethe.p2p.enabled":
+                    break;
+                default:
+                    Log.w(TAG, "setSystemProp denied for " + key);
+                    return;
+            }
+            LetheConfig.set(key, value);
+            if ("persist.lethe.mesh.enabled".equals(key)) {
+                Intent svc = new Intent(LetheActivity.this,
+                    LetheMeshService.class);
+                if ("true".equals(value)) {
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                        startForegroundService(svc);
+                    } else {
+                        startService(svc);
+                    }
+                } else {
+                    stopService(svc);
+                }
+            }
+        }
+
         @JavascriptInterface
         public void openAppDrawer() {
             runOnUiThread(() -> webView.evaluateJavascript(
