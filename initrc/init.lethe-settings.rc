@@ -1,0 +1,15 @@
+# Lethe — Apply Settings.Global privacy keys at first boot.
+# These keys (captive_portal_mode, etc.) live in the Android Settings DB,
+# not build.prop, so they need a runtime applicator that runs once after
+# SystemServer is up. Uses a standalone script (inline shell breaks on
+# Android 7.1 init).
+
+service lethe-settings /system/bin/lethe-apply-settings.sh
+    class late_start
+    user root
+    group root
+    oneshot
+    seclabel u:r:init:s0
+
+on property:sys.boot_completed=1
+    start lethe-settings
