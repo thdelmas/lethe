@@ -30,16 +30,29 @@ echo "Overlay dir: $OVERLAY_DIR"
 echo "Codename:    ${CODENAME:-<all>}"
 echo "Prebuilt:    $PREBUILT_ARCH"
 
+# Install an init.rc into the LineageOS init dir, warning if absent.
+# Args: <rc filename> [<label for log>]
+install_initrc() {
+    local rc="$1"
+    local label="${2:-${rc#init.lethe-}}"
+    label="${label%.rc}"
+    if [ -d "system/core/rootdir" ]; then
+        cp "$INITRC_DIR/$rc" "system/core/rootdir/"
+        echo "  -> $label init service installed."
+    else
+        echo "  -> WARNING: init dir not found, skipping $label init service."
+    fi
+}
+
 # ── 1. System properties (privacy defaults) ──
 if [ -f "$OVERLAY_DIR/privacy-defaults.conf" ]; then
     echo "[1/17] Applying privacy system properties..."
-    # Append to device-specific system.prop or vendor build.prop
     PROPS_TARGET="vendor/lineage/config/common.mk"
     if [ -f "$PROPS_TARGET" ]; then
-        # Add Lethe product info
+        # LETHE identity props (not in conf — fixed at build time).
         cat >> "$PROPS_TARGET" <<'PROPS'
 
-# Lethe privacy defaults
+# Lethe identity
 PRODUCT_PROPERTY_OVERRIDES += \
     ro.lethe=true \
     ro.lethe.version=1.0.0 \
@@ -47,9 +60,58 @@ PRODUCT_PROPERTY_OVERRIDES += \
     ro.build.display.id=LETHE\ 1.0.0 \
     ro.lineage.display.version=LETHE\ 1.0.0 \
     ro.modversion=LETHE-1.0.0
+
+# Lethe privacy defaults (parsed from overlays/privacy-defaults.conf)
 PROPS
+
+        # Parse privacy-defaults.conf and split entries:
+        #   - keys containing '.'  → build.prop system properties
+        #   - keys without '.'     → Android Settings.Global (runtime applicator)
+        SETTINGS_GLOBAL_OUT="system/extras/lethe/settings-global.conf"
+        mkdir -p "$(dirname "$SETTINGS_GLOBAL_OUT")"
+        : > "$SETTINGS_GLOBAL_OUT"
+        sg_count=0
+        sp_count=0
+        while IFS= read -r line || [ -n "$line" ]; do
+            stripped="${line%%#*}"
+            stripped="${stripped#"${stripped%%[![:space:]]*}"}"
+            stripped="${stripped%"${stripped##*[![:space:]]}"}"
+            [ -z "$stripped" ] && continue
+            case "$stripped" in *=*) ;; *) continue ;; esac
+            key="${stripped%%=*}"
+            val="${stripped#*=}"
+            key="${key%"${key##*[![:space:]]}"}"
+            [ -z "$key" ] && continue
+            case "$key" in
+                *.*)
+                    printf 'PRODUCT_PROPERTY_OVERRIDES += %s=%s\n' \
+                        "$key" "$val" >> "$PROPS_TARGET"
+                    sp_count=$((sp_count + 1))
+                    ;;
+                *)
+                    printf '%s=%s\n' "$key" "$val" >> "$SETTINGS_GLOBAL_OUT"
+                    sg_count=$((sg_count + 1))
+                    ;;
+            esac
+        done < "$OVERLAY_DIR/privacy-defaults.conf"
+        echo "  -> $sp_count system properties applied to $PROPS_TARGET."
+
+        if [ "$sg_count" -gt 0 ]; then
+            cp "$SCRIPT_DIR/scripts/runtime/lethe-apply-settings.sh" "system/bin/"
+            chmod 755 "system/bin/lethe-apply-settings.sh"
+            INIT_DIR="system/core/rootdir"
+            if [ -d "$INIT_DIR" ]; then
+                cp "$INITRC_DIR/init.lethe-settings.rc" "$INIT_DIR/"
+                echo "  -> $sg_count Settings.Global keys staged for first-boot applicator."
+            else
+                echo "  -> WARNING: init dir not found; Settings.Global keys will not apply."
+            fi
+        else
+            rm -f "$SETTINGS_GLOBAL_OUT"
+        fi
+    else
+        echo "  -> WARNING: $PROPS_TARGET not found; privacy properties not applied."
     fi
-    echo "  -> System properties applied."
 fi
 
 # ── 2. Hosts file (tracker blocking) ──
@@ -85,14 +147,7 @@ if [ -f "$OVERLAY_DIR/burner-mode.conf" ]; then
     chmod 755 "system/bin/lethe-burner-wipe.sh" "system/bin/lethe-mac-rotate.sh"
     echo "  -> Burner runtime scripts installed."
 
-    # Install init service
-    INIT_DIR="system/core/rootdir"
-    if [ -d "$INIT_DIR" ]; then
-        cp "$INITRC_DIR/init.lethe-burner.rc" "$INIT_DIR/"
-        echo "  -> Burner init service installed."
-    else
-        echo "  -> WARNING: init dir not found, skipping burner init service."
-    fi
+    install_initrc init.lethe-burner.rc burner
     echo "  -> Burner mode config installed."
 fi
 
@@ -110,13 +165,7 @@ if [ -f "$OVERLAY_DIR/dead-mans-switch.conf" ]; then
     chmod 755 "system/bin/lethe-deadman-boot.sh" "system/bin/lethe-deadman-monitor.sh" "system/bin/lethe-deadman-duress.sh"
     echo "  -> Dead man runtime scripts installed."
 
-    INIT_DIR="system/core/rootdir"
-    if [ -d "$INIT_DIR" ]; then
-        cp "$INITRC_DIR/init.lethe-deadman.rc" "$INIT_DIR/"
-        echo "  -> Dead man init service installed."
-    else
-        echo "  -> WARNING: init dir not found, skipping dead man init service."
-    fi
+    install_initrc init.lethe-deadman.rc "dead man"
     echo "  -> Dead man's switch config installed."
 fi
 
@@ -215,13 +264,7 @@ if [ -f "$OVERLAY_DIR/tor.conf" ]; then
     chmod 755 "system/bin/lethe-tor-rules.sh"
     echo "  -> Tor rules script installed."
 
-    INIT_DIR="system/core/rootdir"
-    if [ -d "$INIT_DIR" ]; then
-        cp "$INITRC_DIR/init.lethe-tor.rc" "$INIT_DIR/"
-        echo "  -> Tor init service installed."
-    else
-        echo "  -> WARNING: init dir not found, skipping Tor init service."
-    fi
+    install_initrc init.lethe-tor.rc Tor
     # Check for prebuilt Tor binary
     TOR_BINARY="$SCRIPT_DIR/prebuilt/tor/$PREBUILT_ARCH/tor"
     if [ -f "$TOR_BINARY" ]; then
@@ -241,13 +284,7 @@ if [ -f "$OVERLAY_DIR/ipfs-ota.conf" ]; then
     mkdir -p "system/extras/lethe"
     cp "$OVERLAY_DIR/ipfs-ota.conf" "system/extras/lethe/"
 
-    INIT_DIR="system/core/rootdir"
-    if [ -d "$INIT_DIR" ]; then
-        cp "$INITRC_DIR/init.lethe-ipfs.rc" "$INIT_DIR/"
-        echo "  -> IPFS OTA init service installed."
-    else
-        echo "  -> WARNING: init dir not found, skipping IPFS OTA init service."
-    fi
+    install_initrc init.lethe-ipfs.rc "IPFS OTA"
 
     # Install the OTA update script to /system/bin
     SCRIPTS_DIR="$SCRIPT_DIR/scripts"
@@ -326,145 +363,10 @@ echo "[11/17] Installing LETHE agent as native system component..."
     SYSAPP_DIR="system/app/Lethe"
     mkdir -p "$SYSAPP_DIR"
 
-    # AndroidManifest.xml for the WebView wrapper
+    # AndroidManifest.xml for the WebView wrapper — source lives at repo root.
     mkdir -p "$SYSAPP_DIR/res/xml"
-    cat > "$SYSAPP_DIR/AndroidManifest.xml" <<'MANIFEST'
-<?xml version="1.0" encoding="utf-8"?>
-<manifest xmlns:android="http://schemas.android.com/apk/res/android"
-    package="org.osmosis.lethe.agent"
-    android:versionCode="1"
-    android:versionName="1.0"
-    android:sharedUserId="android.uid.system">
-
-    <uses-permission android:name="android.permission.INTERNET" />
-    <uses-permission android:name="android.permission.RECORD_AUDIO" />
-    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
-    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
-    <uses-permission android:name="android.permission.REBOOT" />
-    <uses-permission android:name="android.permission.VIBRATE" />
-
-    <application
-        android:label="LETHE"
-        android:icon="@mipmap/ic_lethe"
-        android:theme="@android:style/Theme.NoTitleBar.Fullscreen"
-        android:persistent="true">
-
-        <!-- Main activity — WebView wrapper -->
-        <activity
-            android:name=".LetheActivity"
-            android:label="LETHE"
-            android:launchMode="singleTask"
-            android:screenOrientation="portrait"
-            android:exported="true">
-            <intent-filter>
-                <action android:name="android.intent.action.MAIN" />
-                <category android:name="android.intent.category.LAUNCHER" />
-            </intent-filter>
-        </activity>
-
-        <!-- Voice assist handler — long-press home triggers LETHE -->
-        <activity
-            android:name=".LetheAssistActivity"
-            android:label="LETHE"
-            android:launchMode="singleTask"
-            android:theme="@android:style/Theme.Translucent.NoTitleBar"
-            android:exported="true">
-            <intent-filter>
-                <action android:name="android.intent.action.ASSIST" />
-                <category android:name="android.intent.category.DEFAULT" />
-            </intent-filter>
-            <intent-filter>
-                <action android:name="android.intent.action.VOICE_COMMAND" />
-                <category android:name="android.intent.category.DEFAULT" />
-            </intent-filter>
-            <intent-filter>
-                <action android:name="android.intent.action.SEARCH_LONG_PRESS" />
-                <category android:name="android.intent.category.DEFAULT" />
-            </intent-filter>
-        </activity>
-
-        <!-- Persistent notification service — always-on quick access -->
-        <service
-            android:name=".LetheNotificationService"
-            android:exported="false">
-        </service>
-
-        <!-- Quick Settings tile -->
-        <service
-            android:name=".LetheTileService"
-            android:label="LETHE"
-            android:icon="@mipmap/ic_lethe"
-            android:permission="android.permission.BIND_QUICK_SETTINGS_TILE"
-            android:exported="true">
-            <intent-filter>
-                <action android:name="android.service.quicksettings.action.QS_TILE" />
-            </intent-filter>
-        </service>
-
-        <!-- Boot receiver — start services on boot -->
-        <receiver
-            android:name=".BootReceiver"
-            android:exported="true">
-            <intent-filter>
-                <action android:name="android.intent.action.BOOT_COMPLETED" />
-            </intent-filter>
-        </receiver>
-
-        <!-- Dead man's switch check-in receiver -->
-        <receiver
-            android:name=".CheckinReceiver"
-            android:exported="true">
-            <intent-filter>
-                <action android:name="lethe.intent.CHECKIN_DUE" />
-            </intent-filter>
-        </receiver>
-
-        <!-- Check-in passphrase dialog -->
-        <activity
-            android:name=".CheckinDialogActivity"
-            android:theme="@android:style/Theme.DeviceDefault.Dialog"
-            android:excludeFromRecents="true"
-            android:exported="false" />
-
-        <!-- DMS settings — passphrase-protected disable -->
-        <activity
-            android:name=".DeadmanSettingsActivity"
-            android:theme="@android:style/Theme.DeviceDefault.Dialog"
-            android:excludeFromRecents="true"
-            android:exported="true">
-            <intent-filter>
-                <action android:name="lethe.intent.DEADMAN_SETTINGS" />
-                <category android:name="android.intent.category.DEFAULT" />
-            </intent-filter>
-        </activity>
-
-        <!-- Panic press monitor (5x power = wipe) -->
-        <service
-            android:name=".PanicPressService"
-            android:exported="false" />
-
-        <!-- Duress PIN receiver (silent wipe on fake unlock) -->
-        <receiver
-            android:name=".DuressPinReceiver"
-            android:exported="true">
-            <intent-filter>
-                <action android:name="lethe.intent.DURESS_UNLOCK" />
-            </intent-filter>
-        </receiver>
-
-        <!-- OTA update notification receiver -->
-        <receiver
-            android:name=".OtaReceiver"
-            android:exported="true">
-            <intent-filter>
-                <action android:name="lethe.intent.OTA_AVAILABLE" />
-            </intent-filter>
-        </receiver>
-
-    </application>
-</manifest>
-MANIFEST
-    echo "  -> AndroidManifest.xml created."
+    cp "$SCRIPT_DIR/AndroidManifest.xml" "$SYSAPP_DIR/AndroidManifest.xml"
+    echo "  -> AndroidManifest.xml installed."
 
     # Copy icon to mipmap directories
     if [ -f "$SCRIPT_DIR/static/icon-192.png" ]; then
@@ -486,11 +388,7 @@ MANIFEST
     fi
 
     # ── 11d. Init service — backend + default assist registration ──
-    INIT_DIR="system/core/rootdir"
-    if [ -d "$INIT_DIR" ]; then
-        cp "$INITRC_DIR/init.lethe-agent.rc" "$INIT_DIR/"
-        echo "  -> Init service installed (backend + assist + notification)."
-    fi
+    install_initrc init.lethe-agent.rc "agent (backend + assist + notification)"
     echo "  -> LETHE agent installed as native system component."
 
 # ── 12. SELinux policy ──
@@ -539,13 +437,7 @@ echo "[15/17] Installing libp2p peer inference sidecar..."
 mkdir -p "system/extras/lethe"
 cp "$OVERLAY_DIR/p2p.conf" "system/extras/lethe/"
 
-INIT_DIR="system/core/rootdir"
-if [ -d "$INIT_DIR" ]; then
-    cp "$INITRC_DIR/init.lethe-p2p.rc" "$INIT_DIR/"
-    echo "  -> P2P init service installed."
-else
-    echo "  -> WARNING: init dir not found, skipping P2P init service."
-fi
+install_initrc init.lethe-p2p.rc P2P
 
 # Install prebuilt lethe-p2p binary
 P2P_BINARY="$SCRIPT_DIR/prebuilt/p2p/$PREBUILT_ARCH/lethe-p2p"
@@ -565,11 +457,7 @@ echo "[16/17] Installing EdgeVPN device cluster..."
 mkdir -p "system/extras/lethe"
 cp "$OVERLAY_DIR/edgevpn.conf" "system/extras/lethe/"
 
-INIT_DIR="system/core/rootdir"
-if [ -d "$INIT_DIR" ]; then
-    cp "$INITRC_DIR/init.lethe-cluster.rc" "$INIT_DIR/"
-    echo "  -> Cluster init service installed."
-fi
+install_initrc init.lethe-cluster.rc cluster
 
 if [ -f "$SCRIPT_DIR/scripts/lethe-cluster.sh" ]; then
     cp "$SCRIPT_DIR/scripts/lethe-cluster.sh" "system/bin/"
