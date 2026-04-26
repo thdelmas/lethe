@@ -82,8 +82,47 @@ function settingsLoad() {
   container.innerHTML = '';
 
   renderPeerToggle(container);
+  renderMeshToggle(container);
   renderModelsSection(container);
   renderKeysSection(container);
+}
+
+/* ── Mesh signaling toggle ── DMS transport only; not chat. */
+function renderMeshToggle(container) {
+  var section = document.createElement('div');
+  section.className = 'settings-provider';
+  var enabled = letheConfig && letheConfig.mesh_enabled;
+  var dot = enabled ?
+    '<span class="status-dot status-on"></span>' :
+    '<span class="status-dot status-off"></span>';
+  section.innerHTML =
+    '<div class="settings-prov-header">' + dot +
+    '<strong>Mesh signaling</strong> ' +
+    '<span class="settings-prov-count">preview</span></div>' +
+    '<div class="settings-prov-desc">' +
+    "Dead man's switch transport over BLE. Broadcasts a 21-byte " +
+    'liveness heartbeat to trusted LETHE devices in range. ' +
+    '<strong>Not a chat — no messages, no voice, no files.</strong> ' +
+    'For chat install Briar (offline / anonymous) or Molly-FOSS ' +
+    '(Signal contacts) from F-Droid.</div>' +
+    '<label class="settings-toggle">' +
+    '<input type="checkbox" id="mesh-toggle"' +
+    (enabled ? ' checked' : '') + '/>' +
+    ' Enable mesh signaling</label>';
+  container.appendChild(section);
+
+  var toggle = document.getElementById('mesh-toggle');
+  if (toggle) {
+    toggle.addEventListener('change', function() {
+      if (!letheConfig) return;
+      letheConfig.mesh_enabled = toggle.checked;
+      persistConfig();
+      if (typeof NativeLauncher !== 'undefined' && NativeLauncher.setSystemProp) {
+        NativeLauncher.setSystemProp('persist.lethe.mesh.enabled',
+          toggle.checked ? 'true' : 'false');
+      }
+    });
+  }
 }
 
 /* ── Peer Network toggle ── */
