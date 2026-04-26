@@ -1,0 +1,153 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    package="org.osmosis.lethe.agent"
+    android:versionCode="1"
+    android:versionName="1.0"
+    android:sharedUserId="android.uid.system">
+
+    <uses-permission android:name="android.permission.INTERNET" />
+    <uses-permission android:name="android.permission.RECORD_AUDIO" />
+    <uses-permission android:name="android.permission.CAMERA" />
+    <uses-feature android:name="android.hardware.camera" android:required="false" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
+    <uses-permission android:name="android.permission.REBOOT" />
+    <uses-permission android:name="android.permission.VIBRATE" />
+
+    <!-- Mesh signaling (BLE heartbeat) -->
+    <uses-permission android:name="android.permission.BLUETOOTH" />
+    <uses-permission android:name="android.permission.BLUETOOTH_ADMIN" />
+    <uses-permission android:name="android.permission.BLUETOOTH_ADVERTISE" />
+    <uses-permission android:name="android.permission.BLUETOOTH_SCAN"
+        android:usesPermissionFlags="neverForLocation" />
+    <uses-permission android:name="android.permission.BLUETOOTH_CONNECT" />
+    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
+    <uses-feature android:name="android.hardware.bluetooth_le"
+        android:required="false" />
+
+    <application
+        android:label="LETHE"
+        android:icon="@mipmap/ic_lethe"
+        android:theme="@android:style/Theme.NoTitleBar.Fullscreen"
+        android:persistent="true">
+
+        <!-- Main activity — WebView wrapper -->
+        <activity
+            android:name=".LetheActivity"
+            android:label="LETHE"
+            android:launchMode="singleTask"
+            android:screenOrientation="portrait"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity>
+
+        <!-- Voice assist handler — long-press home triggers LETHE -->
+        <activity
+            android:name=".LetheAssistActivity"
+            android:label="LETHE"
+            android:launchMode="singleTask"
+            android:theme="@android:style/Theme.Translucent.NoTitleBar"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.ASSIST" />
+                <category android:name="android.intent.category.DEFAULT" />
+            </intent-filter>
+            <intent-filter>
+                <action android:name="android.intent.action.VOICE_COMMAND" />
+                <category android:name="android.intent.category.DEFAULT" />
+            </intent-filter>
+            <intent-filter>
+                <action android:name="android.intent.action.SEARCH_LONG_PRESS" />
+                <category android:name="android.intent.category.DEFAULT" />
+            </intent-filter>
+        </activity>
+
+        <!-- Persistent notification service — always-on quick access -->
+        <service
+            android:name=".LetheNotificationService"
+            android:exported="false">
+        </service>
+
+        <!-- Quick Settings tile -->
+        <service
+            android:name=".LetheTileService"
+            android:label="LETHE"
+            android:icon="@mipmap/ic_lethe"
+            android:permission="android.permission.BIND_QUICK_SETTINGS_TILE"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.service.quicksettings.action.QS_TILE" />
+            </intent-filter>
+        </service>
+
+        <!-- Boot receiver — start services on boot -->
+        <receiver
+            android:name=".BootReceiver"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.BOOT_COMPLETED" />
+            </intent-filter>
+        </receiver>
+
+        <!-- Dead man's switch check-in receiver -->
+        <receiver
+            android:name=".CheckinReceiver"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="lethe.intent.CHECKIN_DUE" />
+            </intent-filter>
+        </receiver>
+
+        <!-- Check-in passphrase dialog -->
+        <activity
+            android:name=".CheckinDialogActivity"
+            android:theme="@android:style/Theme.DeviceDefault.Dialog"
+            android:excludeFromRecents="true"
+            android:exported="false" />
+
+        <!-- DMS settings — passphrase-protected disable -->
+        <activity
+            android:name=".DeadmanSettingsActivity"
+            android:theme="@android:style/Theme.DeviceDefault.Dialog"
+            android:excludeFromRecents="true"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="lethe.intent.DEADMAN_SETTINGS" />
+                <category android:name="android.intent.category.DEFAULT" />
+            </intent-filter>
+        </activity>
+
+        <!-- Panic press monitor (5x power = wipe) -->
+        <service
+            android:name=".PanicPressService"
+            android:exported="false" />
+
+        <!-- Mesh signaling (BLE heartbeat for dead man's switch) -->
+        <service
+            android:name=".LetheMeshService"
+            android:exported="false"
+            android:foregroundServiceType="connectedDevice" />
+
+        <!-- Duress PIN receiver (silent wipe on fake unlock) -->
+        <receiver
+            android:name=".DuressPinReceiver"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="lethe.intent.DURESS_UNLOCK" />
+            </intent-filter>
+        </receiver>
+
+        <!-- OTA update notification receiver -->
+        <receiver
+            android:name=".OtaReceiver"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="lethe.intent.OTA_AVAILABLE" />
+            </intent-filter>
+        </receiver>
+
+    </application>
+</manifest>
