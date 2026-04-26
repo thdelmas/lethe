@@ -54,13 +54,24 @@
    SETTINGS PANEL
    ═════════════════════════════════════ */
 .settings-panel {
-  position: fixed; inset: 0;
+  position: fixed;
+  top: 0; right: 0; bottom: 0; left: 0;
+  width: 100%; height: 100%;
   background: rgba(8,8,8,0.97);
   z-index: 9998;
   padding: 1rem;
-  overflow-y: auto;
   font-size: 13px;
   color: var(--text);
+  display: flex;
+  flex-direction: column;
+}
+.settings-panel.hidden { display: none; }
+.settings-body {
+  flex: 1 1 auto;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  min-height: 0;
+  padding-bottom: 2rem;
 }
 .settings-desc {
   color: var(--text-dim); font-size: 0.75rem;
@@ -93,6 +104,108 @@
 }
 .status-on { background: #22e8a0; }
 .status-off { background: #333; }
+
+/* ── Section headers ── */
+.settings-section-h {
+  color: var(--accent); font-size: 0.7rem;
+  text-transform: uppercase; letter-spacing: 0.08em;
+  margin: 1rem 0 0.3rem; padding-bottom: 0.2rem;
+  border-bottom: 1px solid #1a3a2a;
+}
+.settings-section-h:first-child { margin-top: 0; }
+
+/* ── Flat model list ── */
+.settings-model-list {
+  background: #121210; border: 1px solid #22e8a012;
+  border-radius: 6px; padding: 0.2rem;
+  margin-bottom: 0.6rem;
+}
+.settings-model-row {
+  display: flex; align-items: center; gap: 0.5rem;
+  padding: 0.5rem 0.6rem;
+  border-bottom: 1px solid #1a1a18;
+  cursor: pointer;
+  font-size: 0.8rem;
+}
+.settings-model-row:last-child { border-bottom: none; }
+.settings-model-row:active { background: #1a1a16; }
+.settings-model-empty {
+  color: var(--text-dim); font-style: italic;
+  cursor: default; font-size: 0.72rem;
+}
+.settings-model-toggle {
+  flex-shrink: 0;
+  accent-color: var(--accent);
+}
+.settings-model-text {
+  flex: 1 1 auto; min-width: 0;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.settings-model-badge {
+  flex-shrink: 0;
+  font-size: 0.6rem; color: var(--text-dim);
+  text-transform: uppercase; letter-spacing: 0.04em;
+}
+.settings-model-chip {
+  flex-shrink: 0;
+  font-size: 0.6rem; padding: 0.1rem 0.4rem;
+  border-radius: 3px; border: 1px solid currentColor;
+  text-transform: lowercase;
+}
+.chip-ready { color: var(--accent); }
+.chip-needs { color: #b58a2a; }
+
+.settings-prov-count {
+  font-size: 0.62rem; color: var(--text-dim);
+  font-weight: normal; margin-left: 0.4rem;
+}
+
+/* ═════════════════════════════════════
+   QR SCANNER OVERLAY
+   ═════════════════════════════════════ */
+.qr-scanner {
+  position: fixed;
+  top: 0; right: 0; bottom: 0; left: 0;
+  width: 100%; height: 100%;
+  background: #000;
+  z-index: 10001;
+  overflow: hidden;
+}
+.qr-scanner.hidden { display: none; }
+.qr-scanner video {
+  position: absolute;
+  top: 50%; left: 50%;
+  min-width: 100%; min-height: 100%;
+  transform: translate(-50%, -50%);
+  object-fit: cover;
+}
+.qr-scanner canvas { display: none; }
+.qr-viewfinder {
+  position: absolute;
+  top: 50%; left: 50%;
+  width: 70vmin; height: 70vmin;
+  max-width: 280px; max-height: 280px;
+  transform: translate(-50%, -50%);
+  border: 2px solid var(--accent);
+  border-radius: 12px;
+  box-shadow: 0 0 0 9999px rgba(0,0,0,0.55);
+  pointer-events: none;
+}
+.qr-hint {
+  position: absolute;
+  left: 1rem; right: 1rem; bottom: 5.5rem;
+  text-align: center;
+  color: var(--text);
+  font-size: 0.8rem;
+  text-shadow: 0 1px 2px rgba(0,0,0,0.8);
+}
+.qr-cancel {
+  position: absolute;
+  left: 50%; bottom: 1.5rem;
+  transform: translateX(-50%);
+  padding: 0.6rem 1.4rem;
+  background: rgba(0,0,0,0.7);
+}
 
 /* ═════════════════════════════════════
    CLOUD CONSENT DIALOG (EU AI Act Art. 50)

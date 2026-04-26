@@ -119,24 +119,35 @@
   </div>
 
   <!-- ══════ SETTINGS PANEL ══════ -->
-  <div class="settings-panel" id="settings-panel" style="display:none">
+  <div class="settings-panel hidden" id="settings-panel">
     <div class="dev-header">
       <span>Providers</span>
       <button id="settings-close" class="dev-btn" aria-label="Close providers">&times;</button>
     </div>
-    <div class="settings-desc">
-      Enter your keys below, or scan a QR code from OSmosis.
-      LETHE tries local first, then cloud.
+    <div class="settings-body">
+      <div class="settings-desc">
+        Scan a QR from OSmosis, or set up manually below. LETHE runs
+        local first, then routes to the cloud models you enable.
+      </div>
+      <div class="dev-section">
+        <button class="dev-btn" id="set-scan-qr"
+                style="width:100%;padding:0.6rem">Scan QR from OSmosis</button>
+      </div>
+      <div id="settings-providers"></div>
+      <div class="dev-section">
+        <button class="dev-btn" id="set-save">Save</button>
+        <span id="set-status" style="margin-left:0.5rem;font-size:11px;color:var(--accent)"></span>
+      </div>
     </div>
-    <div class="dev-section">
-      <button class="dev-btn" id="set-scan-qr"
-              style="width:100%;padding:0.6rem">Scan QR from OSmosis</button>
-    </div>
-    <div id="settings-providers"></div>
-    <div class="dev-section">
-      <button class="dev-btn" id="set-save">Save</button>
-      <span id="set-status" style="margin-left:0.5rem;font-size:11px;color:var(--accent)"></span>
-    </div>
+  </div>
+
+  <!-- ══════ QR SCANNER OVERLAY ══════ -->
+  <div class="qr-scanner hidden" id="qr-scanner">
+    <video id="qr-video" playsinline muted autoplay></video>
+    <canvas id="qr-canvas" aria-hidden="true"></canvas>
+    <div class="qr-viewfinder" aria-hidden="true"></div>
+    <div class="qr-hint" id="qr-hint">Point camera at the pairing QR from OSmosis</div>
+    <button class="dev-btn qr-cancel" id="qr-cancel" aria-label="Cancel QR scan">Cancel</button>
   </div>
 
   <!-- ══════ AI INFO PANEL (EU AI Act Art. 4 — AI literacy) ══════ -->
@@ -387,6 +398,8 @@
   <script src="launcher-send.js"></script>
   <script src="launcher.js"></script>
   <script src="launcher-drawer.js"></script>
+  <script src="jsQR.min.js"></script>
+  <script src="qr-scan.js"></script>
   <script src="settings.js"></script>
   <script src="wizard.js"></script>
 

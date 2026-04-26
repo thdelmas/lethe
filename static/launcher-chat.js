@@ -67,11 +67,9 @@ function addMessage(text, from, meta) {
     var m = (meta && meta.model) ? meta.model : '';
     if (p) el.setAttribute('data-provider', p);
     if (m) el.setAttribute('data-model', m);
-    var badge = '<span class="ai-badge">AI</span>';
-    var provLabel = p ? '<span class="ai-provider">' + escapeHtml(p) +
-      (m ? ' / ' + escapeHtml(m) : '') + '</span>' : '';
+    var label = p ? escapeHtml(p) + (m ? '/' + escapeHtml(m) : '') : 'AI';
     el.innerHTML = '<div class="message-bubble">' + renderMarkdown(text) + '</div>' +
-      '<div class="ai-label">' + badge + provLabel + '</div>';
+      '<div class="ai-label"><span class="ai-badge">' + label + '</span></div>';
   } else {
     el.innerHTML = '<div class="message-bubble">' + escapeHtml(text) + '</div>';
   }
@@ -165,12 +163,7 @@ function updatePrivacyBar() {
       emo.setEmotion('trust', 0.15);
     }
   }
-  /* Burner mode banner — show when active, dismissable per session */
-  var burnerBanner = document.getElementById('burner-banner');
-  if (burnerBanner && deviceState.burner_mode !== undefined) {
-    var dismissed = sessionStorage.getItem('lethe_burner_dismissed');
-    burnerBanner.style.display = (deviceState.burner_mode && !dismissed) ? 'flex' : 'none';
-  }
+  /* Burner mode indication moved to Android notification panel */
 }
 
 function fetchDeviceState() {

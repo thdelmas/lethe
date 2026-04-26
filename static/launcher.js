@@ -48,16 +48,9 @@ setInterval(updateClock, 10000);
 /* ═══════════ VIEW STATE ═══════════ */
 var viewState = 'home';
 
-function hideBurnerBanner() {
-  var bb = document.getElementById('burner-banner');
-  if (bb) bb.style.display = 'none';
-}
-function showBurnerBanner() {
-  var bb = document.getElementById('burner-banner');
-  if (bb && deviceState.burner_mode && !sessionStorage.getItem('lethe_burner_dismissed')) {
-    bb.style.display = 'flex';
-  }
-}
+/* Burner banner moved to Android notification panel — stubs kept for callers */
+function hideBurnerBanner() {}
+function showBurnerBanner() {}
 
 function openChat() {
   viewState = 'chat';
@@ -352,7 +345,7 @@ document.getElementById('dev-close').addEventListener('click', devClose);
 document.addEventListener('keydown', function(e) {
   if (e.key !== 'Escape') return;
   var sp = document.getElementById('settings-panel');
-  if (sp && sp.style.display !== 'none') {
+  if (sp && !sp.classList.contains('hidden')) {
     if (typeof settingsClose === 'function') settingsClose();
     return;
   }
@@ -442,15 +435,7 @@ for (var i = 0; i < tierBtns.length; i++) {
   });
 }
 
-/* ═══════════ BURNER BANNER DISMISS ═══════════ */
-var burnerDismissBtn = document.getElementById('burner-dismiss');
-if (burnerDismissBtn) {
-  burnerDismissBtn.addEventListener('click', function() {
-    sessionStorage.setItem('lethe_burner_dismissed', '1');
-    var banner = document.getElementById('burner-banner');
-    if (banner) banner.style.display = 'none';
-  });
-}
+/* Burner banner dismiss removed — notification panel handles this natively */
 
 /* ═══════════ HELP & FEEDBACK ═══════════ */
 document.getElementById('btn-report-issue').addEventListener('click', function() {

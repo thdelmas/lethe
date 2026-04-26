@@ -584,9 +584,6 @@ video.mascot-video::-webkit-media-controls-enclosure {
   color: var(--accent); font-size: 0.5rem; font-weight: 600;
   letter-spacing: 0.06em;
 }
-.ai-provider {
-  font-size: 0.5rem; color: var(--text-dim);
-}
 
 /* ── Markdown in messages ── */
 .message-bubble code.md-code {
