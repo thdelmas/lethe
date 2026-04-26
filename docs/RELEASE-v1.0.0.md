@@ -16,6 +16,8 @@ OSmosis was built to free hardware from proprietary software. LETHE is where we'
 
 **Dead Man's Switch.** Opt-in. If you stop checking in, LETHE escalates — lock, wipe, brick. There's a duress PIN that looks normal but erases everything.
 
+**Mesh signaling — preview.** A short-range BLE heartbeat between LETHE devices in your trust ring, so if you go silent your other phones know — even when there's no internet. It's a transport for the dead man's switch, not a chat. No messages, no voice, no files cross the mesh, by design and forever. For real conversations, install Briar (offline, anonymous) or Molly-FOSS (Signal contacts). Off by default. Range is line-of-sight Bluetooth, roughly ten metres. v1.1 will carry the same heartbeat over Briar's contact graph for longer reach.
+
 **Panic Wipe.** Press the power button 5 times. Gone.
 
 The OS itself has a face — a cracked stone android with teal bioluminescent veins. It's not an app you install. It's the system. It talks, it watches, it thinks. It connects to cloud LLMs when you give it a key, and local on-device models are coming in v1.1. Its personality is calm, protective, never servile. A guardian, not an assistant.
