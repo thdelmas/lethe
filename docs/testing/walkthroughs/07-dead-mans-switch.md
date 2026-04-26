@@ -78,3 +78,78 @@ DMS protects the phone if the owner can't access it. This tests whether it works
 **Pass:** Disabling requires passphrase. After disabling, no more check-in notifications.
 
 **Fail examples:** Anyone can disable DMS without the passphrase. DMS setting is not findable. Disabling it doesn't actually stop the timer.
+
+---
+
+## 7.6 — Finding the Mesh Toggle
+
+The mesh is a BLE transport for the dead man's switch — every LETHE
+device in your trust ring broadcasts a 21-byte "I'm alive" heartbeat,
+so peers know you've gone silent even when the internet is down. It is
+**not** a chat or voice network — that's what Briar and Molly-FOSS are
+for, both recommended in `docs/FEATURES.md`.
+
+1. Open Settings → Providers panel
+2. Scroll to **Mesh signaling — preview**
+3. Read the description
+
+**Pass:**
+- Toggle is OFF by default
+- Description includes "Not a chat — no messages, no voice, no files"
+- Description tells the user to install Briar (offline / anonymous) or
+  Molly-FOSS (Signal contacts) for actual conversations
+- The "preview" tag is visible
+
+**Fail examples:** Toggle is ON by default. Description sells the mesh
+as a chat network. No mention of Briar/Molly. Toggle is hidden behind
+a hidden gesture or only reachable via shell.
+
+---
+
+## 7.7 — Mesh Service Start and Stop
+
+This verifies the toggle actually starts/stops the BLE foreground
+service in real time, with no reboot required.
+
+1. With mesh OFF, swipe down the notification panel — there should be
+   no "LETHE Mesh" persistent notification
+2. Toggle mesh ON in Settings
+3. Within a couple of seconds, a persistent foreground-service
+   notification appears (LETHE Mesh)
+4. Toggle mesh OFF
+5. The notification disappears within a couple of seconds
+
+**Pass:** Notification appears on ON, disappears on OFF, no reboot
+between transitions, no lingering notification from a previous session.
+
+**Fail examples:** Toggle requires reboot to take effect. Service
+notification persists after toggling OFF. Toggling causes a crash.
+
+---
+
+## 7.8 — Verifying the BLE Advert (tester-only)
+
+> **This step is for testers, not end users. Requires a BLE scanner
+> on a third device — nRF Connect (free on Play Store / F-Droid) is
+> what we recommend.**
+
+1. On the LETHE phone, enable mesh signaling (test 7.7)
+2. On a third device, install nRF Connect
+3. In nRF Connect, start a scan and filter by service UUID
+   `4c455448-454d-4553-4831-000000000001` (ASCII: "LETHEMESH1")
+4. The LETHE phone should appear as an advertiser. Tap it to inspect
+   the manufacturer data — payload is 21 bytes
+5. Disable mesh on LETHE — the advert disappears within ~2 seconds
+
+**Pass:** Advert visible only when mesh is ON. Service UUID matches.
+Payload length is 21 bytes (16-byte HMAC + 4-byte sequence + 1-byte
+version, per `LetheMeshService` design).
+
+**Fail examples:** Advert visible even with mesh OFF. Service UUID
+wrong. Payload length wrong. Two LETHE devices with mismatched trust-
+ring secrets accept each other's adverts as valid (HMAC verification
+broken — log this as a P0 bug).
+
+> **Cross-device pairing UX is v1.1 — for v1.0 the trust-ring secret
+> must be shared out-of-band (file copy or QR), so this test only
+> verifies advertising. End-to-end peer recognition is tested in v1.1.**

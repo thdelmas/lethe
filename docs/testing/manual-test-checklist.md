@@ -107,13 +107,16 @@ You need:
 
 ## 7. Dead Man's Switch — [walkthrough](walkthroughs/07-dead-mans-switch.md)
 
-*Does the user understand what they're enabling, and does the escalation work?*
+*Does the user understand what they're enabling, and does the escalation work? Also covers the BLE mesh signaling preview (DMS transport — not chat).*
 
 - [ ] **7.1** DMS concept explained clearly (no jargon, not scary) — [steps](walkthroughs/07-dead-mans-switch.md#71--does-the-user-understand-what-this-is)
 - [ ] **7.2** Check-in is quick, notification is discreet — [steps](walkthroughs/07-dead-mans-switch.md#72--checking-in)
 - [ ] **7.3** Missed check-in escalates correctly (lock → wipe → brick) — [steps](walkthroughs/07-dead-mans-switch.md#73--what-happens-when-you-miss-it)
 - [ ] **7.4** Timer counts real time even when phone is powered off — [steps](walkthroughs/07-dead-mans-switch.md#74--does-power-off-cheat-the-timer)
 - [ ] **7.5** Disabling requires passphrase — [steps](walkthroughs/07-dead-mans-switch.md#75--can-the-user-disable-it)
+- [ ] **7.6** Mesh toggle findable in Settings, OFF by default, description correctly says "DMS transport, not chat" with Briar/Molly redirect — [steps](walkthroughs/07-dead-mans-switch.md#76--finding-the-mesh-toggle)
+- [ ] **7.7** Toggling mesh ON/OFF starts/stops the BLE service immediately, no reboot — [steps](walkthroughs/07-dead-mans-switch.md#77--mesh-service-start-and-stop)
+- [ ] **7.8** With mesh ON, an HMAC-tagged 21-byte advert is broadcast on the LETHE service UUID (tester-only, requires a BLE scanner) — [steps](walkthroughs/07-dead-mans-switch.md#78--verifying-the-ble-advert-tester-only)
 
 ---
 
