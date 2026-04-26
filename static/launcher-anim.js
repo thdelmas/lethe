@@ -253,14 +253,28 @@ function scheduleIdleLoop() {
   }, wait);
 }
 
-if (vidA) scheduleIdleLoop();
+/* Skip periodic idle reactions on low-power tiers — they only animate on
+   direct interaction (tap, wake, notification, emotion change). */
+var _lowPower = window.letheTierConfig && window.letheTierConfig.animFps === 0;
+if (vidA && !_lowPower) scheduleIdleLoop();
 
 /* ═══════════ SPRITE ANIMATION (SHALLOW TIER) ═══════════ */
 var spriteCanvas = document.getElementById('mascot-canvas-sprite');
 if (window.letheTier === 'sprite' && spriteCanvas && typeof SpritePlayer !== 'undefined') {
   SpritePlayer.init(spriteCanvas);
-  SpritePlayer.play('idle', { speed: 42, loop: true });
-  console.log('LETHE sprite: idle animation started');
+  /* Tiers with animFps=0 declare "no continuous animation" — driven by
+     thermal/GPU constraints (e.g. Mali-400 hwui aborts on sustained
+     compositor work). Show a static rest pose; play one-shot bursts on
+     direct interaction only. */
+  var lowPowerSprite = window.letheTierConfig &&
+                       window.letheTierConfig.animFps === 0;
+  if (lowPowerSprite) {
+    SpritePlayer.showFrame('idle', 0);
+  } else {
+    SpritePlayer.play('idle', { speed: 42, loop: true });
+  }
+  console.log('LETHE sprite: idle ' +
+    (lowPowerSprite ? 'static (low-power)' : 'animation started'));
 
   /* Chat mascot — independent sprite drawing to chat canvas.
      Sprite frames are 320x320 but the mascot body sits at roughly
@@ -274,20 +288,27 @@ if (window.letheTier === 'sprite' && spriteCanvas && typeof SpritePlayer !== 'un
       var fw = chatSheet.width;  /* 320 */
       var fh = fw;               /* square frames */
       var fc = Math.round(chatSheet.height / fh);
-      var fi = 0, dir = 1;
       /* Crop region within each frame (mascot body bounds + margin) */
       var cx = 90, cy = 5, cw = 140, ch = 180;
       var cvsW = chatSpriteCanvas.width;
       var cvsH = chatSpriteCanvas.height;
-      setInterval(function() {
-        fi += dir;
-        if (fi >= fc - 1) { fi = fc - 1; dir = -1; }
-        else if (fi <= 0) { fi = 0; dir = 1; }
+      function drawChatFrame(fi) {
         chatCtx.clearRect(0, 0, cvsW, cvsH);
         chatCtx.drawImage(chatSheet,
           cx, (fi * fh) + cy, cw, ch,
           0, 0, cvsW, cvsH);
-      }, 42);
+      }
+      if (lowPowerSprite) {
+        drawChatFrame(0);
+      } else {
+        var fi = 0, dir = 1;
+        setInterval(function() {
+          fi += dir;
+          if (fi >= fc - 1) { fi = fc - 1; dir = -1; }
+          else if (fi <= 0) { fi = 0; dir = 1; }
+          drawChatFrame(fi);
+        }, 42);
+      }
     };
     chatSheet.src = 'mascot-idle-green.sprite.png';
   }
@@ -306,11 +327,21 @@ if (window.letheTier === 'sprite' && spriteCanvas && typeof SpritePlayer !== 'un
     var pool = spriteAnims[context] || spriteAnims.calm;
     var pick = pool[Math.floor(Math.random() * pool.length)];
     var isIdle = (pick === 'idle');
-    SpritePlayer.play(pick, { speed: isIdle ? 200 : 100, loop: isIdle });
+    if (lowPowerSprite) {
+      /* Burst-only: one playthrough, then settle on the rest frame.
+         Never restart a continuous loop. */
+      SpritePlayer.setOnSwitch(function() {
+        SpritePlayer.showFrame('idle', 0);
+      });
+      SpritePlayer.play(pick, { speed: isIdle ? 200 : 100, loop: false });
+    } else {
+      SpritePlayer.play(pick, { speed: isIdle ? 200 : 100, loop: isIdle });
+    }
   };
 
-  /* Start idle loop for sprites too */
-  scheduleIdleLoop();
+  /* Skip the periodic idle-reaction loop on low-power devices: the
+     mascot only animates in response to direct touch. */
+  if (!lowPowerSprite) scheduleIdleLoop();
 }
 
 function letheSetAnim(name) { playVideoAnim('mascot-' + name + '.webm'); }

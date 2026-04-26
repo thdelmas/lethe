@@ -144,6 +144,23 @@ var SpritePlayer = (function() {
     if (intervalId) { clearInterval(intervalId); intervalId = null; }
   }
 
+  /* Draw a single frame and stop. Used by low-power tiers (animFps=0) to
+     show a rest pose without starting a frame-redraw interval. */
+  function showFrame(name, frameIdx) {
+    loadSheet(name, function(img) {
+      if (intervalId) { clearInterval(intervalId); intervalId = null; }
+      frameWidth = img.width;
+      frameHeight = img.width;
+      frameCount = Math.round(img.height / frameHeight);
+      canvas.width = frameWidth;
+      canvas.height = frameHeight;
+      currentSheet = img;
+      currentName = name;
+      frameIndex = frameIdx | 0;
+      drawFrame();
+    });
+  }
+
   function setSpeed(ms) {
     msPerFrame = ms;
     if (intervalId && currentName) {
@@ -192,6 +209,7 @@ var SpritePlayer = (function() {
     stop: stop,
     pause: pause,
     resume: resume,
+    showFrame: showFrame,
     setSpeed: setSpeed,
     setMood: setMood,
     setMirror: setMirror,
