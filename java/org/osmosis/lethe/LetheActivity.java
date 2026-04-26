@@ -57,6 +57,10 @@ public class LetheActivity extends Activity {
         LetheConfig.initConfigDir(this);
         phone = new LethePhone(this);
 
+        // Persistent burner mode notification (also posted at boot by BootReceiver)
+        if ("true".equals(LetheConfig.get("persist.lethe.burner.enabled", "false")))
+            BootReceiver.showBurnerNotification(this);
+
         getWindow().setSoftInputMode(
             WindowManager.LayoutParams.SOFT_INPUT_ADJUST_RESIZE);
 
@@ -198,6 +202,28 @@ public class LetheActivity extends Activity {
             public boolean onConsoleMessage(android.webkit.ConsoleMessage cm) {
                 Log.d(TAG, "JS:" + cm.lineNumber() + " " + cm.message());
                 return true;
+            }
+
+            /* Grant in-WebView camera access for the QR scanner.
+             * Only grants VIDEO_CAPTURE — never audio or protected media. */
+            @Override
+            public void onPermissionRequest(
+                    final android.webkit.PermissionRequest request) {
+                runOnUiThread(() -> {
+                    String[] want = request.getResources();
+                    java.util.List<String> granted = new java.util.ArrayList<>();
+                    for (String r : want) {
+                        if (android.webkit.PermissionRequest
+                                .RESOURCE_VIDEO_CAPTURE.equals(r)) {
+                            granted.add(r);
+                        }
+                    }
+                    if (granted.isEmpty()) {
+                        request.deny();
+                    } else {
+                        request.grant(granted.toArray(new String[0]));
+                    }
+                });
             }
         });
         wv.setBackgroundColor(0xFF080808);
@@ -472,19 +498,15 @@ public class LetheActivity extends Activity {
             }
         }
     }
-
     class NativeSpeech {
-        @JavascriptInterface
-        public boolean isAvailable() { return false; }
-        @JavascriptInterface
-        public void listen() {}
+        @JavascriptInterface public boolean isAvailable() { return false; }
+        @JavascriptInterface public void listen() {}
     }
 
     private String iconBase64(ResolveInfo ri, PackageManager pm) {
         try {
             Drawable d = ri.loadIcon(pm);
-            Bitmap b = Bitmap.createBitmap(48, 48,
-                Bitmap.Config.ARGB_8888);
+            Bitmap b = Bitmap.createBitmap(48, 48, Bitmap.Config.ARGB_8888);
             Canvas c = new Canvas(b);
             d.setBounds(0, 0, 48, 48);
             d.draw(c);

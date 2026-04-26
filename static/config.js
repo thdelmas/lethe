@@ -22,6 +22,15 @@ function reloadConfig() {
       letheConfig = defaultConfig();
     }
   }
+  /* Fill in any providers added in newer versions so rebuildProviders
+   * doesn't crash on a stale persisted config. */
+  var def = defaultConfig();
+  if (!letheConfig.providers) letheConfig.providers = {};
+  for (var name in def.providers) {
+    if (!letheConfig.providers[name]) {
+      letheConfig.providers[name] = def.providers[name];
+    }
+  }
   rebuildProviders();
 }
 
@@ -44,6 +53,9 @@ function defaultConfig() {
     version: 1,
     active_provider: null,
     p2p_enabled: false,
+    /* Empty means every known model is enabled. Entries are
+       "<provider>/<model>": true — user-disabled models the router must skip. */
+    disabled_models: {},
     providers: {
       local: { endpoint: 'http://127.0.0.1:8080', key: null, model: null },
       peer: { endpoint: 'http://127.0.0.1:8080', key: null, model: null },
@@ -54,6 +66,11 @@ function defaultConfig() {
       custom: { endpoint: '', key: null, model: null }
     }
   };
+}
+
+function isModelDisabled(providerName, modelId) {
+  if (!letheConfig || !letheConfig.disabled_models || !modelId) return false;
+  return !!letheConfig.disabled_models[providerName + '/' + modelId];
 }
 
 /* Build the providers array that chatRequest() uses */
@@ -191,6 +208,7 @@ function candidatesForTask(task) {
     for (var i = 0; i < plan.candidates.length; i++) {
       var c = plan.candidates[i];
       if (seen[c.provider]) continue;
+      if (isModelDisabled(c.provider, c.model)) continue;
       var r = resolveProvider(c.provider);
       if (!r) continue;
       seen[c.provider] = true;

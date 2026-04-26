@@ -1,6 +1,9 @@
 /* LETHE Settings — provider & model configuration.
- * All providers are shown at once. The system auto-routes per task:
- * local first, cloud fallback. Users just enter their keys. */
+ * Two-section UX:
+ *   1. Models — flat list of every provider/model with an enable toggle.
+ *   2. API Keys — per-provider key entry.
+ * The router picks model-per-task; users choose which models it may pick.
+ * Source of truth for cloud models: docs/agent/providers.yaml. Keep in sync. */
 
 var modelCatalog = {
   local: [],
@@ -13,31 +16,78 @@ var modelCatalog = {
     { id: 'anthropic/claude-opus-4-6', label: 'Claude Opus 4.6' },
     { id: 'anthropic/claude-sonnet-4-6', label: 'Claude Sonnet 4.6' },
     { id: 'qwen/qwen3-72b', label: 'Qwen 3 72B' },
+    { id: 'meta-llama/llama-4-maverick', label: 'Llama 4 Maverick' },
+    { id: 'meta-llama/llama-4-scout', label: 'Llama 4 Scout' },
     { id: 'google/gemini-2.5-pro', label: 'Gemini 2.5 Pro' },
     { id: 'google/gemini-2.5-flash', label: 'Gemini 2.5 Flash' }
   ]
+};
+
+var providerMeta = {
+  local:      { label: 'Local (on-device)',
+                desc: 'Runs on this phone. Fully offline. No data leaves the device.',
+                needsKey: false, needsEndpoint: false },
+  anthropic:  { label: 'Anthropic',
+                desc: 'Claude models. Key from console.anthropic.com',
+                privacy: 'https://www.anthropic.com/privacy',
+                needsKey: true, keyHint: 'sk-ant-...' },
+  openrouter: { label: 'OpenRouter',
+                desc: 'Access many models with one key. openrouter.ai',
+                privacy: 'https://openrouter.ai/privacy',
+                needsKey: true, keyHint: 'sk-or-...' },
+  custom:     { label: 'Custom endpoint',
+                desc: 'Any OpenAI-compatible API.',
+                needsKey: false, needsEndpoint: true }
 };
 
 var settingsPanel = document.getElementById('settings-panel');
 var setStatus = document.getElementById('set-status');
 
 function settingsOpen() {
-  settingsPanel.style.display = 'block';
+  settingsPanel.classList.remove('hidden');
   settingsLoad();
+  fetchLocalModels();
 }
 function settingsClose() {
-  settingsPanel.style.display = 'none';
+  settingsPanel.classList.add('hidden');
 }
 
 document.getElementById('settings-close').addEventListener('click', settingsClose);
 
-/* ═══════════ RENDER ALL PROVIDERS ═══════════ */
+/* A provider is "ready" if it can currently serve: local always, custom if
+ * endpoint set, cloud if key present. Drives the per-model status chip. */
+function providerReady(name) {
+  if (!letheConfig) return false;
+  if (name === 'local') return true;
+  var pc = letheConfig.providers[name];
+  if (!pc) return false;
+  if (name === 'custom') return !!pc.endpoint;
+  return !!pc.key;
+}
+
+function providerModelCount(name) {
+  var models = modelCatalog[name] || [];
+  var disabled = (letheConfig && letheConfig.disabled_models) || {};
+  var enabled = 0;
+  for (var i = 0; i < models.length; i++) {
+    if (!disabled[name + '/' + models[i].id]) enabled++;
+  }
+  return { total: models.length, enabled: enabled };
+}
+
+/* ═══════════ RENDER SETTINGS ═══════════ */
 function settingsLoad() {
   var container = document.getElementById('settings-providers');
   if (!container) return;
   container.innerHTML = '';
 
-  /* ── Peer Network toggle ── */
+  renderPeerToggle(container);
+  renderModelsSection(container);
+  renderKeysSection(container);
+}
+
+/* ── Peer Network toggle ── */
+function renderPeerToggle(container) {
   var peerSection = document.createElement('div');
   peerSection.className = 'settings-provider';
   var p2pEnabled = letheConfig && letheConfig.p2p_enabled;
@@ -57,7 +107,6 @@ function settingsLoad() {
     '<div id="peer-status" class="settings-prov-desc" style="margin-top:0.3rem"></div>';
   container.appendChild(peerSection);
 
-  /* Check peer sidecar health if enabled */
   if (p2pEnabled) {
     fetch('http://127.0.0.1:8080/v1/peers/health')
       .then(function(r) { return r.json(); })
@@ -80,7 +129,6 @@ function settingsLoad() {
       if (letheConfig) {
         letheConfig.p2p_enabled = p2pToggle.checked;
         persistConfig();
-        /* Set Android system property to start/stop the sidecar */
         if (typeof NativeLauncher !== 'undefined' && NativeLauncher.setSystemProp) {
           NativeLauncher.setSystemProp('persist.lethe.p2p.enabled',
             p2pToggle.checked ? 'true' : 'false');
@@ -88,56 +136,118 @@ function settingsLoad() {
       }
     });
   }
+}
 
-  var providerDefs = [
-    { name: 'local', label: 'Local (on-device)',
-      desc: 'Runs on this phone. Fully offline. No data leaves the device.',
-      needsKey: false, needsEndpoint: false },
-    { name: 'anthropic', label: 'Anthropic',
-      desc: 'Claude models. Requires an API key from console.anthropic.com',
-      privacy: 'https://www.anthropic.com/privacy',
-      needsKey: true, keyHint: 'sk-ant-...', needsEndpoint: false },
-    { name: 'openrouter', label: 'OpenRouter',
-      desc: 'Access many models with one key. openrouter.ai',
-      privacy: 'https://openrouter.ai/privacy',
-      needsKey: true, keyHint: 'sk-or-...', needsEndpoint: false },
-    { name: 'custom', label: 'Custom endpoint',
-      desc: 'Any OpenAI-compatible API.',
-      needsKey: false, needsEndpoint: true }
-  ];
+/* ── Section 1: Models ── flat list of every provider/model ── */
+function renderModelsSection(container) {
+  var h = document.createElement('div');
+  h.className = 'settings-section-h';
+  h.textContent = 'Models';
+  container.appendChild(h);
 
-  for (var i = 0; i < providerDefs.length; i++) {
-    var def = providerDefs[i];
+  var desc = document.createElement('div');
+  desc.className = 'settings-desc';
+  desc.textContent = 'LETHE picks the right model for each task from the ones you enable below.';
+  container.appendChild(desc);
+
+  var list = document.createElement('div');
+  list.className = 'settings-model-list';
+  container.appendChild(list);
+
+  var order = ['local', 'anthropic', 'openrouter'];
+  var disabled = (letheConfig && letheConfig.disabled_models) || {};
+
+  for (var i = 0; i < order.length; i++) {
+    var provName = order[i];
+    var models = modelCatalog[provName] || [];
+    var ready = providerReady(provName);
+
+    if (provName === 'local' && !models.length) {
+      var empty = document.createElement('div');
+      empty.className = 'settings-model-row settings-model-empty';
+      empty.textContent = 'Local — no models downloaded yet.';
+      list.appendChild(empty);
+      continue;
+    }
+
+    for (var j = 0; j < models.length; j++) {
+      var m = models[j];
+      var key = provName + '/' + m.id;
+      var row = document.createElement('label');
+      row.className = 'settings-model-row';
+
+      var cb = document.createElement('input');
+      cb.type = 'checkbox';
+      cb.className = 'settings-model-toggle';
+      cb.checked = !disabled[key];
+      cb.setAttribute('data-model-key', key);
+      row.appendChild(cb);
+
+      var text = document.createElement('span');
+      text.className = 'settings-model-text';
+      text.textContent = m.label;
+      row.appendChild(text);
+
+      var badge = document.createElement('span');
+      badge.className = 'settings-model-badge';
+      badge.textContent = providerMeta[provName] ? providerMeta[provName].label : provName;
+      row.appendChild(badge);
+
+      var chip = document.createElement('span');
+      chip.className = 'settings-model-chip ' + (ready ? 'chip-ready' : 'chip-needs');
+      chip.textContent = ready ? 'ready' : 'needs key';
+      row.appendChild(chip);
+
+      list.appendChild(row);
+    }
+  }
+}
+
+/* ── Section 2: API Keys ── per-provider key entry ── */
+function renderKeysSection(container) {
+  var h = document.createElement('div');
+  h.className = 'settings-section-h';
+  h.textContent = 'API Keys';
+  container.appendChild(h);
+
+  var desc = document.createElement('div');
+  desc.className = 'settings-desc';
+  desc.textContent = 'Enter keys once. Each unlocks its provider\'s models above.';
+  container.appendChild(desc);
+
+  var order = ['anthropic', 'openrouter', 'custom'];
+  for (var i = 0; i < order.length; i++) {
+    var name = order[i];
+    var def = providerMeta[name];
+    if (!def) continue;
+    var pc = letheConfig ? letheConfig.providers[name] : null;
+    var ready = providerReady(name);
+
     var section = document.createElement('div');
     section.className = 'settings-provider';
 
-    var pc = letheConfig ? letheConfig.providers[def.name] : null;
-    var hasKey = def.needsKey && pc ? pc.key : null;
-    var hasEndpoint = def.needsEndpoint && pc ? pc.endpoint : null;
-    var isLocal = def.name === 'local';
-    var configured = isLocal || !!hasKey || !!hasEndpoint;
-
-    var statusDot = configured ?
+    var statusDot = ready ?
       '<span class="status-dot status-on"></span>' :
       '<span class="status-dot status-off"></span>';
-
     var privacyLink = def.privacy ?
       ' <a href="' + def.privacy + '" target="_blank" ' +
-      'style="color:var(--accent);font-size:0.6rem">[privacy policy]</a>' : '';
-    var html = '<div class="settings-prov-header">' +
-      statusDot + '<strong>' + def.label + '</strong></div>' +
-      '<div class="settings-prov-desc">' + def.desc + privacyLink + '</div>';
+      'style="color:var(--accent);font-size:0.6rem">[privacy]</a>' : '';
+    var counts = providerModelCount(name);
+    var countText = counts.total ?
+      ' <span class="settings-prov-count">' + counts.enabled + '/' + counts.total + ' models</span>' : '';
 
-    section.innerHTML = html;
+    section.innerHTML = '<div class="settings-prov-header">' +
+      statusDot + '<strong>' + def.label + '</strong>' + countText + '</div>' +
+      '<div class="settings-prov-desc">' + def.desc + privacyLink + '</div>';
     container.appendChild(section);
 
-    /* Create inputs via DOM API (not innerHTML) to prevent XSS from
-       stored keys/endpoints injected via QR pairing. */
+    /* Inputs via DOM API (not innerHTML) — prevents XSS from stored keys
+       injected via QR pairing. */
     if (def.needsKey) {
       var keyInput = document.createElement('input');
       keyInput.className = 'settings-input';
       keyInput.type = 'password';
-      keyInput.setAttribute('data-provider', def.name);
+      keyInput.setAttribute('data-provider', name);
       keyInput.setAttribute('data-field', 'key');
       keyInput.placeholder = def.keyHint || 'API key';
       keyInput.setAttribute('aria-label', def.label + ' API key');
@@ -155,25 +265,6 @@ function settingsLoad() {
       epInput.setAttribute('aria-label', 'Custom endpoint URL');
       epInput.value = (pc && pc.endpoint) || '';
       section.appendChild(epInput);
-    }
-
-    // Model selector
-    var models = modelCatalog[def.name] || [];
-    if (models.length) {
-      var savedModel = (pc && pc.model) || '';
-      var select = document.createElement('select');
-      select.className = 'settings-input settings-model';
-      select.setAttribute('data-provider', def.name);
-      select.setAttribute('data-field', 'model');
-      select.setAttribute('aria-label', def.label + ' model');
-      for (var j = 0; j < models.length; j++) {
-        var opt = document.createElement('option');
-        opt.value = models[j].id;
-        opt.textContent = models[j].label;
-        if (models[j].id === savedModel) opt.selected = true;
-        select.appendChild(opt);
-      }
-      section.appendChild(select);
     }
   }
 }
@@ -230,8 +321,16 @@ function doSave() {
     if (!letheConfig.providers[prov]) letheConfig.providers[prov] = {};
     if (field === 'key') letheConfig.providers[prov].key = val || null;
     if (field === 'endpoint') letheConfig.providers[prov].endpoint = val;
-    if (field === 'model' && val) letheConfig.providers[prov].model = val;
   }
+  /* Model enable/disable toggles: store only the disabled set so absent
+     = enabled, which keeps old configs working after upgrades. */
+  var disabled = {};
+  var toggles = document.querySelectorAll('.settings-model-toggle');
+  for (var k = 0; k < toggles.length; k++) {
+    var mk = toggles[k].getAttribute('data-model-key');
+    if (mk && !toggles[k].checked) disabled[mk] = true;
+  }
+  letheConfig.disabled_models = disabled;
   persistConfig(); /* writes to /persist + rebuilds providers array */
 
   setStatus.textContent = 'saved';
@@ -276,22 +375,23 @@ document.getElementById('set-save').addEventListener('click', function() {
 /* ═══════════ QR SCAN BUTTON ═══════════ */
 var scanBtn = document.getElementById('set-scan-qr');
 if (scanBtn) {
-  console.log('LETHE: scan button bound');
   scanBtn.addEventListener('click', function() {
-    console.log('LETHE: scan button clicked');
-    if (typeof NativeLauncher !== 'undefined' && NativeLauncher.scanQR) {
-      console.log('LETHE: calling NativeLauncher.scanQR()');
+    console.log('LETHE QR: scan tapped; letheQR=' + (typeof window.letheQR));
+    if (window.letheQR && typeof window.letheQR.open === 'function') {
+      window.letheQR.open(
+        function(data) { onQRResult(data); },
+        function(msg)  { console.log('LETHE QR: error ' + msg); onQRResult('ERROR:' + msg); },
+        function()     { /* user cancelled */ }
+      );
+    } else if (typeof NativeLauncher !== 'undefined' && NativeLauncher.scanQR) {
       NativeLauncher.scanQR();
     } else {
-      console.log('LETHE: no NativeLauncher.scanQR');
       settingsClose();
       if (typeof addMessage === 'function') {
-        addMessage('QR scanning needs a barcode scanner app. Install "Barcode Scanner" from F-Droid, then try again.', 'lethe');
+        addMessage('QR scanner unavailable on this device.', 'lethe');
       }
     }
   });
-} else {
-  console.log('LETHE: scan button NOT found');
 }
 
 /* ═══════════ QR CODE PAIRING ═══════════ */
@@ -335,36 +435,15 @@ function fetchLocalModels() {
         modelCatalog.local = d.data.map(function(m) {
           return { id: m.id, label: m.id };
         });
+        /* Panel may be already open — re-render so the Models section
+           shows newly-detected local models instead of the empty hint. */
+        if (settingsPanel && !settingsPanel.classList.contains('hidden')) {
+          settingsLoad();
+        }
       }
     })
     .catch(function() {});
 }
 fetchLocalModels();
 
-/* ═══════════ BURNER MODE WARNING ═══════════ */
-var burnerBanner = document.getElementById('burner-banner');
-var burnerDismissed = sessionStorage.getItem('lethe_burner_dismissed');
-
-document.getElementById('burner-dismiss').addEventListener('click', function() {
-  burnerBanner.style.display = 'none';
-  sessionStorage.setItem('lethe_burner_dismissed', '1');
-  burnerDismissed = '1';
-});
-
-function checkBurnerMode() {
-  if (burnerDismissed) return;
-  fetch('http://127.0.0.1:8080/api/device')
-    .then(function(r) { return r.json(); })
-    .then(function(d) {
-      if (d.burner_mode || d.burner_enabled) {
-        localStorage.setItem('lethe_burner_active', '1');
-        burnerBanner.style.display = 'flex';
-      }
-    })
-    .catch(function() {
-      if (localStorage.getItem('lethe_burner_active') !== '0') {
-        burnerBanner.style.display = 'flex';
-      }
-    });
-}
-checkBurnerMode();
+/* Burner mode warning moved to Android notification panel (BootReceiver) */
