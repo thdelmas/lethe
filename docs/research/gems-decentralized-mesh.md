@@ -61,6 +61,30 @@ Iroh as the `lethe-p2p` sidecar (closes the gap in
 `initrc/init.lethe-p2p.rc`); Yggdrasil as a parallel always-on IPv6
 backbone alongside the existing EdgeVPN cluster.
 
+### Scope boundary (load-bearing across all phases)
+
+The mesh is **DMS payloads only — across v1.0, v1.1, v1.2, and any
+later phase.** No user-authored content (chat, voice, files) ever
+rides the mesh, the bramble-core bridge, or the Iroh/Yggdrasil layer.
+For chat/voice, LETHE recommends Briar and Molly-FOSS (apps section
+in `FEATURES.md`) and does not try to replace them.
+
+Why this boundary holds even though the regulatory line technically
+allows trust-ring text (Briar proves it):
+1. Briar already has a much larger anonymity set than LETHE ever
+   will — routing chat through a smaller LETHE-only mesh is worse
+   privacy, not better.
+2. Reinventing chat crypto with our smaller user base is engineering
+   debt for no privacy gain.
+3. Keeping the mesh content-free keeps the four ECS tripwires (public
+   discovery, auto-elected gateways, paid relays, "untraceable"
+   marketing) far away. See `eu-mesh-regulation.md` §0 and §4.
+
+Enforce in protocol, not policy: every mesh layer uses a fixed
+payload schema with no free-text field. v1.1's bramble-core bridge
+exposes only the `deadman-signal` ClientId; user-content ClientIds
+are out of scope.
+
 ---
 
 ## 1. Storage & Sync

@@ -13,6 +13,40 @@ obligations without compromising the privacy posture.
 
 ---
 
+## 0. What the mesh is for (and what it isn't)
+
+**The LETHE mesh is a dead man's switch transport.** Trusted LETHE
+devices broadcast 21-byte HMAC-SHA256-tagged liveness heartbeats; if
+the user goes silent (arrested, devices seized, lost-at-sea), the
+surviving peers detect the silence and the DMS escalation
+(lock → wipe → brick) fires on schedule. The mesh is a distributed
+liveness oracle — it carries no user-authored content.
+
+**It is explicitly not a chat, voice, or file-transfer network.** That
+job is delegated to apps that already do it well: Molly-FOSS (Signal
+fork) for existing contacts, Briar for offline / anonymous /
+trust-ring conversations. Both are recommended in `FEATURES.md`'s
+Apps section and Briar shares the BLE radio with our DMS mesh.
+
+The "no user content" rule is load-bearing for three reasons, in
+order of weight:
+
+1. **Engineering pragmatism.** A LETHE-only mesh would have hundreds
+   of users; Briar already has many thousands of EU users and a
+   mature codebase. Reinventing chat crypto on a smaller anonymity
+   set is worse privacy, not better.
+2. **DMS scope sufficiency.** Liveness heartbeats are all the DMS
+   needs. Adding chat would not improve dead-man detection.
+3. **Regulatory exemption.** Keeping the mesh content-free keeps it
+   outside the ECS definition (see §1.2 below). This is a
+   downstream consequence of (1) and (2), not the cause — but a
+   useful one.
+
+The regulatory analysis in §1–§5 below assumes this scope and
+recommends the design tripwires that keep it intact.
+
+---
+
 ## 1. The regulatory perimeter
 
 ### 1.1 The EECC: who is regulated
@@ -167,10 +201,13 @@ config in v1.2 must NOT auto-elect any device as a gateway.
 
 These are direct consequences for the codebase:
 
-1. **No content in mesh frames.** v1.0: HMAC-tagged liveness only.
-   v1.1 (Briar bridge): only structured deadman alarms ride the
-   bridge — no chat, no files, no attachments. Enforce in protocol,
-   not policy.
+1. **No content in mesh frames, ever.** v1.0: HMAC-tagged liveness
+   only. v1.1 (Briar bridge): only structured deadman alarms ride
+   the bridge under a dedicated `deadman-signal` ClientId — no
+   chat, no files, no attachments, no piggybacking. v1.2
+   (Iroh/Yggdrasil): same boundary holds. Enforce in protocol with
+   a fixed payload schema, not policy. The "thin line" question
+   was considered and rejected: see §0.
 2. **No central server, no telemetry.** Anywhere. The "no remuneration"
    shield holds only if there is genuinely nothing to monetize.
 3. **Trust ring is local.** Pairing by QR or out-of-band file copy.

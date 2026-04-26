@@ -67,12 +67,23 @@ Silence is the trigger: no signal is ever sent. Check-in via bland "Scheduled ma
 - **Escalation:** lock (immediate) → wipe (+1h) → brick (+2h, opt-in, OSmosis USB recovery only)
 
 ### Mesh signaling — **preview** (OFF by default)
-BLE heartbeat between trusted LETHE devices for offline dead man's switch
-relay. Carries no message content — only structured "I'm alive" signals
-(HMAC-SHA256-tagged, anti-replay, ~21 bytes per advert). Range is BLE
-line-of-sight (~10–30m). v1.1 will bridge to Briar's contact graph for
-cross-range relay; v1.2 adds Iroh + Yggdrasil for IP-layer mesh. See
+The LETHE mesh is a **dead man's switch transport, not a chat network.**
+Trusted LETHE devices broadcast HMAC-SHA256-tagged 21-byte "I'm alive"
+heartbeats over BLE; if you go silent across your fleet, surviving
+peers detect the silence and the DMS escalation fires on schedule.
+Carries no user-authored content by design — across v1.0/v1.1/v1.2 —
+because that scope (a) is all the DMS needs, (b) keeps the mesh
+outside the EU ECS perimeter (see
+[research/eu-mesh-regulation.md](research/eu-mesh-regulation.md)),
+and (c) avoids reinventing crypto Briar already does well.
+
+Range: BLE line-of-sight (~10–30m). v1.1 bridges DMS payloads over
+Briar's bramble-core contact graph; v1.2 extends with Iroh + Yggdrasil
+for IP-layer DMS relay. Roadmap:
 [research/gems-decentralized-mesh.md](research/gems-decentralized-mesh.md#implementation-status--release-roadmap).
+
+**For actual chat, voice, or file transfer, use Briar or Molly-FOSS**
+(both in the recommended Apps list below). LETHE doesn't replace them.
 
 ---
 
