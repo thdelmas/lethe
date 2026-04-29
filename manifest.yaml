@@ -3,7 +3,7 @@
 
 id: lethe
 name: Lethe
-version: "1.1.0"
+version: "1.0.0"
 base: lineageos
 base_version: "22.1"
 android_version: "15"
