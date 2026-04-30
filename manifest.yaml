@@ -230,7 +230,7 @@ features:
     wipe_scope:
       user_data: true               # /data partition — apps, accounts, messages
       internal_storage: true        # Photos, downloads, documents
-      esim_profiles: true           # Remove all eSIM profiles
+      esim_profiles: false          # Pending lethe#11 — needs EuiccManager (Android 9+, carrier support)
       wifi_credentials: true        # Saved networks
       bluetooth_pairings: true      # Paired devices
       clipboard: true               # Clipboard history
