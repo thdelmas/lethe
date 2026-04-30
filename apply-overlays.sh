@@ -47,8 +47,15 @@ install_initrc() {
 # ── 1. System properties (privacy defaults) ──
 if [ -f "$OVERLAY_DIR/privacy-defaults.conf" ]; then
     echo "[1/17] Applying privacy system properties..."
-    PROPS_TARGET="vendor/lineage/config/common.mk"
-    if [ -f "$PROPS_TARGET" ]; then
+    # LOS 17+ uses vendor/lineage/, cm-14.1 still uses vendor/cm/.
+    if [ -f "vendor/lineage/config/common.mk" ]; then
+        PROPS_TARGET="vendor/lineage/config/common.mk"
+    elif [ -f "vendor/cm/config/common.mk" ]; then
+        PROPS_TARGET="vendor/cm/config/common.mk"
+    else
+        PROPS_TARGET=""
+    fi
+    if [ -n "$PROPS_TARGET" ] && [ -f "$PROPS_TARGET" ]; then
         # LETHE identity props (not in conf — fixed at build time).
         cat >> "$PROPS_TARGET" <<'PROPS'
 
