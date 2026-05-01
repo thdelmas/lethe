@@ -1,28 +1,31 @@
 # LETHE v1.0.0 — Privacy Android that forgets everything on reboot
 
-**A LineageOS overlay with burner mode, Tor enforcement, and an AI guardian built into the OS.**
+**A LineageOS overlay with burner mode, Tor enforcement, and full Google debloat.**
 
-LETHE is not a ROM — it's an overlay you flash on top of LineageOS. It adds privacy hardening, identity rotation, and an embedded AI agent without forking or modifying the LineageOS source.
+LETHE is not a ROM — it's an overlay you flash on top of LineageOS. v1.0 adds privacy hardening, identity rotation, and tracker blocking without forking or modifying the LineageOS source.
 
 Every reboot wipes your data by default. Every connection routes through Tor. Every tracker is blocked at the system level. The phone forgets — and that's the point.
+
+The in-OS AI guardian, Dead Man's Switch, panic wipe, and Void launcher are coming in v1.1.
 
 ---
 
 ## What's different from stock LineageOS?
 
-| Feature | LineageOS | LETHE |
-|---------|-----------|-------|
+| Feature | LineageOS | LETHE v1.0 |
+|---------|-----------|------------|
 | Data on reboot | Persists | Wiped (burner mode, disable in Settings) |
-| Network routing | Direct | All user traffic through Tor |
-| Trackers | Not blocked | 37+ domains blocked via hosts |
+| Network routing | Direct | All user-app TCP through Tor (UDP dropped) |
+| Trackers | Not blocked | System hosts file blocks ad/tracker domains |
 | Google services | Optional | Removed at build time |
-| Identity | Fixed | MAC + Android ID + serial rotated on boot |
-| AI agent | None | Built-in guardian (text + voice input) |
+| Identity | Fixed | MAC + Android ID rotated on boot |
 | Firewall | Permissive | Default-deny, user apps Tor-only |
 | DNS | Google/ISP | Quad9 DNS-over-TLS, Mullvad fallback |
-| Panic wipe | None | 5x power press = instant wipe |
-| Dead man's switch | None | Missed check-in → lock → wipe → brick |
-| Launcher | Trebuchet | Void — clock + mascot + gestures |
+| Theme | LineageOS default | Teal-on-black, custom boot animation |
+| AI guardian | — | Coming in v1.1 |
+| Panic wipe | — | Coming in v1.1 |
+| Dead man's switch | — | Coming in v1.1 |
+| Void launcher | — | Coming in v1.1 |
 
 ---
 
@@ -61,8 +64,10 @@ Every reboot wipes your data by default. Every connection routes through Tor. Ev
 
 | Brand | Device | Codename | Notes |
 |-------|--------|----------|-------|
-| Samsung | Galaxy Note II | t03g | Exynos 4412, tested |
-| Samsung | Galaxy Note II LTE | t0lte | Exynos 4412, tested |
+| Samsung | Galaxy Note II | t03g | Exynos 4412, in v1.0.x |
+| Samsung | Galaxy Note II LTE | t0lte | Exynos 4412, **v1.0 validated** |
+
+The other 24 codenames in the LOS 22.1 table use the same overlay pipeline but have not been individually verified for v1.0; they roll out in v1.0.x point releases.
 
 ---
 
@@ -114,63 +119,54 @@ cd ~/OSmosis && make install && make serve
 
 ---
 
-## Setting up the AI agent
+## AI guardian (v1.1)
 
-The LETHE agent needs a cloud provider key to respond (local models coming soon).
+The in-OS AI guardian — a system-service agent that lives in the OS rather than as a separate app — is coming in v1.1. v1.0 ships the foundation; v1.1 adds the agent (cloud LLMs via your API key, with on-device models targeted for capable hardware) and the Void launcher (clock + mascot + gesture-driven home screen).
 
-### From OSmosis (easiest)
-1. With the phone connected, open OSmosis in your browser
-2. The connected device page shows "Set up LETHE AI"
-3. Select a provider (OpenRouter recommended — free tier available)
-4. Enter your API key and click "Send to phone"
-5. Tap the mascot on your phone — the agent responds
-
-### From the phone
-1. Tap the mascot to open chat
-2. Type `/settings`
-3. Enter your API key in the provider section
-4. Tap Save
-
-**Note:** In burner mode, keys are wiped on reboot. Re-pair via OSmosis after each restart, or disable burner mode for persistence.
+When v1.1 ships, the agent's API key will live in /persist (survives the burner-mode wipe so you don't have to re-pair every reboot).
 
 ---
 
-## What's included
+## What's included in v1.0
 
-- **Void Launcher** — minimalist home screen. Clock + mascot. Swipe up for apps. Tap mascot to chat.
-- **Tracker blocking** — system-level hosts file blocking 37+ ad/tracking domains
-- **Tor transparent proxy** — all user app traffic forced through Tor via iptables
-- **Default-deny firewall** — no inbound connections, user apps can only reach Tor
-- **Burner mode** — wipes /data on every reboot (user data, WiFi, Bluetooth, notifications)
-- **Identity rotation** — randomizes MAC address, Android ID, and device serial on each boot
-- **Dead man's switch** — opt-in. Lock → wipe → brick if you miss a check-in
-- **Panic wipe** — press power 5 times rapidly for immediate data wipe
-- **Duress PIN** — secondary PIN that silently wipes data while appearing to unlock normally
-- **Lockdown tile** — Quick Settings tile to kill WiFi, Bluetooth, and mobile data in one tap
-- **DNS-over-TLS** — Quad9 primary, Mullvad fallback. No Google DNS.
-- **LETHE agent** — AI guardian with tool calling (timer, alarm, flashlight, open apps, privacy status)
-- **EU AI Act compliance** — AI disclosure labels, consent dialog for cloud providers, transparency info panel
+- **Burner mode** — wipes /data on every reboot (user data, WiFi/Bluetooth credentials, clipboard, notification log) and rotates Android ID. Default ON; disable in Settings → Privacy.
+- **Tor transparent proxy** — bundled Tor daemon as a system service. iptables forces every user-app TCP through it; UDP dropped to prevent leaks. Per-app circuit isolation.
+- **Default-deny firewall** — no inbound connections, user apps can only reach Tor.
+- **MAC + Android ID rotation** — fresh per-boot randomization for both.
+- **Tracker blocking** — system-level hosts file (StevenBlack + AdAway) intercepting ad/tracker domains for every app.
+- **Hardened DNS** — Quad9 DNS-over-TLS primary, Mullvad fallback. Cleartext DNS rejected.
+- **Full Google debloat** — Play Services, Play Store, GSF, Maps, YouTube, Setup Wizard removed at build time. F-Droid + Aurora Store ship instead.
+- **LETHE theme** — teal-on-black, custom boot animation, dark wallpaper.
+- **Privacy sensor defaults** — background location, body sensors, nearby-devices denied by default for all apps.
 
----
+## Coming in v1.1
 
-## What's NOT included (yet)
+- **LETHE agent** — in-OS AI guardian with tool calling, cloud LLMs via your API key, on-device models for capable hardware.
+- **Void launcher** — minimalist clock + mascot home screen with gesture navigation.
+- **Dead man's switch** — missed-check-in escalation chain (lock → wipe → optional brick) with duress PIN and hint-based recovery.
+- **Panic wipe** — 5× power-button press = instant wipe.
+- **Mesh signaling preview** — short-range BLE heartbeat between trust-ring devices as DMS transport (chat lives in Briar/Molly, not the mesh).
+- **IPFS OTA** — Tor-routed, Ed25519-signed firmware updates.
+- **ADB hardening** — paired-host RSA whitelisting, ADB-over-USB only by default.
+- **Anthropic OAuth** — use your claude.ai subscription as the agent backend.
 
-- Local on-device AI models (llama.cpp + Qwen 3 — coming in v1.1)
-- Mesh networking between LETHE devices (coming in v1.1)
-- Anthropic OAuth (use your claude.ai subscription — coming in v1.1)
+## Not yet planned
+
 - WiFi QR code scanner
-- Per-app sensor permissions
+- Per-app sensor permissions UI
 - Verified boot (AVB relock for Pixels)
 
 ---
 
 ## Screenshots
 
-| Home screen | App drawer | Agent chat |
-|:-----------:|:----------:|:----------:|
-| ![Home](screenshots/01-home-screen.png) | ![Drawer](screenshots/02-app-drawer.png) | ![Chat](screenshots/03-agent-chat.png) |
+| Home screen | App drawer |
+|:-----------:|:----------:|
+| ![Home](screenshots/01-home-screen.png) | ![Drawer](screenshots/02-app-drawer.png) |
 
-*Galaxy Note II (t0lte) — shallow tier, Android 7.1, sprite avatar*
+*Galaxy Note II (t0lte) — Android 7.1*
+
+The Void launcher and agent chat screenshots will be added when v1.1 ships those features.
 
 ---
 
@@ -200,11 +196,11 @@ A: No. LETHE is an overlay on LineageOS — you can always re-flash stock Lineag
 **Q: Can I keep my data between reboots?**
 A: Yes — disable burner mode in Settings → Privacy after first boot. Data will persist normally.
 
-**Q: Does the AI agent phone home?**
-A: Only if you configure a cloud provider. With no API key, the agent is silent. Local models for fully offline operation are coming in v1.1.
+**Q: When does the AI guardian ship?**
+A: v1.1. v1.0 is the foundation it'll run on (system service slot, agent settings UI, EU AI Act consent flow). When v1.1 ships, it'll route to a cloud LLM via your API key, with on-device models for capable hardware.
 
 **Q: Why not just use GrapheneOS?**
-A: Different goals. GrapheneOS is deeper security on Pixels only. LETHE is operational security (burner mode, dead man's switch, identity rotation) on 26 devices from 8 brands, with an AI agent built in.
+A: Different goals. GrapheneOS is deeper security on Pixels only. LETHE is operational security (burner mode, identity rotation, Tor enforcement) on 26 device codenames across 8 brands.
 
 **Q: Is Tor always on?**
 A: By default, yes. All user app traffic routes through Tor. System services (NTP, DNS-over-TLS, DHCP) go direct. You can configure this in Settings.
