@@ -59,13 +59,15 @@ if [ -f "$OVERLAY_DIR/privacy-defaults.conf" ]; then
         # LETHE identity props (not in conf — fixed at build time).
         cat >> "$PROPS_TARGET" <<'PROPS'
 
-# Lethe identity
+# Lethe identity. Use dash-separated values — spaces in PROPERTY_VALUE
+# break post_process_props.py because the build system splits them
+# across separate echo statements.
 PRODUCT_PROPERTY_OVERRIDES += \
     ro.lethe=true \
     ro.lethe.version=1.0.0 \
     ro.lethe.base=lineageos \
-    ro.build.display.id=LETHE\ 1.0.0 \
-    ro.lineage.display.version=LETHE\ 1.0.0 \
+    ro.build.display.id=LETHE-1.0.0 \
+    ro.lineage.display.version=LETHE-1.0.0 \
     ro.modversion=LETHE-1.0.0
 
 # Lethe privacy defaults (parsed from overlays/privacy-defaults.conf)
