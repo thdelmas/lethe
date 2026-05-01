@@ -25,6 +25,14 @@ rm -rf /data/misc/bluedroid
 rm -rf /data/media/0/*
 rm -rf /data/system/notification_log
 
+# Wiping settings provider DBs forces Android to regenerate a fresh
+# Settings.Secure.ANDROID_ID on next boot. We deliberately do NOT call
+# `settings put secure android_id` here — that command talks to the
+# settings ContentProvider in system_server, which is not running during
+# post-fs-data, so the call would deadlock and prevent boot.
+rm -f /data/system/users/0/settings_secure.xml
+rm -f /data/system/users/0/settings_ssaid.xml
+
 # Restore agent config after wipe
 if [ -f "$LETHE_BAK" ]; then
     mkdir -p /data/data/org.osmosis.lethe.agent/files
@@ -33,8 +41,4 @@ if [ -f "$LETHE_BAK" ]; then
     log -t lethe-burner "Agent config restored"
 fi
 
-# Rotate Android ID (uses kernel UUID — works on all Android versions)
-NEWID=$(cat /proc/sys/kernel/random/uuid | sed 's/-//g' | cut -c1-16)
-settings put secure android_id "$NEWID"
-
-log -t lethe-burner "Wipe complete — Android ID rotated to $NEWID"
+log -t lethe-burner "Wipe complete — settings DB cleared so Android ID regenerates"
