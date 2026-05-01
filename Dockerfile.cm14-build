@@ -1,0 +1,36 @@
+FROM ubuntu:18.04
+
+ENV DEBIAN_FRONTEND=noninteractive
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+        bc bison build-essential ccache curl flex g++-multilib gcc-multilib git \
+        gnupg gperf imagemagick lib32ncurses5-dev lib32readline6-dev lib32z1-dev \
+        liblz4-tool libncurses5-dev libsdl1.2-dev libssl-dev libxml2 libxml2-utils \
+        lzop maven openjdk-8-jdk pngcrush rsync schedtool squashfs-tools xsltproc \
+        zip zlib1g-dev python python2.7 python-pip python3 python3-pip openssh-client \
+        ca-certificates lsb-release sudo locales unzip wget && \
+    rm -rf /var/lib/apt/lists/*
+
+RUN locale-gen en_US.UTF-8
+
+# Jack (cm-14.1's Java compiler) uses TLS 1.0 for its localhost RPC.
+# Modern openjdk-8 disables TLS 1.0/1.1 in java.security, which makes
+# Jack server fail to start with "SSL error when connecting". Re-enable
+# them — this is a build-only container, not exposed to the network.
+RUN sed -i 's|^jdk.tls.disabledAlgorithms=.*|jdk.tls.disabledAlgorithms=SSLv3, RC4, MD5withRSA, DH keySize < 768|' \
+        /etc/java-8-openjdk/security/java.security && \
+    sed -i 's|^jdk.certpath.disabledAlgorithms=.*|jdk.certpath.disabledAlgorithms=MD2, RSA keySize < 1024|' \
+        /etc/java-8-openjdk/security/java.security
+
+ENV LANG=en_US.UTF-8 LC_ALL=en_US.UTF-8
+ENV JAVA_HOME=/usr/lib/jvm/java-8-openjdk-amd64
+ENV PATH="/usr/lib/jvm/java-8-openjdk-amd64/bin:${PATH}"
+ENV USE_CCACHE=1 CCACHE_DIR=/ccache
+
+RUN mkdir -p /opt/bin && \
+    curl -fsSL https://storage.googleapis.com/git-repo-downloads/repo -o /opt/bin/repo && \
+    chmod +x /opt/bin/repo
+ENV PATH="/opt/bin:${PATH}"
+
+WORKDIR /lineage
+CMD ["/bin/bash"]
