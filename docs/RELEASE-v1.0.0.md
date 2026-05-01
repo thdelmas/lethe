@@ -6,27 +6,43 @@ LETHE is a privacy-hardened Android built on top of LineageOS. It's named after 
 
 Growing up collecting old machines, I found hard drives full of data — photos, documents, accounts. People get rid of their devices but their devices don't get rid of them. Sometimes the best way to protect someone is to forget them.
 
-OSmosis was built to free hardware from proprietary software. LETHE is where we're going next — free users from screens. We're not there yet. But this is the first step.
+OSmosis was built to free hardware from proprietary software. LETHE is where we're going next — free users from screens. We're not there yet. v1.0 is the foundation.
 
-## What ships
+## What ships in v1.0
 
-**Burner Mode is on by default.** Every reboot wipes your data, your connections, your identity. You're a new device each time you turn it on. You can disable it. But the default is: nothing is remembered unless you say so.
+**Burner Mode is on by default.** Every reboot wipes user data, internal storage, WiFi/Bluetooth credentials, clipboard, and notification log, and rotates the Android ID. You're a fresh device each time you turn it on. You can disable it. But the default is: nothing is remembered unless you say so.
 
-**All your traffic goes through Tor.** Not a setting you toggle — a firewall rule. The device doesn't phone home. Ever.
+**All your traffic goes through Tor.** A bundled Tor daemon runs as a system service. iptables rules force every user app's TCP through it; UDP is dropped to prevent leaks. Per-app circuit isolation. Not a setting you toggle — a firewall rule.
 
-**Dead Man's Switch.** Opt-in. If you stop checking in, LETHE escalates — lock, wipe, brick. There's a duress PIN that looks normal but erases everything.
+**Tracker blocking at the system level.** A curated `hosts` file from StevenBlack and AdAway intercepts known ad and tracker domains for every app, no per-app config.
 
-**Mesh signaling — preview.** A short-range BLE heartbeat between LETHE devices in your trust ring, so if you go silent your other phones know — even when there's no internet. It's a transport for the dead man's switch, not a chat. No messages, no voice, no files cross the mesh, by design and forever. For real conversations, install Briar (offline, anonymous) or Molly-FOSS (Signal contacts). Off by default. Range is line-of-sight Bluetooth, roughly ten metres. v1.1 will carry the same heartbeat over Briar's contact graph for longer reach.
+**Hardened DNS.** Quad9 DNS-over-TLS as primary, Mullvad as fallback. Cleartext DNS rejected.
 
-**Panic Wipe.** Press the power button 5 times. Gone.
+**No Google.** Play Services, Play Store, Maps, YouTube, Setup Wizard, GSF — all removed at build time. F-Droid + Aurora Store ship instead.
 
-The OS itself has a face — a cracked stone android with teal bioluminescent veins. It's not an app you install. It's the system. It talks, it watches, it thinks. It connects to cloud LLMs when you give it a key, and local on-device models are coming in v1.1. Its personality is calm, protective, never servile. A guardian, not an assistant.
+**Privacy sensor defaults.** Background location, body sensors, and nearby-devices access denied by default for all apps.
+
+**LETHE theme.** Teal-on-black aesthetic, custom boot animation, dark wallpaper.
+
+## Coming in v1.1 (preview/in-flight)
+
+These features have configuration in the v1.0 image but the runtime components are not yet packaged — they'll ship in v1.1 once they're validated end-to-end:
+
+- **Dead Man's Switch** — the missed-check-in escalation chain (lock → wipe → optional brick), duress PIN, and hint-based recovery flow
+- **LETHE Agent** — the in-OS guardian. Cloud LLMs via user-supplied API key, with on-device models targeted for v1.1
+- **Void launcher** — minimalist clock-and-mascot home screen with gesture navigation
+- **IPFS OTA** — Tor-routed signed firmware updates (no central update server)
+- **Mesh signaling** — short-range BLE heartbeat between devices in your trust ring as a transport for the dead man's switch (not chat — for chat, install [Briar](https://briarproject.org) or [Molly-FOSS](https://molly.im))
+- **Panic wipe** — 5× power-button trigger
+- **ADB hardening** — paired-host RSA whitelisting, ADB-over-USB only by default
 
 ## Supported devices
 
-Samsung, Pixel, Nothing, Fairphone, OnePlus, Xiaomi, Motorola, Sony. Including a Galaxy Note II from 2012. Old phones in drawers are not trash — they have screens, mics, speakers, batteries, radios. They're perfect.
+26 device codenames in the build manifest across 8 brands (Samsung, Pixel, Nothing, Fairphone, OnePlus, Xiaomi, Motorola, Sony) — including a Galaxy Note II from 2012 on the legacy LineageOS 14.1 base.
 
-Full device list: see manifest.yaml.
+**v1.0 has been validated on Galaxy Note II (t0lte).** Builds for the other codenames listed in [manifest.yaml](../manifest.yaml) use the same overlay pipeline and are expected to work, but have not been individually verified for v1.0. Per-device validation rolls out in v1.0.x point releases.
+
+Old phones in drawers are not trash — they have screens, mics, speakers, batteries, radios. They're perfect.
 
 ## Legal notice
 
@@ -36,21 +52,21 @@ Full device list: see manifest.yaml.
 
 **Use with caution in:** China, Russia, Belarus, Turkmenistan, Myanmar, Vietnam, and other countries that restrict encryption, VPNs, or AI agents. LETHE's privacy architecture (Tor enforcement, identity rotation, encrypted local storage) may conflict with lawful interception or data localization laws in your jurisdiction. **Check your local laws before installing.**
 
-**Health questions (Bios topic):** LETHE is not a medical device. When the agent discusses health, it provides general wellness information only. It does not diagnose, treat, predict, or prevent any disease or medical condition. Do not use it as a substitute for professional medical advice. Dedicated health features are planned for a future release.
+**AI-generated content (v1.1):** When the agent ships, all responses will be generated by language models. They may be inaccurate, incomplete, or outdated. LETHE is not a human. Verify anything that matters.
 
-**Financial questions (PreuJust topic):** LETHE is not a financial advisor. When the agent discusses finances, it provides general information only. It does not provide personalized investment advice, access bank accounts, or make financial decisions. Do not use it as a substitute for professional financial advice. Dedicated financial-protection features are planned for a future release.
+**Health (Bios topic, v1.1):** LETHE is not a medical device. When the agent discusses health, it provides general wellness information only. It does not diagnose, treat, predict, or prevent any disease or medical condition. Do not use it as a substitute for professional medical advice.
 
-**AI-generated content:** All LETHE responses are generated by language models. They may be inaccurate, incomplete, or outdated. LETHE is not a human. Verify anything that matters.
+**Financial (PreuJust topic, v1.1):** LETHE is not a financial advisor. When the agent discusses finances, it provides general information only. It does not provide personalized investment advice, access bank accounts, or make financial decisions. Do not use it as a substitute for professional financial advice.
 
 **Export controls:** LETHE includes encryption software. The source code is publicly available. Distribution may be subject to EU dual-use controls (Regulation 2021/821) and US EAR depending on jurisdiction. Open-source exemptions exist in both frameworks.
 
-For the full legal and regulatory analysis, see [docs/research/legal-compliance.md](docs/research/legal-compliance.md).
+For the full legal and regulatory analysis, see [docs/research/legal-compliance.md](research/legal-compliance.md).
 
 ---
 
 ## What's next
 
-More protection modules. Health, finances, digital legacy, home network, your rights. All opt-in, all local. The goal is for LETHE to go from device guardian to life guardian.
+Beyond the v1.1 features above: more protection modules. Health, finances, digital legacy, home network, your rights. All opt-in, all local. The goal is for LETHE to go from device guardian to life guardian.
 
 ---
 
