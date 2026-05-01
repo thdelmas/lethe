@@ -82,7 +82,7 @@ Allows: established/related, loopback, DHCP replies. All else dropped and logged
 correlate all activity within that session.~~
 
 **Implemented:**
-- `persist.lethe.wifi.mac_randomization=per_connection` in privacy-defaults.conf
+- `persist.lethe.mac_rand=per_connection` in privacy-defaults.conf (abbreviated to fit Android's 31-byte PROPERTY_KEY_MAX)
 - Per-boot rotation via init.lethe-burner.rc (runs at post-fs-data)
 - Android 14+ devices get per-connection randomization; older devices get per-boot
 
