@@ -1,14 +1,15 @@
 # Lethe burner mode — wipe + identity rotation
 # Uses standalone scripts (inline shell breaks on Android 7.1 init).
+# cm-14.1 init parser rejects hyphens in service names — using underscores.
 
-service lethe-burner-wipe /system/bin/lethe-burner-wipe.sh
+service lethe_burner_wipe /system/bin/lethe-burner-wipe.sh
     class main
     user root
     group root
     oneshot
     seclabel u:r:init:s0
 
-service lethe-mac-rotate /system/bin/lethe-mac-rotate.sh
+service lethe_mac_rotate /system/bin/lethe-mac-rotate.sh
     class core
     user root
     group root inet net_admin
@@ -17,5 +18,5 @@ service lethe-mac-rotate /system/bin/lethe-mac-rotate.sh
     seclabel u:r:init:s0
 
 on post-fs-data
-    start lethe-burner-wipe
-    start lethe-mac-rotate
+    start lethe_burner_wipe
+    start lethe_mac_rotate

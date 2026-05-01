@@ -1,26 +1,28 @@
 # Lethe — Tor transparent proxy
 # Starts Tor daemon and applies iptables rules via standalone script.
+# cm-14.1 init parser rejects hyphens in service names — using underscores.
+# `capabilities` keyword is Android 8+ only; on cm-14.1 (Android 7.1) we
+# inherit init's capabilities by running with seclabel u:r:init:s0.
 
-service lethe-tor /system/bin/tor -f /system/etc/tor/torrc
+service lethe_tor /system/bin/tor -f /system/etc/tor/torrc
     class main
     user root
     group root inet net_admin
-    capabilities NET_ADMIN NET_BIND_SERVICE
     disabled
-    seclabel u:r:lethe:s0
+    seclabel u:r:init:s0
 
-service lethe-tor-rules /system/bin/lethe-tor-rules.sh
+service lethe_tor_rules /system/bin/lethe-tor-rules.sh
     class main
     user root
     group root inet net_admin
     oneshot
     disabled
-    seclabel u:r:lethe:s0
+    seclabel u:r:init:s0
 
 on post-fs-data
     mkdir /data/lethe 0700 root root
     mkdir /data/lethe/tor 0700 root root
 
 on property:sys.boot_completed=1
-    start lethe-tor
-    start lethe-tor-rules
+    start lethe_tor
+    start lethe_tor_rules
