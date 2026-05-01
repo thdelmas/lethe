@@ -4,7 +4,7 @@
 # SystemServer is up. Uses a standalone script (inline shell breaks on
 # Android 7.1 init).
 
-service lethe-settings /system/bin/lethe-apply-settings.sh
+service lethe_settings /system/bin/lethe-apply-settings.sh
     class late_start
     user root
     group root
@@ -12,4 +12,4 @@ service lethe-settings /system/bin/lethe-apply-settings.sh
     seclabel u:r:init:s0
 
 on property:sys.boot_completed=1
-    start lethe-settings
+    start lethe_settings
