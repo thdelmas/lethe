@@ -219,37 +219,19 @@ else
     echo "  -> WARNING: bootanimation.zip not available, skipping."
 fi
 
-# ── 8. Void Launcher ──
-if [ -f "$OVERLAY_DIR/launcher.conf" ]; then
-    echo "[8/17] Installing Void launcher overlay..."
-    mkdir -p "system/extras/lethe"
-    cp "$OVERLAY_DIR/launcher.conf" "system/extras/lethe/"
-
-    # Remove Trebuchet (LineageOS default launcher) from build
-    TREBUCHET_DIRS=(
-        "packages/apps/Trebuchet"
-        "packages/apps/Launcher3"
-    )
-    for tdir in "${TREBUCHET_DIRS[@]}"; do
-        if [ -d "$tdir" ]; then
-            echo "  -> Removing default launcher: $tdir"
-            rm -rf "$tdir"
-        fi
-    done
-
-    # Generate wallpapers if not present or if generator is available
-    WALLPAPER_GEN="$SCRIPT_DIR/bootanimation/generate-wallpaper.py"
-    if [ -f "$WALLPAPER_GEN" ] && command -v python3 >/dev/null 2>&1; then
-        echo "  -> Generating minimalist wallpapers..."
-        python3 "$WALLPAPER_GEN" 2>&1 || echo "  -> WARNING: wallpaper generation failed, using existing."
-    fi
-
-    # Wallpapers — register with the build so they ship in the system image.
-    [ -f "$OVERLAY_DIR/wallpaper.png" ]  && add_to_system "$OVERLAY_DIR/wallpaper.png"  "system/media/wallpaper.png"
-    [ -f "$OVERLAY_DIR/lockscreen.png" ] && add_to_system "$OVERLAY_DIR/lockscreen.png" "system/media/lockscreen.png"
-    add_to_system "$OVERLAY_DIR/launcher.conf" "system/extras/lethe/launcher.conf"
-    echo "  -> Void launcher overlay registered."
+# ── 8. Theme assets (wallpaper, lockscreen) ──
+# v1.0 keeps the LineageOS default launcher (Trebuchet) — Void launcher
+# ships in v1.1. Removing Trebuchet without an alternative left the
+# system with no Home activity, which crash-loops zygote on boot.
+echo "[8/17] Installing theme assets..."
+WALLPAPER_GEN="$SCRIPT_DIR/bootanimation/generate-wallpaper.py"
+if [ -f "$WALLPAPER_GEN" ] && command -v python3 >/dev/null 2>&1; then
+    echo "  -> Generating minimalist wallpapers..."
+    python3 "$WALLPAPER_GEN" 2>&1 || echo "  -> WARNING: wallpaper generation failed, using existing."
 fi
+[ -f "$OVERLAY_DIR/wallpaper.png" ]  && add_to_system "$OVERLAY_DIR/wallpaper.png"  "system/media/wallpaper.png"
+[ -f "$OVERLAY_DIR/lockscreen.png" ] && add_to_system "$OVERLAY_DIR/lockscreen.png" "system/media/lockscreen.png"
+echo "  -> Theme assets registered."
 
 # ── 9. Tor transparent proxy ──
 if [ -f "$OVERLAY_DIR/tor.conf" ]; then
