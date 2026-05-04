@@ -83,6 +83,7 @@ function settingsLoad() {
 
   renderPeerToggle(container);
   renderMeshToggle(container);
+  if (typeof renderBfuToggle === 'function') renderBfuToggle(container);
   if (typeof renderCloudContextToggle === 'function') {
     renderCloudContextToggle(container);
   }
@@ -107,7 +108,11 @@ function renderMeshToggle(container) {
     'liveness heartbeat to trusted LETHE devices in range. ' +
     '<strong>Not a chat — no messages, no voice, no files.</strong> ' +
     'For chat install Briar (offline / anonymous) or Molly-FOSS ' +
-    '(Signal contacts) from F-Droid.</div>' +
+    '(Signal contacts) from F-Droid.<br><br>' +
+    '<strong>Identity leak:</strong> when enabled, this device advertises ' +
+    'a fixed BLE service UUID anyone in range can fingerprint as LETHE. ' +
+    'Off by default. Disable on public Wi-Fi or in any setting where the ' +
+    'fact that two LETHE devices are present matters.</div>' +
     '<label class="settings-toggle">' +
     '<input type="checkbox" id="mesh-toggle"' +
     (enabled ? ' checked' : '') + '/>' +

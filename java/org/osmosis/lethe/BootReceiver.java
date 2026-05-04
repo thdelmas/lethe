@@ -48,6 +48,17 @@ public class BootReceiver extends BroadcastReceiver {
             Log.i(TAG, "Mesh service started");
         }
 
+        // Start BFU auto-reboot monitor if enabled (lethe#100)
+        if (LetheConfig.isBfuEnabled()) {
+            Intent bfu = new Intent(context, BfuRebootService.class);
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                context.startForegroundService(bfu);
+            } else {
+                context.startService(bfu);
+            }
+            Log.i(TAG, "BFU auto-reboot monitor started");
+        }
+
         // Show persistent burner mode notification
         if ("true".equals(
                 LetheConfig.get("persist.lethe.burner.enabled", "false"))) {

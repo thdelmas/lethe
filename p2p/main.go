@@ -22,6 +22,9 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"path/filepath"
+	"strconv"
+	"strings"
 	"sync"
 	"syscall"
 	"time"
@@ -36,13 +39,18 @@ func main() {
 	llamaURL := flag.String("llama-url", "http://127.0.0.1:8081", "Local llama-server URL")
 	meshEnabled := flag.Bool("mesh", false, "Enable BLE/WiFi Direct mesh relay")
 	trustPath := flag.String("trust-path", mesh.TrustStorePath, "Path to trust ring file")
+	// mDNS off by default (lethe#112) — broadcasts a LETHE-specific service
+	// tag onto the local segment, fingerprinting the device for any
+	// observer on-link. Off-by-default so a journalist on a public SSID
+	// doesn't announce LETHE presence to the room.
+	mdnsEnabled := flag.Bool("mdns", false, "Enable mDNS LAN auto-discovery (off by default — leaks LETHE presence on-link)")
 	flag.Parse()
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	// Start libp2p node with mDNS + GossipSub
-	n, err := node.New(ctx)
+	// Start libp2p node — GossipSub always; mDNS opt-in.
+	n, err := node.New(ctx, node.Config{EnableMDNS: *mdnsEnabled})
 	if err != nil {
 		log.Fatalf("failed to create libp2p node: %v", err)
 	}
@@ -252,10 +260,58 @@ func handlePeerInference(tracker *peer.Tracker, llamaURL string) http.HandlerFun
 // ── Mesh signal handlers ──
 // These are called by the relay when a validated signal arrives.
 
+// dmsHeartbeatFile is what lethe-deadman-{boot,monitor}.sh consult to know
+// when the user (or a trusted peer's heartbeat) was last seen.
+const dmsHeartbeatFile = "/data/lethe/deadman/last_checkin"
+
+// dmsMeshFreshness caps how stale a relayed heartbeat can be before we
+// refuse to count it as a check-in. The signal still passes the relay's
+// nonce-replay window, but the DMS extension semantics require recency.
+const dmsMeshFreshness = 5 * time.Minute
+
 func handleMeshHeartbeat(sig *mesh.Signal, p *mesh.TrustedPeer) {
 	log.Printf("mesh: heartbeat from %s (%s)", p.Label, sig.SenderID[:12])
-	// Write to dead man's switch heartbeat file so the monitor sees it
-	// This acts as a proxy check-in: if the peer checked in, they're alive
+
+	// Stale signals (relayed for hours, replayed within the 10-min nonce
+	// window) must not extend DMS. Relay covers replay; this covers
+	// freshness.
+	if sig.IsExpired(dmsMeshFreshness) {
+		log.Printf("mesh: heartbeat from %s ignored (older than %s)",
+			sig.SenderID[:12], dmsMeshFreshness)
+		return
+	}
+
+	now := time.Now().Unix()
+
+	// Don't roll the heartbeat backwards. A peer's heartbeat can only ever
+	// extend the deadline, never reduce it — important if local has
+	// recorded a more recent self-checkin.
+	if cur, err := os.ReadFile(dmsHeartbeatFile); err == nil {
+		if curTs, perr := strconv.ParseInt(
+			strings.TrimSpace(string(cur)), 10, 64); perr == nil && curTs >= now {
+			return
+		}
+	} else if !os.IsNotExist(err) {
+		log.Printf("mesh: cannot read %s: %v", dmsHeartbeatFile, err)
+		return
+	}
+
+	if err := os.MkdirAll(filepath.Dir(dmsHeartbeatFile), 0o700); err != nil {
+		log.Printf("mesh: cannot mkdir %s: %v",
+			filepath.Dir(dmsHeartbeatFile), err)
+		return
+	}
+	tmp := dmsHeartbeatFile + ".tmp"
+	if err := os.WriteFile(tmp,
+		[]byte(fmt.Sprintf("%d\n", now)), 0o600); err != nil {
+		log.Printf("mesh: cannot write heartbeat: %v", err)
+		return
+	}
+	if err := os.Rename(tmp, dmsHeartbeatFile); err != nil {
+		log.Printf("mesh: cannot install heartbeat: %v", err)
+		return
+	}
+	log.Printf("mesh: DMS heartbeat updated via peer %s", p.Label)
 }
 
 func handleMeshAlert(sig *mesh.Signal, p *mesh.TrustedPeer) {

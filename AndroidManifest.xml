@@ -125,6 +125,11 @@
             android:name=".PanicPressService"
             android:exported="false" />
 
+        <!-- BFU auto-reboot (lethe#100): return to BFU after inactivity -->
+        <service
+            android:name=".BfuRebootService"
+            android:exported="false" />
+
         <!-- Mesh signaling (BLE heartbeat for dead man's switch) -->
         <service
             android:name=".LetheMeshService"

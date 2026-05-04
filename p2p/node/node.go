@@ -39,8 +39,22 @@ type Node struct {
 	msgHandlers []func([]byte)
 }
 
-// New creates a libp2p node with mDNS discovery and GossipSub.
-func New(ctx context.Context) (*Node, error) {
+// Config controls how a node discovers and announces itself. mDNS is the
+// only LAN-broadcast channel here; default off because it announces a
+// LETHE peer to anyone on-link, which is bad for a journalist meeting a
+// source on a coffee-shop SSID. See lethe#112.
+type Config struct {
+	// EnableMDNS broadcasts on the local segment so two LETHE devices on
+	// the same SSID auto-discover each other. Off by default. Pair via
+	// the trust ring (`/mesh/trust/add`) or a future PSK rendezvous when
+	// presence-leak is unacceptable.
+	EnableMDNS bool
+}
+
+// New creates a libp2p node with GossipSub. mDNS discovery is opt-in via
+// cfg.EnableMDNS; without it, peers must be added explicitly through the
+// trust-ring API.
+func New(ctx context.Context, cfg Config) (*Node, error) {
 	// Create host — listen on random port, LAN only
 	h, err := libp2p.New(
 		libp2p.ListenAddrStrings(
@@ -93,10 +107,22 @@ func New(ctx context.Context) (*Node, error) {
 		}
 	})
 
-	// Start mDNS discovery
-	disc := mdns.NewMdnsService(h, MDNSServiceTag, &discoveryNotifee{})
-	if err := disc.Start(); err != nil {
-		log.Printf("mDNS start failed (non-fatal): %v", err)
+	// mDNS broadcasts a LETHE service tag onto the local segment, so any
+	// observer on-link can fingerprint the device as LETHE. Off by default
+	// to avoid that presence leak. Operators who explicitly want LAN
+	// auto-discovery (home setup, trusted office) opt in via --mdns.
+	if cfg.EnableMDNS {
+		disc := mdns.NewMdnsService(h, MDNSServiceTag, &discoveryNotifee{})
+		if err := disc.Start(); err != nil {
+			log.Printf("mDNS start failed (non-fatal): %v", err)
+		} else {
+			log.Printf("mDNS discovery enabled — LETHE service tag %q is "+
+				"broadcast on this network. Disable on untrusted SSIDs.",
+				MDNSServiceTag)
+		}
+	} else {
+		log.Printf("mDNS discovery disabled (default). Peers must be added " +
+			"explicitly via /mesh/trust/add. See lethe#112.")
 	}
 
 	// Read messages from subscription

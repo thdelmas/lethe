@@ -92,6 +92,24 @@ public final class LetheConfig {
         return ("instant".equals(v)) ? "instant" : "safe";
     }
 
+    /** BFU auto-reboot — return device to Before-First-Unlock after inactivity
+     *  to evict CE class keys from RAM. Off by default; default-on in Border
+     *  Mode (lethe#100, lethe#110). */
+    public static boolean isBfuEnabled() {
+        return "true".equals(get("persist.lethe.bfu.enabled", "false"));
+    }
+
+    /** Inactivity (screen off + locked) minutes before BFU reboot. Default 15. */
+    public static int getBfuTimeoutMinutes() {
+        try {
+            int v = Integer.parseInt(
+                get("persist.lethe.bfu.timeout_minutes", "15"));
+            return v < 1 ? 1 : v;
+        } catch (NumberFormatException e) {
+            return 15;
+        }
+    }
+
     public static boolean isMeshEnabled() {
         return "true".equals(get("persist.lethe.mesh.enabled", "false"));
     }
