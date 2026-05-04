@@ -535,31 +535,47 @@ features:
         name: "DAVx5"
         package: "at.bitfire.davdroid"
         desc: "CalDAV/CardDAV sync — replaces Google contacts/calendar sync"
-    recommended:
+      # ── Promoted from recommended → pre_installed (lethe#104) ──
+      # A journalist at a border who needs Signal over a monitored network
+      # can't be expected to install + configure it on the spot. Ship the
+      # Signal client + Briar in the image; Orbot proxy is pre-configured
+      # so the first message attempt routes through Tor.
       - id: molly-foss
         name: "Molly-FOSS"
         package: "im.molly.foss"
-        desc: "Hardened Signal fork — encrypted DB at rest, Tor routing, no Google Play Services"
+        desc: "Hardened Signal client — encrypted DB at rest, Tor routing, no Google Play Services"
         notes: >
-          Uses the Signal network (keeps the network effect: your existing
-          contacts are reachable) but hardens the client for LETHE's threat
-          model. Encrypted database with RAM-wipe on lock, Tor routing out
-          of the box, reproducible builds. Molly-FOSS variant removes
-          Google Firebase — polls via WebSocket instead. Trades some battery
-          life for the privacy posture. Still requires a phone number (Signal
-          network constraint); pair with Briar for anonymous / mesh contacts.
+          Pre-installed in v1.1+ as the Signal client (#104). Uses the Signal
+          network (so existing contacts reach the device), hardened for
+          LETHE: encrypted database with RAM-wipe on lock, Tor routing on by
+          default, reproducible builds, no Firebase. Polls via WebSocket
+          instead of FCM. License: GPL-3.0; redistribution OK provided we
+          ship Molly's signing-key fingerprint alongside the APK.
+        pre_configure:
+          tor_proxy: true                  # Route via Orbot SOCKS by default
+          signal_use_tor: true             # MollyFOSS pref — force Tor
+          screen_lock: true
       - id: briar
         name: "Briar"
         package: "org.briarproject.briar.android"
         desc: "BLE + WiFi + Tor mesh messenger — no phone number, no servers, works offline"
         notes: >
-          Architectural fit with LETHE's BLE mesh (same radio infrastructure
-          already used for dead man's switch relay). No phone number or
-          email required; contacts added via QR code or Bluetooth proximity.
-          P2P — no servers to seize. Async delivery requires a mutual
-          online contact to relay. No disappearing messages. Battery-heavy
-          on old hardware. Positioned as the anonymous / dissident / offline
-          option; pair with Molly for existing-contact reach.
+          Pre-installed in v1.1+ (#104). Architectural fit with LETHE's BLE
+          mesh (same radios used for the DMS heartbeat). No phone number or
+          email; contacts added via QR or Bluetooth proximity. P2P — no
+          servers to seize. License: GPL-3.0.
+      - id: proofmode
+        name: "ProofMode"
+        package: "org.witness.proofmode"
+        desc: "Cryptographic provenance for photos/videos — opposite of an EXIF strip"
+        notes: >
+          Pre-installed in v1.1+ (#109). Signs photos/videos at capture
+          time so they can later be verified as untampered. Pair with the
+          system-wide EXIF strip (lethe#109): use ProofMode for evidence
+          you intend to publish, strip for casual sharing where a GPS tag
+          would burn a source. C2PA notary is an external dependency
+          documented in docs/secure-comms.md. License: GPLv3.
+    recommended:
       - id: newpipe
         name: "NewPipe"
         package: "org.schabi.newpipe"

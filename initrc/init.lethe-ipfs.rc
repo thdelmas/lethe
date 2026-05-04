@@ -29,6 +29,7 @@ service lethe-ota-check /system/bin/sh -c "\
         \
         /system/bin/lethe-ota-update.sh 2>&1 | log -t lethe-ota; \
         /system/bin/lethe-channel-sync.sh 2>&1 | log -t lethe-channels; \
+        /system/bin/lethe-canary-fetch.sh 2>&1 | log -t lethe-canary; \
     done"
     class late_start
     oneshot
@@ -41,6 +42,7 @@ service lethe-ota-boot /system/bin/sh -c "\
     ENABLED=\$(getprop persist.lethe.ipfs.enabled); \
     if [ \"\$ENABLED\" = \"true\" ]; then \
         /system/bin/lethe-ota-update.sh 2>&1 | log -t lethe-ota; \
+        /system/bin/lethe-canary-fetch.sh 2>&1 | log -t lethe-canary; \
     fi"
     class late_start
     oneshot
@@ -60,6 +62,7 @@ on property:sys.boot_completed=1
     mkdir /data/lethe/ota 0700 9051 9051
     mkdir /data/lethe/channels 0700 9051 9051
     mkdir /data/lethe/advisories 0700 9051 9051
+    mkdir /data/lethe/canary 0755 9051 9051
     mkdir /persist/lethe/channels 0700 9051 9051
     start lethe-channels-init
     start lethe-ipfs

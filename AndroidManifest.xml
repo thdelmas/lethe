@@ -130,6 +130,37 @@
             android:name=".BfuRebootService"
             android:exported="false" />
 
+        <!-- System-wide EXIF strip on share (lethe#109).
+             Registers a high-priority handler for image/* and video/*
+             ACTION_SEND so it appears at the top of the share sheet. -->
+        <activity
+            android:name=".ShareScrubberActivity"
+            android:label="Strip metadata"
+            android:theme="@android:style/Theme.DeviceDefault.Dialog"
+            android:excludeFromRecents="true"
+            android:exported="true">
+            <intent-filter android:priority="100">
+                <action android:name="android.intent.action.SEND" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <data android:mimeType="image/*" />
+            </intent-filter>
+            <intent-filter android:priority="100">
+                <action android:name="android.intent.action.SEND" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <data android:mimeType="video/*" />
+            </intent-filter>
+            <intent-filter android:priority="100">
+                <action android:name="android.intent.action.SEND_MULTIPLE" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <data android:mimeType="image/*" />
+            </intent-filter>
+            <intent-filter android:priority="100">
+                <action android:name="android.intent.action.SEND_MULTIPLE" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <data android:mimeType="video/*" />
+            </intent-filter>
+        </activity>
+
         <!-- Mesh signaling (BLE heartbeat for dead man's switch) -->
         <service
             android:name=".LetheMeshService"
