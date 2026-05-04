@@ -32,6 +32,16 @@ with zero authentication.~~
 
 ## P1 — Quick wins (low effort, meaningful impact)
 
+### Next-release blocking (journalist-audit 2026-04-15)
+
+Items below are tracked individually but called out here so they don't slip:
+
+- **Per-session encryption keys** (was P2) — issue [#101](https://github.com/OSmosis-org/lethe/issues/101), design at [journalist-audit/per-session-keys.md](journalist-audit/per-session-keys.md). Foundational — burner-mode claim depends on it.
+- **USB data lockout when locked** — issue [#99](https://github.com/OSmosis-org/lethe/issues/99), design at [journalist-audit/usb-data-lockout.md](journalist-audit/usb-data-lockout.md). Cellebrite/GrayKey defense.
+- **Remote DMS / wipe channel** — issue [#103](https://github.com/OSmosis-org/lethe/issues/103), design at [journalist-audit/remote-dms-channel.md](journalist-audit/remote-dms-channel.md). Closes competitive-gap §3.
+- **IMSI-catcher detection** (was P3) — issue [#105](https://github.com/OSmosis-org/lethe/issues/105), design at [journalist-audit/imsi-catcher-detection.md](journalist-audit/imsi-catcher-detection.md).
+- **Hidden volumes** — issue [#102](https://github.com/OSmosis-org/lethe/issues/102), feasibility at [journalist-audit/hidden-volumes.md](journalist-audit/hidden-volumes.md). Opt-in, tier-1 only — proceed cautiously.
+
 ### Per-app sensor permissions
 
 Port GrapheneOS's Sensors permission toggle. When denied, apps receive zeroed
@@ -257,13 +267,13 @@ with exec-based spawning that re-randomizes ASLR per app.
 
 **Risk:** Slower app launch (cold start). Acceptable tradeoff for security.
 
-### Per-session encryption keys
+### Per-session encryption keys — promoted to P1 (tracked under issue #101)
 
-The only reliable secure deletion on flash storage. Standard file deletion +
-overwrite is unreliable due to wear leveling and spare blocks. Instead:
-derive a per-boot encryption key from boot entropy, encrypt all user data
-with it, never persist the key. On burner-mode wipe or reboot, the key is
-gone — all prior data is cryptographic noise regardless of flash internals.
+Moved up to P1 / next-release blocking. See [journalist-audit/per-session-keys.md](journalist-audit/per-session-keys.md)
+for the full design, threat model, and prototype plan. Without this primitive
+the burner-mode claim ("reboot = data is noise") is not actually true on
+flash storage — wear leveling preserves ciphertext that a TEE-recovered
+unwrap-key can still decrypt.
 
 ### Per-app outbound firewall
 
@@ -365,11 +375,13 @@ SOCKS. Update manifests are signed with Ed25519 and verified on-device.
 Tighten app access to shared storage beyond AOSP defaults. Evaluate
 GrapheneOS's storage scopes patches for portability.
 
-### Network attestation (IMSI catcher detection)
-Detect IMSI catchers and rogue base stations. Warn user on 2G downgrades,
-unknown tower IDs, silent SMS. Research: EFF Rayhunter (runs on hotspot
-hardware, open source Rust), AIMSICD (needs root + Qualcomm), SnoopSnitch.
-Lethe is rooted → can access radio info that stock Android restricts.
+### Network attestation (IMSI catcher detection) — promoted to P1 (tracked under issue #105)
+
+Moved up to P1 / next-release blocking. See [journalist-audit/imsi-catcher-detection.md](journalist-audit/imsi-catcher-detection.md)
+for the full design, including the device support matrix (Qualcomm DIAG
+required for full coverage; tier-aware UI for the rest) and the
+declarative rule format that lifts SnoopSnitch's detection logic without
+inheriting its bit-rot.
 
 ### Secure element integration
 On devices with hardware secure elements (Pixels, newer Samsung), store
