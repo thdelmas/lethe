@@ -31,10 +31,19 @@ by policy and user data persisted across reboot.
 ## Integration
 
 Installed to the LineageOS build tree by `lethe/scripts/install-sepolicy.sh`,
-called from `apply-overlays.sh` step 12/17. Target directories tried in order:
-`device/lineage/sepolicy/vendor`, `device/lineage/sepolicy/common`, then
-`device/lineage/sepolicy`. Falls back to `vendor/lethe/sepolicy` for trees
-without a device/lineage overlay.
+called from `apply-overlays.sh` step 12/17 with the build codename.
+
+Target depends on the source tree:
+
+- **cm-14.1** (`vendor/cm/` present): `device/<vendor>/<codename>/selinux/`,
+  picked up by the device tree's existing `BOARD_SEPOLICY_DIRS`. The script
+  resolves `<vendor>` by globbing `device/*/<codename>/` and fails loudly if
+  the device tree isn't synced — it must not silently fall back, or the OTA
+  ships without LETHE's policy and burner mode breaks under enforcement.
+- **LineageOS 15.1+** (`device/lineage/sepolicy/` present): tries
+  `device/lineage/sepolicy/vendor`, then `.../common`, then `.../sepolicy`.
+- **Otherwise**: falls back to `vendor/lethe/sepolicy` (consumer must add it
+  to `BOARD_SEPOLICY_DIRS` in BoardConfig.mk).
 
 ## Adding new LETHE binaries
 

@@ -268,7 +268,7 @@ echo "[11/17] LETHE agent — deferred to v1.1, not packaged."
 
 # ── 12. SELinux policy ──
 echo "[12/17] Installing SELinux policy for LETHE services..."
-bash "$SCRIPT_DIR/scripts/install-sepolicy.sh" "$SCRIPT_DIR/sepolicy"
+bash "$SCRIPT_DIR/scripts/install-sepolicy.sh" "$SCRIPT_DIR/sepolicy" "$CODENAME"
 
 # ── 13. Build fingerprint ──
 echo "[13/17] Setting Lethe build fingerprint..."
