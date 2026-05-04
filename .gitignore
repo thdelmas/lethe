@@ -47,3 +47,6 @@ static/mascot-anim*.webm
 
 # Node
 node_modules/
+
+# Private grant-application drafts (kept in ../lethe-grants-private/)
+lethe-nlnet-*.md
