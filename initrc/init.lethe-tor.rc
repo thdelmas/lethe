@@ -19,9 +19,20 @@ service lethe_tor_rules /system/bin/lethe-tor-rules.sh
     disabled
     seclabel u:r:init:s0
 
+# Pluggable-transport selector (lethe#108). Reads
+# persist.lethe.tor.bridge_pt and writes /data/lethe/tor/torrc.bridges
+# before tor starts, so changing the PT is one setprop + reboot.
+service lethe_tor_pt /system/bin/lethe-tor-pt-select.sh
+    class main
+    user root
+    group root
+    oneshot
+    seclabel u:r:init:s0
+
 on post-fs-data
     mkdir /data/lethe 0700 root root
     mkdir /data/lethe/tor 0700 root root
+    start lethe_tor_pt
 
 on property:sys.boot_completed=1
     start lethe_tor

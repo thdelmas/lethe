@@ -81,12 +81,14 @@ function settingsLoad() {
   if (!container) return;
   container.innerHTML = '';
 
+  // Optional sections live in their own settings-*.js modules; defensively
+  // guarded so any one missing doesn't break the rest of the panel.
+  ['renderBorderModeSection', 'renderBfuToggle',
+   'renderDuressPinSection', 'renderCloudContextToggle'].forEach(function(fn) {
+    if (typeof window[fn] === 'function') window[fn](container);
+  });
   renderPeerToggle(container);
   renderMeshToggle(container);
-  if (typeof renderBfuToggle === 'function') renderBfuToggle(container);
-  if (typeof renderCloudContextToggle === 'function') {
-    renderCloudContextToggle(container);
-  }
   renderModelsSection(container);
   renderKeysSection(container);
 }

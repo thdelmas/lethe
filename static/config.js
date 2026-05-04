@@ -204,12 +204,18 @@ function refreshRouterPlan(task, cb) {
 function candidatesForTask(task) {
   var plan = routerPlanCache[task || 'chat'];
   var out = [];
+  // Border Mode (lethe#110) — drop every non-local provider from the
+  // candidate list. The router never even attempts cloud, so a slip in
+  // settings (key still saved) can't accidentally reach Anthropic /
+  // OpenRouter while a journalist is at a checkpoint.
+  var borderMode = !!(letheConfig && letheConfig.border_mode);
   if (plan && plan.candidates) {
     var seen = {};
     for (var i = 0; i < plan.candidates.length; i++) {
       var c = plan.candidates[i];
       if (seen[c.provider]) continue;
       if (isModelDisabled(c.provider, c.model)) continue;
+      if (borderMode && c.provider !== 'local') continue;
       var r = resolveProvider(c.provider);
       if (!r) continue;
       seen[c.provider] = true;
@@ -221,7 +227,7 @@ function candidatesForTask(task) {
   }
   if (!out.length) {
     var fallback = getProvider();
-    if (fallback) out.push(fallback);
+    if (fallback && (!borderMode || fallback.name === 'local')) out.push(fallback);
   }
   return out;
 }

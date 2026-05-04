@@ -199,3 +199,15 @@ echo "  ZIP:    $ZIP"
 echo "  SHA256: $ZIP.sha256"
 echo "  SIG:    $ZIP.sig"
 echo "  META:   $BUILD_DIR/$BASENAME-meta.json"
+
+# CycloneDX SBOM (lethe#115). Generated from the lock files at HEAD; emitted
+# next to the signed zip so downstream tools (Dependency-Track, Grype) can
+# consume per-release vulnerability data.
+SBOM="$BUILD_DIR/$BASENAME-sbom.json"
+if python3 "$SCRIPT_DIR/generate-sbom.py" "$LETHE_DIR" >"$SBOM.tmp" 2>/dev/null; then
+    mv "$SBOM.tmp" "$SBOM"
+    echo "  SBOM:   $SBOM"
+else
+    rm -f "$SBOM.tmp"
+    echo "  SBOM:   skipped (generate-sbom.py failed; not fatal for signing)"
+fi

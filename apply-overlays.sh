@@ -248,8 +248,12 @@ if [ -f "$OVERLAY_DIR/tor.conf" ]; then
     echo "[9/17] Installing Tor transparent proxy..."
     RUNTIME_DIR="$SCRIPT_DIR/scripts/runtime"
     chmod 755 "$RUNTIME_DIR/lethe-tor-rules.sh"
+    chmod 755 "$RUNTIME_DIR/lethe-tor-pt-select.sh"
     add_to_system "$OVERLAY_DIR/tor.conf"             "system/etc/tor/torrc"
     add_to_system "$RUNTIME_DIR/lethe-tor-rules.sh"   "system/bin/lethe-tor-rules.sh"
+    # PT selector (lethe#108) — reads persist.lethe.tor.bridge_pt and writes
+    # /data/lethe/tor/torrc.bridges before tor starts.
+    add_to_system "$RUNTIME_DIR/lethe-tor-pt-select.sh" "system/bin/lethe-tor-pt-select.sh"
     install_initrc init.lethe-tor.rc Tor
     TOR_BINARY="$SCRIPT_DIR/prebuilt/tor/$PREBUILT_ARCH/tor"
     if [ -f "$TOR_BINARY" ]; then
