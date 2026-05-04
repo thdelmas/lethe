@@ -281,7 +281,11 @@ echo "[10/17] IPFS OTA — deferred to v1.1, not packaged."
 echo "[11/17] LETHE agent — deferred to v1.1, not packaged."
 
 # ── 12. SELinux policy ──
-echo "[12/17] Installing SELinux policy for LETHE services..."
+# v1.0: lethe.te + file_contexts disabled (.disabled-in-v1.0 suffix) — see
+# #122 and docs/release/v1.0.0-flash-investigation.md. Step still runs to
+# install property_contexts and to scrub any stale lethe.te left in the
+# device tree from a prior build. v1.1 re-enables the full policy.
+echo "[12/17] Installing SELinux policy (LETHE rules deferred to v1.1, #122)..."
 bash "$SCRIPT_DIR/scripts/install-sepolicy.sh" "$SCRIPT_DIR/sepolicy" "$CODENAME"
 
 # ── 13. Build fingerprint ──
