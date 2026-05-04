@@ -1,4 +1,9 @@
 # LETHE — SELinux file context labels
+#
+# DISABLED IN v1.0. Every label here references lethe_exec, which is defined
+# in lethe.te — also disabled. Re-enable both files together by stripping the
+# .disabled-in-v1.0 suffix. See lethe.te.disabled-in-v1.0 header and #122.
+#
 # Applied at build time via BOARD_SEPOLICY_DIRS.
 # Labels LETHE binaries and scripts so init can execute them.
 

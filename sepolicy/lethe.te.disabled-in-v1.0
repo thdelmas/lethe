@@ -1,5 +1,15 @@
 # LETHE — SELinux policy
 #
+# DISABLED IN v1.0 (2026-05-04). When compiled into cm-14.1's sepolicy and
+# loaded at boot, this policy causes init to SIGKILL zygote in a tight loop
+# with no AVC denials logged. Three controlled boots isolate the breakage to
+# this file (vanilla LineageOS + LETHE props minus this policy boots cleanly).
+# Filename suffix .disabled-in-v1.0 keeps the installer from picking it up
+# (install-sepolicy.sh globs *.te). Rename to lethe.te to re-enable.
+# v1.1 bisect plan + reproduction: docs/release/v1.0.0-flash-investigation.md,
+# issue #122. Suspect rules: init_daemon_domain(lethe) macro expansion
+# vs cm-14.1 system_server class transitions, or set_prop(lethe, system_prop).
+#
 # Two-domain architecture:
 #   1. Burner-wipe and dead man's switch run in INIT context (seclabel u:r:init:s0)
 #      because init already has file deletion permissions (system_data_file, etc.)

@@ -18,6 +18,14 @@ fi
 
 copy_policy() {
     local target="$1"
+    # Stale lethe.te from a previous run is dropped here: this file is
+    # fully ours, so removing it before copy is safe and prevents a
+    # disabled-upstream policy from sneaking into a rebuild (#122).
+    # We do NOT touch file_contexts because it's a shared file — the
+    # LineageOS device tree may already populate it with non-LETHE
+    # entries. v1.0 strip removes LETHE's *file_contexts* on the build
+    # machine manually, per docs/release/v1.0.0-flash-investigation.md.
+    rm -f "$target/lethe.te"
     cp "$SEPOLICY_DIR"/*.te "$target/" 2>/dev/null || true
     cp "$SEPOLICY_DIR/file_contexts" "$target/" 2>/dev/null || true
     cp "$SEPOLICY_DIR/property_contexts" "$target/" 2>/dev/null || true

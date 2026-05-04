@@ -2,6 +2,17 @@
 
 Custom SELinux domain for LETHE init services.
 
+> **v1.0 status — disabled.** `lethe.te` and `file_contexts` are renamed to
+> `*.disabled-in-v1.0` and skipped by the installer (which globs `*.te` and
+> the literal `file_contexts`). On cm-14.1 t0lte the compiled policy
+> crash-loops zygote at boot — three controlled tests on the May-4 build
+> isolate the breakage to the policy itself (vanilla LineageOS + LETHE props
+> minus this policy boots cleanly). Investigation: [issue #122] and
+> [docs/release/v1.0.0-flash-investigation.md](../docs/release/v1.0.0-flash-investigation.md).
+> Rename back to active filenames and bisect for v1.1.
+>
+> [issue #122]: https://github.com/thdelmas/lethe/issues/122
+
 ## Why this exists
 
 On Android 7.1 enforcing SELinux, services declared with `seclabel u:r:init:s0`
