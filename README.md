@@ -2,7 +2,7 @@
 
 **Logical Erasure & Total History Elimination** — a privacy-hardened Android overlay on LineageOS.
 
-LETHE is named after the river of forgetting in Greek mythology. It's an overlay applied at build time to LineageOS — not a fork — that adds burner mode, Tor enforcement, a dead man's switch, identity rotation, and an AI guardian baked into the OS as a system service. The phone forgets by default. That's the point.
+LETHE is named after the river of forgetting in Greek mythology. It's an overlay applied at build time to LineageOS — not a fork — that adds burner mode, identity rotation, hardened DNS, tracker blocking, and an AI guardian baked into the OS as a system service. The phone forgets by default. That's the point.
 
 - **Release notes:** [docs/RELEASE-v1.0.0.md](docs/RELEASE-v1.0.0.md)
 - **Privacy policy and disclaimers:** [PRIVACY.md](PRIVACY.md)
@@ -11,7 +11,6 @@ LETHE is named after the river of forgetting in Greek mythology. It's an overlay
 ## What ships in v1.0
 
 - **Burner mode** — every reboot wipes user data, internal storage, WiFi/Bluetooth credentials, clipboard, and notification log. MAC, Android ID, and device serial rotate on each cycle. On by default; user-disabled in Settings.
-- **Tor enforcement** — all user-app TCP routed through a transparent Tor proxy via iptables NAT. UDP dropped to prevent leaks. Per-app circuit isolation. Not a toggle — a firewall rule.
 - **Dead Man's Switch** — opt-in escalation chain (lock → wipe → optional brick) on missed check-in. Duress PIN supported. Configured in the first-boot wizard.
 - **Mesh signaling (preview)** — short-range BLE heartbeat between devices in your trust ring as a transport for the dead man's switch only. No chat, voice, or files cross the mesh. Off by default. For real conversations, install [Briar](https://briarproject.org) or [Molly-FOSS](https://molly.im).
 - **Panic wipe** — 5× power button press triggers wipe with a 5-second cancel window.

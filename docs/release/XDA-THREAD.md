@@ -1,10 +1,10 @@
 # LETHE v1.0.0 — Privacy Android that forgets everything on reboot
 
-**A LineageOS overlay with burner mode, Tor enforcement, and full Google debloat.**
+**A LineageOS overlay with burner mode, identity rotation, and full Google debloat.**
 
 LETHE is not a ROM — it's an overlay you flash on top of LineageOS. v1.0 adds privacy hardening, identity rotation, and tracker blocking without forking or modifying the LineageOS source.
 
-Every reboot wipes your data by default. Every connection routes through Tor. Every tracker is blocked at the system level. The phone forgets — and that's the point.
+Every reboot wipes your data by default. Every tracker is blocked at the system level. DNS goes over TLS or it doesn't go. The phone forgets — and that's the point.
 
 The in-OS AI guardian, Dead Man's Switch, panic wipe, and Void launcher are coming in v1.1.
 
@@ -15,11 +15,9 @@ The in-OS AI guardian, Dead Man's Switch, panic wipe, and Void launcher are comi
 | Feature | LineageOS | LETHE v1.0 |
 |---------|-----------|------------|
 | Data on reboot | Persists | Wiped (burner mode, disable in Settings) |
-| Network routing | Direct | All user-app TCP through Tor (UDP dropped) |
 | Trackers | Not blocked | System hosts file blocks ad/tracker domains |
 | Google services | Optional | Removed at build time |
 | Identity | Fixed | MAC + Android ID rotated on boot |
-| Firewall | Permissive | Default-deny, user apps Tor-only |
 | DNS | Google/ISP | Quad9 DNS-over-TLS, Mullvad fallback |
 | Theme | LineageOS default | Teal-on-black, custom boot animation |
 | AI guardian | — | Coming in v1.1 |
@@ -130,8 +128,6 @@ When v1.1 ships, the agent's API key will live in /persist (survives the burner-
 ## What's included in v1.0
 
 - **Burner mode** — wipes /data on every reboot (user data, WiFi/Bluetooth credentials, clipboard, notification log) and rotates Android ID. Default ON; disable in Settings → Privacy.
-- **Tor transparent proxy** — bundled Tor daemon as a system service. iptables forces every user-app TCP through it; UDP dropped to prevent leaks. Per-app circuit isolation.
-- **Default-deny firewall** — no inbound connections, user apps can only reach Tor.
 - **MAC + Android ID rotation** — fresh per-boot randomization for both.
 - **Tracker blocking** — system-level hosts file (StevenBlack + AdAway) intercepting ad/tracker domains for every app.
 - **Hardened DNS** — Quad9 DNS-over-TLS primary, Mullvad fallback. Cleartext DNS rejected.
@@ -141,6 +137,7 @@ When v1.1 ships, the agent's API key will live in /persist (survives the burner-
 
 ## Coming in v1.1
 
+- **Tor enforcement** — transparent Tor proxy + iptables NAT for all user-app TCP, UDP dropped, per-app circuit isolation. Binary and torrc ship in v1.0 but the SELinux policy that lets init exec the Tor daemon is deferred — see issue #122.
 - **LETHE agent** — in-OS AI guardian with tool calling, cloud LLMs via your API key, on-device models for capable hardware.
 - **Void launcher** — minimalist clock + mascot home screen with gesture navigation.
 - **Dead man's switch** — missed-check-in escalation chain (lock → wipe → optional brick) with duress PIN and hint-based recovery.
@@ -200,10 +197,7 @@ A: Yes — disable burner mode in Settings → Privacy after first boot. Data wi
 A: v1.1. v1.0 is the foundation it'll run on (system service slot, agent settings UI, EU AI Act consent flow). When v1.1 ships, it'll route to a cloud LLM via your API key, with on-device models for capable hardware.
 
 **Q: Why not just use GrapheneOS?**
-A: Different goals. GrapheneOS is deeper security on Pixels only. LETHE is operational security (burner mode, identity rotation, Tor enforcement) on 26 device codenames across 8 brands.
-
-**Q: Is Tor always on?**
-A: By default, yes. All user app traffic routes through Tor. System services (NTP, DNS-over-TLS, DHCP) go direct. You can configure this in Settings.
+A: Different goals. GrapheneOS is deeper security on Pixels only. LETHE is operational security (burner mode, identity rotation, hardened DNS, tracker blocking) on 26 device codenames across 8 brands.
 
 **Q: My old phone from 2012 — will it work?**
 A: If it runs LineageOS, probably yes. The Galaxy Note II (2012) is a tested device.
