@@ -100,6 +100,16 @@ PRODUCT_PROPERTY_OVERRIDES += \
 
 # Lethe privacy defaults (parsed from overlays/privacy-defaults.conf)
 PROPS
+        # Field-build flag (issue #95). When LETHE_FIELD_BUILD=1 is set, the
+        # build pipeline strips cloud-provider code from the agent UI and
+        # this prop lets on-device code refuse to enable cloud paths even if
+        # something tries to set them at runtime.
+        if [ "${LETHE_FIELD_BUILD:-0}" = "1" ]; then
+            echo "PRODUCT_PROPERTY_OVERRIDES += ro.lethe.field_build=1" >> "$PROPS_TARGET"
+            echo "  -> Field build: ro.lethe.field_build=1"
+        else
+            echo "PRODUCT_PROPERTY_OVERRIDES += ro.lethe.field_build=0" >> "$PROPS_TARGET"
+        fi
 
         # Parse privacy-defaults.conf and split entries:
         #   - keys containing '.'  → build.prop system properties
@@ -297,6 +307,27 @@ echo "  -> Build: $BUILD_DESC"
 echo "[14/17] Decentralized channels — deferred to v1.1, not packaged."
 echo "[15/17] libp2p peer inference — deferred to v1.1, not packaged."
 echo "[16/17] EdgeVPN cluster — deferred to v1.1, not packaged."
+
+# ── Field build: strip cloud providers from the agent UI (issue #95) ──
+# When LETHE_FIELD_BUILD=1, post-process the static/ tree so the field-build
+# APK has no anthropic/openrouter strings, endpoints, or wizard cards.
+# Idempotent — re-running on an already-stripped tree is a no-op.
+# Today static/ isn't packaged into the v1.0 image (LETHE agent is deferred
+# to v1.1); the strip runs against the source tree so the v1.1 packaging
+# step picks up the field-build version automatically.
+if [ "${LETHE_FIELD_BUILD:-0}" = "1" ]; then
+    echo "[field-build] LETHE_FIELD_BUILD=1 — stripping cloud providers from static/"
+    if [ -d "$SCRIPT_DIR/static" ]; then
+        if python3 "$SCRIPT_DIR/scripts/apply-field-build.py" "$SCRIPT_DIR/static"; then
+            echo "  -> Static UI stripped clean."
+        else
+            echo "  -> ERROR: field-build strip failed verification" >&2
+            exit 1
+        fi
+    else
+        echo "  -> WARNING: $SCRIPT_DIR/static not found, skipping strip."
+    fi
+fi
 
 echo "[17/17] Overlay summary..."
 echo "  Overlays installed:"

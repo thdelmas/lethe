@@ -73,6 +73,25 @@ public final class LetheConfig {
         }
     }
 
+    /** Cancel-window seconds between panic-press detection and wipe.
+     *  0 = wipe immediately (legacy / high-risk opt-in). Default 5s. */
+    public static int getPanicCooloffSeconds() {
+        try {
+            int v = Integer.parseInt(
+                get("persist.lethe.burner.trigger.panic_cooloff_s", "5"));
+            return v < 0 ? 0 : v;
+        } catch (NumberFormatException e) {
+            return 5;
+        }
+    }
+
+    /** "safe" (default) shows a cancellable countdown notification before
+     *  wiping; "instant" wipes immediately on detection. */
+    public static String getPanicMode() {
+        String v = get("persist.lethe.burner.trigger.panic_mode", "safe");
+        return ("instant".equals(v)) ? "instant" : "safe";
+    }
+
     public static boolean isMeshEnabled() {
         return "true".equals(get("persist.lethe.mesh.enabled", "false"));
     }

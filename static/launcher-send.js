@@ -31,6 +31,7 @@ function send() {
         transcript.innerHTML = '';
         chatHistory = [{ role: 'system', content: buildSystemPrompt() }];
         turnCount = 0;
+        if (typeof resetRedactStore === 'function') resetRedactStore();
         addMessage('Fresh start.', 'lethe');
         return;
     }

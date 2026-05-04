@@ -18,12 +18,35 @@ LETHE_CFG=/data/data/org.osmosis.lethe.agent/files/config.json
 LETHE_BAK=/data/local/tmp/lethe-config-bak.json
 [ -f "$LETHE_CFG" ] && cp "$LETHE_CFG" "$LETHE_BAK"
 
-# Wipe user data
+# Wipe user data — installed apps, app databases, both CE and DE storage.
+# Browser profiles (Mull, Fennec, WebView, Chrome) live under /data/data and
+# /data/user, so this covers their cookies, localStorage, history, and form
+# autofill caches. lethe#111 enumerates the explicit additional paths below
+# for cases where data escapes the standard sandbox.
 rm -rf /data/app /data/data /data/user /data/user_de
 rm -rf /data/misc/wifi/wpa_supplicant.conf
 rm -rf /data/misc/bluedroid
 rm -rf /data/media/0/*
 rm -rf /data/system/notification_log
+
+# Browser/WebView caches and autofill that live OUTSIDE /data/data (lethe#111).
+# WebView system instance, ART/PGO usage profiles, system-level autofill,
+# Android accounts DB, credential store, and the system cache partition. Each
+# of these has been observed to retain browsing-derived state past a
+# /data/data wipe on at least one Android version.
+rm -rf /data/misc/profiles/cur/0
+rm -rf /data/misc/profiles/ref/0
+rm -f  /data/system/users/0/accounts.db
+rm -f  /data/system/users/0/accounts.db-journal
+rm -rf /data/system/users/0/autofill
+rm -rf /data/system/users/0/credentials
+rm -rf /data/system/users/0/recent_tasks
+rm -rf /data/system_ce/0/recent_tasks
+rm -rf /data/system_ce/0/snapshots
+rm -rf /data/local/tmp/*
+rm -rf /data/cache/*
+rm -rf /data/dalvik-cache/profiles
+rm -rf /data/system/dropbox
 
 # Wiping settings provider DBs forces Android to regenerate a fresh
 # Settings.Secure.ANDROID_ID on next boot. We deliberately do NOT call

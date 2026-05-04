@@ -15,10 +15,24 @@ public final class WipeUtil {
 
     private static final String TAG = "lethe-wipe";
 
+    // Keep this list in lockstep with scripts/runtime/lethe-burner-wipe.sh.
+    // The on-boot wiper is the canonical implementation; this command runs
+    // when a panic-press / DMS escalation triggers a wipe outside boot.
     private static final String WIPE_CMD =
         "rm -rf /data/app /data/data /data/user /data/user_de " +
         "/data/misc/wifi /data/misc/bluedroid /data/media/0/* " +
-        "/data/system/notification_log";
+        "/data/system/notification_log " +
+        // Browser/WebView caches + autofill outside /data/data — see lethe#111.
+        "/data/misc/profiles/cur/0 /data/misc/profiles/ref/0 " +
+        "/data/system/users/0/accounts.db " +
+        "/data/system/users/0/accounts.db-journal " +
+        "/data/system/users/0/autofill " +
+        "/data/system/users/0/credentials " +
+        "/data/system/users/0/recent_tasks " +
+        "/data/system_ce/0/recent_tasks " +
+        "/data/system_ce/0/snapshots " +
+        "/data/local/tmp/* /data/cache/* " +
+        "/data/dalvik-cache/profiles /data/system/dropbox";
 
     private WipeUtil() {}
 

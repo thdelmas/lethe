@@ -220,8 +220,10 @@ features:
       config_partition: "persist"   # Settings stored on /persist, not wiped with /data
       first_boot_prompt: true       # On first boot, explain burner mode and how to disable it
     triggers:
-      panic_button: true            # Long-press power 5× — triggers 5s cancel window before wipe
-      panic_button_cooloff_s: 5     # Cancel window on lockscreen. Prevents pocket-dial wipes.
+      panic_button: true            # Power-press pattern triggers wipe (with cooloff by default)
+      panic_press_count: 5          # Number of power presses within 3s
+      panic_cooloff_s: 5            # Cancel-window seconds; 0 = instant. Prevents pocket-dial / child-press wipes.
+      panic_mode: "safe"            # "safe" honors cooloff; "instant" opts out for high-risk users.
       scheduled_wipe: false         # Optional: auto-wipe after N days
       sim_change: false             # Optional: wipe if SIM card is swapped
       usb_signal: true              # OSmosis can trigger wipe via USB command

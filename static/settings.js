@@ -83,6 +83,9 @@ function settingsLoad() {
 
   renderPeerToggle(container);
   renderMeshToggle(container);
+  if (typeof renderCloudContextToggle === 'function') {
+    renderCloudContextToggle(container);
+  }
   renderModelsSection(container);
   renderKeysSection(container);
 }

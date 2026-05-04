@@ -294,8 +294,53 @@ function checkConversationLimits() {
 var lastProvider = '';
 var lastModel = '';
 
+/* Truncate conversation for non-local providers to the system prompt + most
+ * recent user turn (plus any tool_use / tool_result from THIS turn so tool
+ * calls still resolve). Defends against in-session leakage where an old
+ * source name in turn 3 is re-sent on every cloud call. Opt-in
+ * letheConfig.cloud_context_full=true sends the whole history. See lethe#97. */
+function truncateMsgsForCloud(p, msgs) {
+  if (p && p.name === 'local') return msgs;
+  if (letheConfig && letheConfig.cloud_context_full === true) return msgs;
+  if (!msgs || msgs.length <= 2) return msgs;
+
+  var keepFrom = -1;
+  for (var i = msgs.length - 1; i > 0; i--) {
+    var m = msgs[i];
+    if (m.role === 'user') {
+      // Skip tool_result-bearing user messages — they're part of the
+      // current turn's tool loop, not a fresh user ask.
+      if (Array.isArray(m.content) && m.content.length &&
+          m.content[0] && m.content[0].type === 'tool_result') {
+        continue;
+      }
+      keepFrom = i;
+      break;
+    }
+  }
+  if (keepFrom <= 0) return msgs;
+  var out = [msgs[0]];
+  for (var j = keepFrom; j < msgs.length; j++) out.push(msgs[j]);
+  return out;
+}
+
+/* Per-session redaction store so the same phone / email gets a stable
+ * placeholder across cloud calls (lethe#96). Reset on /clear via send().*/
+var _letheRedactStore = null;
+
+function resetRedactStore() { _letheRedactStore = null; }
+
 /* Returns { text: string, toolCalls: [{name, input, id}] | null } */
 function chatRequest(p, msgs) {
+  msgs = truncateMsgsForCloud(p, msgs);
+  if (p && p.name !== 'local' && typeof LetheRedact !== 'undefined') {
+    var r = LetheRedact.redactMsgsForCloud(msgs, _letheRedactStore);
+    msgs = r.msgs;
+    _letheRedactStore = r.store;
+    if (r.count > 0 && typeof showStatus === 'function') {
+      showStatus('redacted ' + r.count);
+    }
+  }
   if (p.format === 'anthropic') {
     var sys = msgs[0] && msgs[0].role === 'system' ? msgs[0].content : '';
     var m = msgs.filter(function(x) { return x.role !== 'system'; });
