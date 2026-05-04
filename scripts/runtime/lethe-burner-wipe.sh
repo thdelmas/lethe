@@ -23,7 +23,15 @@ LETHE_BAK=/data/local/tmp/lethe-config-bak.json
 # /data/user, so this covers their cookies, localStorage, history, and form
 # autofill caches. lethe#111 enumerates the explicit additional paths below
 # for cases where data escapes the standard sandbox.
-rm -rf /data/app /data/data /data/user /data/user_de
+#
+# IMPORTANT — preserve the parent directories. Removing /data/data, /data/user/0,
+# /data/user_de/0, /data/app wholesale leaves installd unable to recreate the
+# per-package subdirs at next boot, and system_server crash-loops zygote on
+# cm-14.1 because PackageManagerService can't initialize without those
+# parents existing. Wipe contents only.
+for d in /data/app /data/data /data/user/0 /data/user_de/0; do
+    [ -d "$d" ] && find "$d" -mindepth 1 -maxdepth 1 -exec rm -rf {} +
+done
 rm -rf /data/misc/wifi/wpa_supplicant.conf
 rm -rf /data/misc/bluedroid
 rm -rf /data/media/0/*
