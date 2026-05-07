@@ -63,7 +63,7 @@ function _borderModeApply(enable) {
       enable ? '1' : '0');
     NativeLauncher.setSystemProp('persist.lethe.bfu.enabled',
       enable ? 'true' : (letheConfig.bfu_enabled ? 'true' : 'false'));
-    NativeLauncher.setSystemProp('persist.lethe.bfu.timeout_minutes',
+    NativeLauncher.setSystemProp('persist.lethe.bfu.timeout',
       String(letheConfig.bfu_timeout_minutes || 15));
     NativeLauncher.setSystemProp('persist.lethe.mesh.enabled',
       letheConfig.mesh_enabled ? 'true' : 'false');

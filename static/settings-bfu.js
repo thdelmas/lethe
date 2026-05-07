@@ -61,7 +61,7 @@ function renderBfuToggle(container) {
       letheConfig.bfu_timeout_minutes = m;
       persistConfig();
       if (typeof NativeLauncher !== 'undefined' && NativeLauncher.setSystemProp) {
-        NativeLauncher.setSystemProp('persist.lethe.bfu.timeout_minutes',
+        NativeLauncher.setSystemProp('persist.lethe.bfu.timeout',
           String(m));
       }
       // Re-render to update the count chip + active preset.

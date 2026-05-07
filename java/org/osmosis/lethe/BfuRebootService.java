@@ -27,14 +27,14 @@ import android.util.Log;
  * with Titan M2 is a meaningful jump in difficulty.
  *
  * Behavior:
- *   - SCREEN_OFF starts a countdown of `persist.lethe.bfu.timeout_minutes`.
+ *   - SCREEN_OFF starts a countdown of `persist.lethe.bfu.timeout`.
  *   - SCREEN_ON or USER_PRESENT cancels.
  *   - At expiry: if not in an active call, reboot via PowerManager.
  *
  * Defaults:
  *   - persist.lethe.bfu.enabled = false  (opt-in for v1.x; default-on in
  *     Border Mode once that lands — lethe#110)
- *   - persist.lethe.bfu.timeout_minutes = 15
+ *   - persist.lethe.bfu.timeout = 15
  *
  * Exemptions:
  *   - Active phone call (CALL_STATE_OFFHOOK / RINGING).

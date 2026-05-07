@@ -103,7 +103,7 @@ public final class LetheConfig {
     public static int getBfuTimeoutMinutes() {
         try {
             int v = Integer.parseInt(
-                get("persist.lethe.bfu.timeout_minutes", "15"));
+                get("persist.lethe.bfu.timeout", "15"));
             return v < 1 ? 1 : v;
         } catch (NumberFormatException e) {
             return 15;
