@@ -1,8 +1,11 @@
 # Lethe burner mode — wipe + identity rotation
 # Uses standalone scripts (inline shell breaks on Android 7.1 init).
 # cm-14.1 init parser rejects hyphens in service names — using underscores.
+# cm-14.1 also enforces a 16-char limit on service names; lethe_burner_wipe
+# (17 chars) was silently dropped pre-v1.0.1 — see issue #125. lethe_burnwipe
+# is 14 chars, safely under the limit.
 
-service lethe_burner_wipe /system/bin/lethe-burner-wipe.sh
+service lethe_burnwipe /system/bin/lethe-burner-wipe.sh
     class main
     user root
     group root
@@ -18,5 +21,5 @@ service lethe_mac_rotate /system/bin/lethe-mac-rotate.sh
     seclabel u:r:init:s0
 
 on post-fs-data
-    start lethe_burner_wipe
+    start lethe_burnwipe
     start lethe_mac_rotate
