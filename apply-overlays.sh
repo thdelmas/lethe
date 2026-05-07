@@ -81,22 +81,52 @@ install_initrc() {
 if [ -f "$OVERLAY_DIR/privacy-defaults.conf" ]; then
     echo "[1/17] Applying privacy system properties..."
     # PROPS_TARGET is detected up front; both this block and add_to_system use it.
-    if [ -n "$PROPS_TARGET" ] && [ -f "$PROPS_TARGET" ] && grep -q "^# Lethe identity" "$PROPS_TARGET"; then
-        echo "  -> Properties already applied to $PROPS_TARGET (idempotent)."
+    # Versioned idempotency marker. Bump LETHE_PROPS_VERSION whenever the
+    # identity block changes (as in #124's PRODUCT_DEFAULT_PROPERTY_OVERRIDES
+    # split). Old marker → strip the prior block and re-apply.
+    LETHE_PROPS_VERSION="3"
+    LETHE_PROPS_MARKER="# Lethe identity v${LETHE_PROPS_VERSION}"
+    if [ -n "$PROPS_TARGET" ] && [ -f "$PROPS_TARGET" ] && grep -qF "$LETHE_PROPS_MARKER" "$PROPS_TARGET"; then
+        echo "  -> Properties already applied to $PROPS_TARGET (idempotent, v${LETHE_PROPS_VERSION})."
     elif [ -n "$PROPS_TARGET" ] && [ -f "$PROPS_TARGET" ]; then
+        # Strip any previous LETHE identity block (any version, or the old
+        # un-versioned marker). Block runs from "# Lethe identity" through
+        # the next blank line — covers both the LETHE_PROPS and the privacy
+        # defaults we appended in the same step.
+        if grep -q "^# Lethe identity" "$PROPS_TARGET"; then
+            echo "  -> Found prior LETHE identity block; rewriting for v${LETHE_PROPS_VERSION}."
+            # Delete from the first "# Lethe identity" line through the end
+            # of file. Step 1 always wrote the LETHE block at the file's
+            # tail, so this cleanup is safe.
+            sed -i '/^# Lethe identity/,$d' "$PROPS_TARGET"
+        fi
         # LETHE identity props (not in conf — fixed at build time).
-        cat >> "$PROPS_TARGET" <<'PROPS'
+        #
+        # ro.build.display.id, ro.lineage.display.version, ro.modversion are
+        # also written by LineageOS's buildinfo.sh / vendor/cm makefiles into
+        # system/build.prop. Android marks ro.* properties read-only after
+        # first set (see system/core/init/property_service.cpp), so a *later*
+        # PRODUCT_PROPERTY_OVERRIDES entry is silently rejected — the FIRST
+        # value wins. Issue #124. Fix: put these in PRODUCT_DEFAULT_PROPERTY_OVERRIDES
+        # so they land in /default.prop (ramdisk), which init loads BEFORE
+        # /system/build.prop. The LETHE values lock first, then the LineageOS
+        # values in system/build.prop hit the read-only check and are dropped.
+        cat >> "$PROPS_TARGET" <<PROPS
 
-# Lethe identity. Use dash-separated values — spaces in PROPERTY_VALUE
-# break post_process_props.py because the build system splits them
-# across separate echo statements.
-PRODUCT_PROPERTY_OVERRIDES += \
-    ro.lethe=true \
-    ro.lethe.version=1.0.0 \
-    ro.lethe.base=lineageos \
-    ro.build.display.id=LETHE-1.0.0 \
-    ro.lineage.display.version=LETHE-1.0.0 \
+# Lethe identity v${LETHE_PROPS_VERSION} — display-id overrides.
+# These MUST be PRODUCT_DEFAULT_PROPERTY_OVERRIDES — they go to /default.prop
+# in the ramdisk and lock before /system/build.prop is loaded. Otherwise
+# LineageOS's buildinfo line wins (read-only-prop semantics, see #124).
+PRODUCT_DEFAULT_PROPERTY_OVERRIDES += \\
+    ro.build.display.id=LETHE-1.0.0 \\
+    ro.lineage.display.version=LETHE-1.0.0 \\
     ro.modversion=LETHE-1.0.0
+
+# Lethe identity (LETHE-only namespace, no LineageOS conflict).
+PRODUCT_PROPERTY_OVERRIDES += \\
+    ro.lethe=true \\
+    ro.lethe.version=1.0.0 \\
+    ro.lethe.base=lineageos
 
 # Lethe privacy defaults (parsed from overlays/privacy-defaults.conf)
 PROPS
