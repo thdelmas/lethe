@@ -9,19 +9,35 @@
 ## Post body
 
 ```
-Releasing LETHE v1.0.0 today.
+I made a privacy-first Android. v1.0 shipped today.
 
-A privacy-first, AI-native Android, designed around the person using it rather than the company selling it. The OS is built around an in-system AI agent. Provider-agnostic, bring your own LLM API key.
+What v1.0 actually does:
+1) Debloated LineageOS, no Google services, no GApps
+2) Hardened DNS-over-TLS (Quad9 / Mullvad), no plaintext DNS
+3) System-wide tracker blocking via hosts file
 
-v1.0 is the foundation. R&D / POC. Validated on one device so far (Galaxy Note II, 2012). I'm looking for testers, not users.
+What's still in the workshop, landing in v1.1:
+- Burner mode (wipe on every reboot)
+- On-device AI agent, bring your own LLM API key
+- Forced Tor for app traffic
+- Dead man's switch
+- Void launcher, gesture-driven
 
-Why: Old hardware keeps changing hands with the previous owner's data still on it. Phones don't forget their owners by default. The mobile devices we live on shouldn't belong to one vendor or one country. Neither should the AI moving into public functions. Europe needs to build its own.
+Who's it for?
+- people who hand down or resell old phones
+- journalists, activists, travelers
+- anyone who wants an AI agent without one US vendor in the middle
+- anyone with an old Android in a drawer
 
-OSmosis is about freeing hardware from proprietary software. LETHE is about freeing users from screens. v1.0.0 ships them together for the first time.
+v1.0 is R&D / POC. Validated on one device (Galaxy Note II, 2012). I'm looking for testers, not users.
+
+Old hardware keeps changing hands with the previous owner's data still on it. And the AI moving into public services shouldn't belong to one vendor or one country. Europe needs to build its own.
+
+Open source, GPLv3.
 
 Got an old phone in a drawer? Hit me up.
 
-Check your local laws on encryption and privacy software before installing.
+Check your local laws before installing.
 
 Link in comments.
 

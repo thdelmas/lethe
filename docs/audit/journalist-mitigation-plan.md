@@ -77,7 +77,7 @@ Plans to address the 21 findings from the 2026-04-15 frontline-journalist threat
 
 ### #100 — BFU auto-reboot — **S**
 **Approach.** Leverage existing inactivity timers plus a power-manager hook.
-1. `lethe.bfu.timeout_minutes` system property; default 15 for field build, 60 for standard.
+1. `lethe.bfu.timeout` system property; default 15 for field build, 60 for standard.
 2. Inactivity detection = screen off + no unlock for N minutes.
 3. Reboot uses existing safe-reboot (flush, unmount) not `reboot -f`.
 4. Exempt: active call, active DMS heartbeat send, OTA in progress.
