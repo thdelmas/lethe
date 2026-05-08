@@ -26,6 +26,7 @@ endef
 .DEFAULT_GOAL := help
 .PHONY: help status device-info wipe-data enter-sideload sideload resign \
         sideload-noassert screencap pull-kmsg reboot-system reboot-recovery \
+        boot-status wait-boot \
         _adb-up _need-recovery _need-sideload _need-system
 
 help: ## Show this list
@@ -127,3 +128,45 @@ reboot-system: _adb-up ## adb reboot (to booted system)
 
 reboot-recovery: _adb-up ## adb reboot recovery
 	@$(ADB) reboot recovery
+
+boot-status: ## One-shot: report transport mode + sys.boot_completed
+	@MODE=$(call detect_mode)
+	echo "mode: $${MODE:-offline}"
+	if [ "$$MODE" = "device" ]; then
+	    BC=$$($(ADB) shell getprop sys.boot_completed 2>/dev/null | tr -d '\r')
+	    BA=$$($(ADB) shell getprop init.svc.bootanim 2>/dev/null | tr -d '\r')
+	    printf "sys.boot_completed: %s\n" "$${BC:-(unset)}"
+	    printf "init.svc.bootanim:  %s\n" "$${BA:-(unset)}"
+	    if [ "$$BC" = "1" ]; then echo "=> BOOT COMPLETE"; else echo "=> still booting (dexopt likely)"; fi
+	fi
+
+# Block until adbd is up in 'device' state and sys.boot_completed=1.
+# Default timeout 2700s (45 min) — Note II first-boot dexopt is 25-30 min.
+wait-boot: ## Block until boot complete (TIMEOUT_SEC=2700 default)
+	@TIMEOUT=$${TIMEOUT_SEC:-2700}
+	START=$$(date +%s)
+	echo "waiting for adbd in 'device' state (timeout $$TIMEOUT s)..."
+	if ! timeout $$TIMEOUT $(ADB) wait-for-device 2>/dev/null; then
+	    echo "TIMEOUT waiting for adbd" >&2; exit 3
+	fi
+	# wait-for-device returns on any transport (including recovery if
+	# user reboots into TWRP). Verify we're actually in 'device' mode.
+	MODE=$(call detect_mode)
+	if [ "$$MODE" != "device" ]; then
+	    echo "transport up but mode='$$MODE', not 'device'" >&2; exit 4
+	fi
+	NOW=$$(date +%s); ELAPSED=$$((NOW - START))
+	echo "  adbd up after $$ELAPSED s; polling sys.boot_completed..."
+	while :; do
+	    BC=$$($(ADB) shell getprop sys.boot_completed 2>/dev/null | tr -d '\r')
+	    NOW=$$(date +%s); ELAPSED=$$((NOW - START))
+	    if [ "$$BC" = "1" ]; then
+	        echo "=> BOOT COMPLETE after $$ELAPSED s"
+	        exit 0
+	    fi
+	    if [ $$ELAPSED -gt $$TIMEOUT ]; then
+	        echo "TIMEOUT after $$ELAPSED s; sys.boot_completed='$${BC:-unset}'" >&2; exit 3
+	    fi
+	    printf '  [%4ds] booting (boot_completed=%s)\n' $$ELAPSED "$${BC:-unset}"
+	    sleep 15
+	done
