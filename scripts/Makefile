@@ -209,10 +209,20 @@ fresh-boot-test: _need-recovery ## Wipe + sideload ZIP=... [PERSIST_KEY=...,PERS
 	echo "[fresh-boot-test] $$(date -u +%H:%MZ) start  worst-case=$$ETA_TIMEOUT  zip=$(notdir $(ZIP))"
 	echo "[1/5] $$(date -u +%H:%MZ) twrp wipe data"
 	$(ADB) shell twrp wipe data
+	# Wait for adbd to come back as 'recovery' after the format/mount cycle.
+	for i in $$(seq 1 15); do
+	    sleep 2
+	    MODE=$(call detect_mode)
+	    [ "$$MODE" = "recovery" ] && break
+	done
+	if [ "$$MODE" != "recovery" ]; then echo "adbd did not return as 'recovery' after wipe (mode: '$$MODE')" >&2; exit 2; fi
 	echo "[2/5] $$(date -u +%H:%MZ) enter sideload"
 	$(ADB) shell twrp sideload
-	sleep 2
-	MODE=$(call detect_mode)
+	for i in $$(seq 1 15); do
+	    sleep 2
+	    MODE=$(call detect_mode)
+	    [ "$$MODE" = "sideload" ] && break
+	done
 	if [ "$$MODE" != "sideload" ]; then echo "device did not enter sideload (mode: '$$MODE')" >&2; exit 2; fi
 	echo "[3/5] $$(date -u +%H:%MZ) resign + sideload $(notdir $(ZIP))"
 	mkdir -p $(RESIGN_TMP)
