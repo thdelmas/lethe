@@ -24,10 +24,10 @@ $$($(ADB) devices | awk 'NR>1 && NF==2 {print $$2; exit}')
 endef
 
 .DEFAULT_GOAL := help
-.PHONY: help status device-info wipe-data enter-sideload sideload resign \
-        sideload-noassert screencap pull-kmsg reboot-system reboot-recovery \
-        boot-status wait-boot persist-set persist-clear persist-list \
-        fresh-boot-test \
+.PHONY: help status device-info wipe-data wipe-system wipe-cache enter-sideload \
+        sideload resign sideload-noassert screencap pull-kmsg reboot-system \
+        reboot-recovery boot-status wait-boot persist-set persist-clear \
+        persist-list fresh-boot-test \
         _adb-up _need-recovery _need-sideload _need-system
 
 help: ## Show this list
@@ -81,6 +81,12 @@ _need-system: _adb-up
 wipe-data: _need-recovery ## TWRP Format Data via adb (clears /data + packages.xml)
 	@$(ADB) shell twrp wipe data
 	@echo "Done. Run 'make enter-sideload', then 'make sideload-noassert ZIP=...'."
+
+wipe-system: _need-recovery ## TWRP wipe /system (forces full reflash, not block-OTA patch)
+	@$(ADB) shell twrp wipe system
+
+wipe-cache: _need-recovery ## TWRP wipe /cache (clears stale dalvik-cache + recovery logs)
+	@$(ADB) shell twrp wipe cache
 
 enter-sideload: _need-recovery ## Switch TWRP into ADB sideload mode (no UI tap)
 	@$(ADB) shell twrp sideload
@@ -201,14 +207,16 @@ persist-list: _need-recovery ## List existing /data/property/* overrides
 # phase prints UTC HH:MMZ so a long-running test stays readable when scrolling
 # back. Time budget on Note II t0lte is ~50 min: ~5 min sideload + dexopt-then-
 # framework window. Worst-case is wait-boot's TIMEOUT_SEC (default 2700s).
-fresh-boot-test: _need-recovery ## Wipe + sideload ZIP=... [PERSIST_KEY=...,PERSIST_VAL=...] + wait-boot
+fresh-boot-test: _need-recovery ## Wipe + sideload ZIP=... [WIPE_SYSTEM=1] [WIPE_CACHE=1] [PERSIST_KEY=,PERSIST_VAL=] + wait-boot
 	@[ -f "$(ZIP)" ] || { echo "ZIP unset or missing: '$(ZIP)'" >&2; exit 1; }
 	@TIMEOUT=$${TIMEOUT_SEC:-2700}
 	START=$$(date +%s)
 	ETA_TIMEOUT=$$(date -u -d "@$$((START+TIMEOUT+300))" +%H:%MZ)
 	echo "[fresh-boot-test] $$(date -u +%H:%MZ) start  worst-case=$$ETA_TIMEOUT  zip=$(notdir $(ZIP))"
-	echo "[1/5] $$(date -u +%H:%MZ) twrp wipe data"
+	echo "[1/5] $$(date -u +%H:%MZ) twrp wipe data$(if $(WIPE_SYSTEM), + system)$(if $(WIPE_CACHE), + cache)"
 	$(ADB) shell twrp wipe data
+	if [ -n "$(WIPE_SYSTEM)" ]; then $(ADB) shell twrp wipe system; fi
+	if [ -n "$(WIPE_CACHE)" ];  then $(ADB) shell twrp wipe cache;  fi
 	# Wait for adbd to come back as 'recovery' after the format/mount cycle.
 	for i in $$(seq 1 15); do
 	    sleep 2
