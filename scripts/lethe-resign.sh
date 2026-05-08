@@ -60,7 +60,28 @@ else
 fi
 
 echo "=> repack unsigned"
-( cd "$WORK/u" && zip -q -r "$WORK/unsigned.zip" . )
+# Use Python's zipfile module instead of /usr/bin/zip. /usr/bin/zip silently
+# fails to write its archive when invoked from a Make recipe (.ONESHELL +
+# SHELLFLAGS=-euo pipefail -c) — it emits "zip warning: name not matched:
+# <archive>" then "updating:" for every input file, exits rc=0, but never
+# creates the archive on disk. Reproduces with positional args AND `zip -@`
+# stdin file lists, with absolute and relative archive paths. Same script
+# called from `bash -euo pipefail -c` directly produces the archive
+# correctly. Root cause unidentified; Python zipfile sidesteps it entirely.
+python3 - "$WORK/u" "$WORK/unsigned.zip" <<'PY'
+import os, sys, zipfile
+src, dst = sys.argv[1], sys.argv[2]
+with zipfile.ZipFile(dst, "w", zipfile.ZIP_DEFLATED) as zf:
+    for root, dirs, files in os.walk(src):
+        for d in sorted(dirs):
+            full = os.path.join(root, d)
+            arc = os.path.relpath(full, src) + "/"
+            zf.write(full, arc)
+        for f in sorted(files):
+            full = os.path.join(root, f)
+            arc = os.path.relpath(full, src)
+            zf.write(full, arc)
+PY
 
 mkdir -p "$(dirname "$OUT")"
 echo "=> signapk (using $JAVA) → $OUT"
