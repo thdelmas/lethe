@@ -26,7 +26,8 @@ endef
 .DEFAULT_GOAL := help
 .PHONY: help status device-info wipe-data enter-sideload sideload resign \
         sideload-noassert screencap pull-kmsg reboot-system reboot-recovery \
-        boot-status wait-boot \
+        boot-status wait-boot persist-set persist-clear persist-list \
+        fresh-boot-test \
         _adb-up _need-recovery _need-sideload _need-system
 
 help: ## Show this list
@@ -168,5 +169,90 @@ wait-boot: ## Block until boot complete (TIMEOUT_SEC=2700 default)
 	        echo "TIMEOUT after $$ELAPSED s; sys.boot_completed='$${BC:-unset}'" >&2; exit 3
 	    fi
 	    printf '  [%4ds] booting (boot_completed=%s)\n' $$ELAPSED "$${BC:-unset}"
+	    sleep 15
+	done
+
+# ── persist-property overrides (run from TWRP) ──
+# Android init reads /data/property/persist.<key> at post-fs and uses the file
+# contents as the runtime value of `persist.<key>`, overriding whatever
+# build.prop set as the default. Useful for runtime hypothesis tests without
+# rebuilding (e.g. disable burner-wipe to confirm whether it's the boot
+# blocker). The override survives reboots until persist-clear or a wipe-data.
+
+persist-set: _need-recovery ## Write /data/property/persist.<KEY>=<VAL> (KEY=lethe.burner.enabled VAL=false)
+	@[ -n "$(KEY)" ] || { echo "KEY unset (e.g. KEY=lethe.burner.enabled)" >&2; exit 1; }
+	@[ -n "$(VAL)" ] || { echo "VAL unset" >&2; exit 1; }
+	@$(ADB) shell 'twrp mount data' >/dev/null 2>&1 || true
+	@$(ADB) shell "mkdir -p /data/property && printf '%s' '$(VAL)' > /data/property/persist.$(KEY) && chmod 600 /data/property/persist.$(KEY) && chown 0:0 /data/property/persist.$(KEY)"
+	@printf "  set persist.%s=%s\n" "$(KEY)" "$$($(ADB) shell cat /data/property/persist.$(KEY) | tr -d '\r')"
+
+persist-clear: _need-recovery ## Remove /data/property/persist.<KEY> (KEY=lethe.burner.enabled)
+	@[ -n "$(KEY)" ] || { echo "KEY unset" >&2; exit 1; }
+	@$(ADB) shell 'twrp mount data' >/dev/null 2>&1 || true
+	@$(ADB) shell "rm -f /data/property/persist.$(KEY)"
+	@echo "  cleared persist.$(KEY)"
+
+persist-list: _need-recovery ## List existing /data/property/* overrides
+	@$(ADB) shell 'twrp mount data' >/dev/null 2>&1 || true
+	@$(ADB) shell 'ls -la /data/property/ 2>/dev/null; for f in /data/property/persist.*; do [ -e "$$f" ] && printf "  %-50s %s\n" "$$(basename "$$f")" "$$(cat "$$f")"; done' | tr -d '\r'
+
+# Full clean-room boot test: wipe /data, resign+sideload ZIP, optionally seed a
+# persist override on the freshly-formatted /data, reboot, wait-boot. Each
+# phase prints UTC HH:MMZ so a long-running test stays readable when scrolling
+# back. Time budget on Note II t0lte is ~50 min: ~5 min sideload + dexopt-then-
+# framework window. Worst-case is wait-boot's TIMEOUT_SEC (default 2700s).
+fresh-boot-test: _need-recovery ## Wipe + sideload ZIP=... [PERSIST_KEY=...,PERSIST_VAL=...] + wait-boot
+	@[ -f "$(ZIP)" ] || { echo "ZIP unset or missing: '$(ZIP)'" >&2; exit 1; }
+	@TIMEOUT=$${TIMEOUT_SEC:-2700}
+	START=$$(date +%s)
+	ETA_TIMEOUT=$$(date -u -d "@$$((START+TIMEOUT+300))" +%H:%MZ)
+	echo "[fresh-boot-test] $$(date -u +%H:%MZ) start  worst-case=$$ETA_TIMEOUT  zip=$(notdir $(ZIP))"
+	echo "[1/5] $$(date -u +%H:%MZ) twrp wipe data"
+	$(ADB) shell twrp wipe data
+	echo "[2/5] $$(date -u +%H:%MZ) enter sideload"
+	$(ADB) shell twrp sideload
+	sleep 2
+	MODE=$(call detect_mode)
+	if [ "$$MODE" != "sideload" ]; then echo "device did not enter sideload (mode: '$$MODE')" >&2; exit 2; fi
+	echo "[3/5] $$(date -u +%H:%MZ) resign + sideload $(notdir $(ZIP))"
+	mkdir -p $(RESIGN_TMP)
+	OUT=$(RESIGN_TMP)/$(notdir $(basename $(ZIP)))-noassert.zip
+	bash $(SCRIPT_DIR)/lethe-resign.sh "$(ZIP)" "$$OUT"
+	$(ADB) sideload "$$OUT"
+	# After sideload, TWRP returns to its main page; wait up to 30s for
+	# the device to re-enumerate as 'recovery' before doing further work.
+	for i in 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15; do
+	    sleep 2
+	    MODE=$(call detect_mode)
+	    [ "$$MODE" = "recovery" ] && break
+	done
+	if [ "$$MODE" != "recovery" ]; then echo "device did not return to recovery after sideload (mode: '$$MODE')" >&2; exit 2; fi
+	if [ -n "$(PERSIST_KEY)" ] && [ -n "$(PERSIST_VAL)" ]; then
+	    echo "[4/5] $$(date -u +%H:%MZ) persist override persist.$(PERSIST_KEY)=$(PERSIST_VAL)"
+	    $(ADB) shell 'twrp mount data' >/dev/null 2>&1 || true
+	    $(ADB) shell "mkdir -p /data/property && printf '%s' '$(PERSIST_VAL)' > /data/property/persist.$(PERSIST_KEY) && chmod 600 /data/property/persist.$(PERSIST_KEY) && chown 0:0 /data/property/persist.$(PERSIST_KEY)"
+	else
+	    echo "[4/5] $$(date -u +%H:%MZ) (no persist override; pass PERSIST_KEY=... PERSIST_VAL=... to seed one)"
+	fi
+	BOOT_ETA=$$(date -u -d "@$$(($$(date +%s)+TIMEOUT))" +%H:%MZ)
+	echo "[5/5] $$(date -u +%H:%MZ) reboot + wait-boot (timeout $$TIMEOUT s, ETA $$BOOT_ETA)"
+	$(ADB) reboot
+	if ! timeout $$TIMEOUT $(ADB) wait-for-device 2>/dev/null; then
+	    echo "TIMEOUT waiting for adbd at $$(date -u +%H:%MZ)" >&2; exit 3
+	fi
+	MODE=$(call detect_mode)
+	if [ "$$MODE" != "device" ]; then echo "transport up but mode='$$MODE' at $$(date -u +%H:%MZ), not 'device'" >&2; exit 4; fi
+	echo "  $$(date -u +%H:%MZ) adbd up; polling sys.boot_completed..."
+	while :; do
+	    BC=$$($(ADB) shell getprop sys.boot_completed 2>/dev/null | tr -d '\r')
+	    NOW=$$(date +%s); ELAPSED=$$((NOW - START))
+	    if [ "$$BC" = "1" ]; then
+	        echo "=> BOOT COMPLETE at $$(date -u +%H:%MZ) (after $$ELAPSED s)"
+	        exit 0
+	    fi
+	    if [ $$ELAPSED -gt $$TIMEOUT ]; then
+	        echo "TIMEOUT after $$ELAPSED s at $$(date -u +%H:%MZ); sys.boot_completed='$${BC:-unset}'" >&2; exit 3
+	    fi
+	    printf '  [%4ds @%s] booting (boot_completed=%s)\n' "$$ELAPSED" "$$(date -u +%H:%MZ)" "$${BC:-unset}"
 	    sleep 15
 	done
