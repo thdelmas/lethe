@@ -24,6 +24,10 @@ LINEAGE_TREE="${LINEAGE_TREE:-$HOME/android/lineage}"
 SIGNAPK_JAR="${SIGNAPK_JAR:-$LINEAGE_TREE/prebuilts/sdk/tools/lib/signapk.jar}"
 TESTKEY_PEM="${TESTKEY_PEM:-$LINEAGE_TREE/build/target/product/security/testkey.x509.pem}"
 TESTKEY_PK8="${TESTKEY_PK8:-$LINEAGE_TREE/build/target/product/security/testkey.pk8}"
+# signapk.jar from cm-14.1 reaches into conscrypt for cert parsing, which loads
+# libconscrypt_openjdk_jni.so via System.loadLibrary. Without -Djava.library.path
+# pointing at the prebuilt JNI dir, signapk dies with UnsatisfiedLinkError.
+SIGNAPK_NATIVE_DIR="${SIGNAPK_NATIVE_DIR:-$LINEAGE_TREE/prebuilts/sdk/tools/linux/lib64}"
 JAVA8_DEFAULT="/usr/lib/jvm/java-8-openjdk-amd64/bin/java"
 JAVA="${JAVA:-$([ -x "$JAVA8_DEFAULT" ] && echo "$JAVA8_DEFAULT" || echo java)}"
 
@@ -60,7 +64,8 @@ echo "=> repack unsigned"
 
 mkdir -p "$(dirname "$OUT")"
 echo "=> signapk (using $JAVA) → $OUT"
-"$JAVA" -Xmx2g -jar "$SIGNAPK_JAR" -w "$TESTKEY_PEM" "$TESTKEY_PK8" \
+"$JAVA" -Xmx2g -Djava.library.path="$SIGNAPK_NATIVE_DIR" \
+    -jar "$SIGNAPK_JAR" -w "$TESTKEY_PEM" "$TESTKEY_PK8" \
     "$WORK/unsigned.zip" "$OUT"
 
 echo "=> done"
