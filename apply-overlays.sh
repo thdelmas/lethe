@@ -20,8 +20,20 @@ case "${TARGET_ARCH:-}" in
     armv7-linux-androideabi|armeabi-v7a|armv7*)
         PREBUILT_ARCH="armeabi-v7a"
         ;;
-    *)
+    arm64-v8a|aarch64*)
         PREBUILT_ARCH="arm64-v8a"
+        ;;
+    *)
+        # When TARGET_ARCH isn't set explicitly, pick the era-appropriate ABI
+        # from the source-tree signal. cm-14.1 devices in our manifest (t0lte,
+        # t03g, Exynos 4412) are all 32-bit ARMv7; LOS 22.1+ targets are arm64.
+        # Without this, cm-14.1 builds silently shipped the arm64 tor binary
+        # and init died with ENOEXEC at runtime.
+        if [ -d "vendor/cm" ]; then
+            PREBUILT_ARCH="armeabi-v7a"
+        else
+            PREBUILT_ARCH="arm64-v8a"
+        fi
         ;;
 esac
 
@@ -240,6 +252,39 @@ for pkg in "${DEBLOAT_PACKAGES[@]}"; do
         rm -rf "$pkg"
     fi
 done
+
+# WebView workaround. Two-part fix because the chromium-webview prebuilts
+# (the apk + libwebviewchromium.so) aren't synced — LFS blobs missing — but
+# LineageOS 14.1's core_minimal.mk still declares the feature, and worse,
+# system_server's PathClassLoaderFactory hardcodes a reference to
+# libwebviewchromium_plat_support.so during classloader namespace setup.
+# Without that lib, system_server crashes with UnsatisfiedLinkError on every
+# zygote fork, in a tight loop. The plat_support lib is `LOCAL_MODULE_TAGS :=
+# optional` so it only builds when webview.apk pulls it in via REQUIRED_MODULES
+# — which doesn't happen because webview.apk itself can't build. We need both:
+#   (a) strip the feature decl so PM doesn't think WebView is available, and
+#   (b) explicitly request the loader/plat_support libs so they build from
+#       source (frameworks/webview/chromium/Android.mk) and land in /system/lib
+#       to satisfy the namespace setup. (a) without (b) is insufficient — the
+#       linker references the lib regardless of feature decl.
+# Both are idempotent.
+CORE_MINIMAL="build/target/product/core_minimal.mk"
+if [ -f "$CORE_MINIMAL" ] && grep -q 'android.software.webview.xml' "$CORE_MINIMAL"; then
+    echo "  -> Stripping android.software.webview.xml from $CORE_MINIMAL"
+    sed -i '\|android.software.webview.xml|d' "$CORE_MINIMAL"
+fi
+WEBVIEW_LIBS_LINE="PRODUCT_PACKAGES += libwebviewchromium_plat_support libwebviewchromium_loader"
+if [ -n "$PROPS_TARGET" ] && [ -f "$PROPS_TARGET" ] && ! grep -qF "$WEBVIEW_LIBS_LINE" "$PROPS_TARGET"; then
+    echo "  -> Adding webview namespace-stub libs to $PROPS_TARGET"
+    {
+        echo ""
+        echo "# Lethe webview-stub: build the plat_support + loader libs from source"
+        echo "# (frameworks/webview/chromium) so system_server's classloader"
+        echo "# namespace setup succeeds even without the chromium-webview prebuilts."
+        echo "$WEBVIEW_LIBS_LINE"
+    } >> "$PROPS_TARGET"
+fi
+
 echo "  -> Debloat complete."
 
 # ── 7. Boot animation ──
@@ -311,11 +356,13 @@ echo "[10/17] IPFS OTA — deferred to v1.1, not packaged."
 echo "[11/17] LETHE agent — deferred to v1.1, not packaged."
 
 # ── 12. SELinux policy ──
-# v1.0: lethe.te + file_contexts disabled (.disabled-in-v1.0 suffix) — see
-# #122 and docs/release/v1.0.0-flash-investigation.md. Step still runs to
-# install property_contexts and to scrub any stale lethe.te left in the
-# device tree from a prior build. v1.1 re-enables the full policy.
-echo "[12/17] Installing SELinux policy (LETHE rules deferred to v1.1, #122)..."
+# v1.0 partial: tor.te + file_contexts (Tor-only label) ship active so
+# /system/bin/tor can execute_no_trans cleanly. The broader lethe.te /
+# file_contexts.disabled-in-v1.0 stay disabled — they cover burner-wipe,
+# mac-rotate, tor-rules, tor-pt, settings; v1.1 re-enables those. See
+# sepolicy/README.md and project memory: v1.0.x boot regression resolved
+# 2026-05-09.
+echo "[12/17] Installing SELinux policy (Tor domain only; rest deferred to v1.1)..."
 bash "$SCRIPT_DIR/scripts/install-sepolicy.sh" "$SCRIPT_DIR/sepolicy" "$CODENAME"
 
 # ── 13. Build fingerprint ──
