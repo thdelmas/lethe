@@ -1,45 +1,40 @@
-# LinkedIn — v1.0.0 announcement post
+# LinkedIn — v1.0 launch post
 
 **Where:** personal LinkedIn profile, public post.
 **Best window:** weekday morning in the audience's timezone.
-**How to post:** body as the post; URL goes in the **first comment** (LinkedIn deprioritizes posts with external links in the body).
+**How to post:** body as the post; sources and repo go in the **first comment** (LinkedIn deprioritizes posts with external links in the body).
 
 ---
 
 ## Post body
 
 ```
-I made a privacy-first Android. v1.0 shipped today.
+I'm building an Android that doesn't belong to Google. Three things from this week reminded me why.
 
-What v1.0 actually does:
-1) Debloated LineageOS, no Google services, no GApps
-2) Hardened DNS-over-TLS (Quad9 / Mullvad), no plaintext DNS
-3) System-wide tracker blocking via hosts file
+A guy from a village in India messaged me. Telecom taxes there have priced phone plans out of reach. His neighbors are dropping their lines. 
 
-What's still in the workshop, landing in v1.1:
-- Burner mode (wipe on every reboot)
-- On-device AI agent, bring your own LLM API key
-- Forced Tor for app traffic
-- Dead man's switch
-- Void launcher, gesture-driven
+"It's like owning a car and still paying for the bus," he told me.
 
-Who's it for?
-- people who hand down or resell old phones
-- journalists, activists, travelers
-- anyone who wants an AI agent without one US vendor in the middle
-- anyone with an old Android in a drawer
+In France we got lucky to have Free Mobile cracking the prices. Now we pay 2€ a month. Proof it can be done.
 
-v1.0 is R&D / POC. Validated on one device (Galaxy Note II, 2012). I'm looking for testers, not users.
+Even Le Monde wrote about people building mesh radios so they can still talk when the carriers go down.
 
-Old hardware keeps changing hands with the previous owner's data still on it. And the AI moving into public services shouldn't belong to one vendor or one country. Europe needs to build its own.
+That Privacy Guy caught Chrome silently installing a 4GB AI model on people's laptops. You can't really delete it. It reinstalls itself.
 
-Open source, GPLv3.
+Google is wiring their AI (and sucking your data) directly on your Android devices and browser laptops, silently building back their monopoly over latest tech features
 
-Got an old phone in a drawer? Hit me up.
+LETHE is what I'm doing about it.
 
-Check your local laws before installing.
+A privacy-first Android, AI Native, Providers agnostic:
+- you bring your own AI key, your own provider
+- the OS forgets by default
+- mesh and off-grid on the roadmap
 
-Link in comments.
+It runs on old phones, so it gives them a second life instead of e-waste.
+
+v1.0 is R&D, not a product yet. I'm looking for testers, not users. Bring your weirdest old Android.
+
+If you know someone who'd test it, send them my way. It's free.
 
 #privacy #android #ai #opensource #sovereignty #lethe
 ```
@@ -47,5 +42,16 @@ Link in comments.
 ## First comment
 
 ```
-GitHub release: https://github.com/thdelmas/lethe/releases/tag/v1.0.0
+Repo: https://github.com/thdelmas/lethe
+
+Sources:
+- https://www.thatprivacyguy.com/blog/chrome-silent-nano-install/
+- https://www.lemonde.fr/pixels/article/2026/05/02/mesh-network-un-autre-reseau-de-communication-en-cas-d-apocalypse_6684831_4408996.html
 ```
+
+## Notes
+
+- The India DM was a real exchange with a contact. Ask permission before naming.
+- The "car / bus" line is the contact's, slightly tightened.
+- Free Mobile beat included because the post critiques telecom gatekeeping, and Free is the precedent that proves it can be broken.
+- Check local laws disclaimer was in earlier draft. Add back if useful for the audience.
