@@ -1,0 +1,82 @@
+# LETHE — minimal Tor SELinux domain (cm-14.1 / Android 7.1)
+#
+# Scope: makes /system/bin/tor execve cleanly under enforcing SELinux. Without
+# this, init's seclabel u:r:init:s0 cannot execute_no_trans on a system_file-
+# labeled binary, so the lethe_tor service exits 127 in a 5-second crash loop
+# (see project memory: v1.0.x boot regression resolved 2026-05-09).
+#
+# Deliberately narrow: covers the Tor daemon ONLY. Other LETHE userspace
+# services (lethe_burnwipe, lethe_mac_rotate, lethe_tor_rules, lethe_tor_pt,
+# lethe_settings) still inherit the generic system_file label and will keep
+# silently failing. v1.1 widens this to the full LETHE userspace.
+
+type tor, domain;
+type tor_exec, exec_type, file_type;
+# Own data-file type. Required because system/sepolicy/domain.te neverallows
+# any non-init/system_server/installd domain from writing system_data_file —
+# so Tor's DataDirectory cannot reuse the generic /data label.
+type tor_data_file, file_type, data_file_type;
+
+# Domain transition: when init execs a tor_exec-labeled binary, drop into
+# the tor domain. init.lethe-tor.rc must NOT specify `seclabel u:r:init:s0`
+# on the lethe_tor service — that would override the transition.
+init_daemon_domain(tor)
+
+# Network capabilities. Tor needs net_admin for transparent-proxy iptables
+# integration, net_raw for some PT bootstrap probes, and net_bind_service
+# only if it ever binds <1024 (current torrc uses 9040/9050/5400 — high
+# ports — but keep the cap to avoid surprises if torrc gets edited).
+allow tor self:capability { net_admin net_bind_service net_raw setuid setgid dac_override };
+
+# Sockets — TCP for relays + ORPort, UDP for DNSPort, netlink for
+# routing-table reads.
+allow tor self:tcp_socket { create connect bind listen accept setopt getopt read write shutdown };
+allow tor self:udp_socket { create connect bind setopt getopt read write };
+allow tor self:netlink_route_socket { create bind read write nlmsg_read };
+allow tor self:unix_dgram_socket { create connect write };
+
+# Bind to torrc-configured ports. The generic `port` label covers any
+# unreserved port that isn't otherwise specifically labeled. Tor binds:
+# 9050 (SocksPort, TCP), 9040 (TransPort, TCP), 5400 (DNSPort, UDP) per
+# overlays/tor.conf. node_bind covers binding to 127.0.0.1 specifically.
+allow tor port:tcp_socket name_bind;
+allow tor port:udp_socket name_bind;
+allow tor node:tcp_socket node_bind;
+allow tor node:udp_socket node_bind;
+# Outbound connections to Tor relays.
+allow tor port:tcp_socket name_connect;
+
+# Read torrc + the LETHE config tree under /system/etc.
+allow tor system_file:dir { search getattr open read };
+allow tor system_file:file { read open getattr };
+allow tor system_file:lnk_file read;
+
+# Traverse /data → /data/lethe to reach the data dir. search-only on the
+# parent labels (system_data_file) is allowed by domain.te; write would not be.
+allow tor system_data_file:dir search;
+
+# Tor's own data dir at /data/lethe/tor — labeled tor_data_file via
+# file_contexts. init creates it via mkdir in init.lethe-tor.rc post-fs-data;
+# the file_contexts entry assigns the label at creation time.
+allow tor tor_data_file:dir { search getattr open read write add_name remove_name create rmdir setattr };
+allow tor tor_data_file:file { read write append open getattr create unlink rename setattr lock };
+
+# Logging — /dev/kmsg + the binder log device.
+allow tor kmsg_device:chr_file { write open };
+allow tor devpts:chr_file { read write open getattr };
+
+# Tor reads /proc/meminfo for memory-pressure heuristics.
+allow tor proc_meminfo:file { read open getattr };
+
+# /dev/urandom for entropy.
+allow tor random_device:chr_file { read open getattr };
+allow tor urandom_device:chr_file { read open getattr };
+
+# Suppress noisy denials that aren't load-bearing.
+dontaudit tor self:capability { sys_resource fsetid };
+dontaudit tor proc:file { read getattr };
+# Tor opens /dev/socket/fwmarkd to set fwmark hints on outbound sockets
+# (Android's per-network routing). Without it, outbound traffic still works
+# but doesn't get the fwmark optimization. Granting the write would mean
+# linking tor into the Android networking domain — out of scope for v1.0.
+dontaudit tor fwmarkd_socket:sock_file write;

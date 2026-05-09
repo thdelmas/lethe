@@ -1,0 +1,8 @@
+# LETHE — SELinux file context labels (v1.0 partial — Tor only)
+#
+# Scope: this file is the Tor-only re-enable. The full LETHE labeling lives
+# in file_contexts.disabled-in-v1.0 (covers burner, mac-rotate, agent, etc.)
+# and is restored in v1.1. See sepolicy/README.md and tor.te.
+
+/system/bin/tor             u:object_r:tor_exec:s0
+/data/lethe/tor(/.*)?       u:object_r:tor_data_file:s0

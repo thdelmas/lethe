@@ -138,7 +138,12 @@ with zipfile.ZipFile(zip_path) as zf:
                 if key not in lethe_props:
                     lethe_props.append(key)
     if "file_contexts.bin" in names:
-        sepolicy_labels_present = b"lethe" in zf.read("file_contexts.bin")
+        # v1.0 partial ships only `tor_exec`; v1.1 restores `lethe_exec` /
+        # `lethe` as well. Either label proves the LETHE sepolicy was
+        # compiled in (catches the May-2 regression family where the strip
+        # left no labels at all).
+        fc_bin = zf.read("file_contexts.bin")
+        sepolicy_labels_present = b"lethe" in fc_bin or b"tor_exec" in fc_bin
 
 provenance = {
     "lethe_git_sha": os.environ.get("LETHE_GIT_SHA", "") or None,
@@ -188,7 +193,7 @@ except BaseException:
 
 print(f"  -> Meta:      {meta_path}")
 if not provenance["sepolicy_labels_present"]:
-    print("  -> WARN: file_contexts.bin has no lethe labels (May 2 regression family)", file=sys.stderr)
+    print("  -> WARN: file_contexts.bin has no lethe/tor_exec labels (May 2 regression family)", file=sys.stderr)
 if not provenance["ro_lethe_props"]:
     print("  -> WARN: build.prop has no ro.lethe properties (looks like vanilla LineageOS)", file=sys.stderr)
 PY
