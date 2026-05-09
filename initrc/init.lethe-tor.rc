@@ -3,13 +3,19 @@
 # cm-14.1 init parser rejects hyphens in service names — using underscores.
 # `capabilities` keyword is Android 8+ only; on cm-14.1 (Android 7.1) we
 # inherit init's capabilities by running with seclabel u:r:init:s0.
+#
+# lethe_tor (the daemon) intentionally has NO seclabel — type_transition in
+# sepolicy/tor.te puts it in the `tor` domain via the tor_exec label on
+# /system/bin/tor. Adding seclabel here would override that transition and
+# put the daemon back in init: domain, where it cannot execute_no_trans
+# (the original v1.0.x boot regression). lethe_tor_rules and lethe_tor_pt
+# keep seclabel u:r:init:s0 because their sepolicy fix is deferred to v1.1.
 
 service lethe_tor /system/bin/tor -f /system/etc/tor/torrc
     class main
     user root
     group root inet net_admin
     disabled
-    seclabel u:r:init:s0
 
 service lethe_tor_rules /system/bin/lethe-tor-rules.sh
     class main
@@ -32,6 +38,13 @@ service lethe_tor_pt /system/bin/lethe-tor-pt-select.sh
 on post-fs-data
     mkdir /data/lethe 0700 root root
     mkdir /data/lethe/tor 0700 root root
+    # Pre-create empty torrc.bridges so torrc's %include succeeds even when
+    # lethe_tor_pt is skipped or fails (v1.0: PT selector .sh script silently
+    # fails with execute_no_trans because shell-script SELinux labels are
+    # deferred to v1.1). Without this, Tor exits 1 on missing-include.
+    write /data/lethe/tor/torrc.bridges ""
+    chown root root /data/lethe/tor/torrc.bridges
+    chmod 0600 /data/lethe/tor/torrc.bridges
     start lethe_tor_pt
 
 on property:sys.boot_completed=1
