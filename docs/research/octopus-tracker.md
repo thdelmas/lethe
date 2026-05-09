@@ -4,7 +4,7 @@ Tracks which GitHub profiles and repos have been explored via octopus search
 to avoid re-crawling the same networks. Each entry records the origin,
 what was explored, and which issues were created.
 
-**Last updated:** 2026-04-14
+**Last updated:** 2026-05-08
 
 ---
 
@@ -394,3 +394,51 @@ Profiles/orgs discovered but not yet explored as octopus origins:
 - [e2r3p13](https://github.com/e2r3p13) — Mobile security, jailbreaks, forensics. Stars MVT, CellGuard.
 - [r3dlight](https://github.com/r3dlight) — Embedded Rust, seL4, Landlock, PQ crypto, Rust bootloaders.
 - [cea-sec](https://github.com/cea-sec) — Sister agency. TorPylle, miasm, usbsas. Full org sweep needed.
+
+### From Search 7 (n8fr8 personal graph)
+- [grugq](https://github.com/grugq) — Long-time opsec researcher. Not yet crawled.
+- [mtigas](https://github.com/mtigas) — Mike Tigas, ProPublica, Onion Browser. Tor-on-mobile ecosystem.
+- [kushaldas](https://github.com/kushaldas) — Tor Project, security trainer, Async Python.
+- [petertodd](https://github.com/petertodd) — Bitcoin core, OpenTimestamps. Provenance/timestamping angle.
+- [glamrock](https://github.com/glamrock) — Tor Project. Pluggable Transports.
+- [tladesignz](https://github.com/tladesignz) — Onion Browser iOS. Cross-platform Tor.
+- [zoff99](https://github.com/zoff99) — Tox / IOCipher packaging.
+
+---
+
+### Search 7: SecDroid → n8fr8 (privacy-mobile elders)
+**Date:** 2026-05-08
+**Prompt:** SecDroid (state Android fork by ANSSI; no GitHub presence)
+**Origin pivots:** `x942/secdroid` (namesake hardening app) → DELETED → `baz77` (sole GP-fork contributor) → DORMANT → **`n8fr8` (Nathan Freitas, Guardian Project founder)**
+
+**Negative results (record so we don't re-crawl):**
+- `x942` (id 2205311) account fully deleted; `x942/secdroid` repo gone. Only `guardianproject/secdroid` (archived 2013) preserves source.
+- `baz77` — 0 followers, 0 following, 1 fork repo, last active 2016. Dead end.
+- ANSSI's state SecDroid (Sony Xperia X / Crosscall + custom Android) is **not on GitHub**. Closest public surface = ANSSI-FR org (already covered in Search 6).
+
+**New finds from n8fr8's stars/following (not in prior searches):**
+| Project | What | Issue |
+|---------|------|-------|
+| [OWASP/mastg](https://github.com/OWASP/mastg) | Mobile App Sec Testing Guide (12.8K) | [#127](https://github.com/thdelmas/lethe/issues/127) |
+| [n8fr8/spidey](https://github.com/n8fr8/spidey) | IMSI-catcher detection app (Android) | [#127](https://github.com/thdelmas/lethe/issues/127) |
+| [c4dt/lightarti-rest](https://github.com/c4dt/lightarti-rest) | Arti-over-REST wrapper (EPFL C4DT) | [#127](https://github.com/thdelmas/lethe/issues/127) |
+| [Pluggable-Transports/Pluggable-Transports-spec](https://github.com/Pluggable-Transports/Pluggable-Transports-spec) | Tor PT spec — hostile-network bootstrap | [#127](https://github.com/thdelmas/lethe/issues/127) |
+| [starlinglab/starling-certificate-authority](https://github.com/starlinglab/starling-certificate-authority) | Starling Lab C2PA CA (journalists/archivists) | [#128](https://github.com/thdelmas/lethe/issues/128) |
+| [contentauth/c2pa-rs](https://github.com/contentauth/c2pa-rs) | Rust SDK for C2PA spec (325) | [#128](https://github.com/thdelmas/lethe/issues/128) |
+| [YuriTheCoder/TrueShot](https://github.com/YuriTheCoder/TrueShot) | ECDSA-signed Android camera, 14-sensor fingerprint | [#128](https://github.com/thdelmas/lethe/issues/128) |
+| [enarx/enarx](https://github.com/enarx/enarx) | Confidential computing on WebAssembly (1.4K) | [#129](https://github.com/thdelmas/lethe/issues/129) |
+| [redsolver/skydroid](https://github.com/redsolver/skydroid) | Decentralized domain-based app store (429) | [#129](https://github.com/thdelmas/lethe/issues/129) |
+| [zoff99/iocipher_pack](https://github.com/zoff99/iocipher_pack) | IOCipher packaging — pairs with shufflecake | [#129](https://github.com/thdelmas/lethe/issues/129) |
+| [onionshare/onionshare-android](https://github.com/onionshare/onionshare-android) | Tor file share, Android port | [#129](https://github.com/thdelmas/lethe/issues/129) |
+
+**Confirmed already covered by prior searches (deduplicated):**
+- ANSSI-FR org → Search 6
+- guardianproject org, haven, orbot, NetCipher, IOCipher, PanicKit → Search 4 (#74)
+- GrapheneOS / hardened_malloc / Vanadium / Auditor → Search 3B (#71)
+- Divested-Mobile / Hypatia / DivestOS → Search 3B (#73)
+- mvt-project, opensnitch, quark-engine → Search 5D (#86)
+- Briar, Molly, SnoopSnitch, rethink-app → Search 5A (#85)
+- EFForg/rayhunter, kloak, bakad3v anti-forensics → Search 2B (#54, #53)
+- gosling, tor-android, blueprint-freespeech → Search 2A (#49)
+
+**Status:** Issues #127, #128, #129 filed.
