@@ -26,9 +26,9 @@ Then I got tired of screens. I became a digital nomad thinking it meant freedom,
 OSmosis was built to free hardware from proprietary software.
 LETHE is where we're going next — free users from screens.
 
-Today we're releasing LETHE v1.0.0 — a privacy-hardened Android that forgets by default. Every reboot wipes your data and rotates your identity. All traffic goes through Tor. No Google services. The first step toward an OS that protects you instead of profiling you.
+Today we're releasing LETHE v1.0.0 — a privacy-hardened Android designed to forget by default. v1.0 is the foundation: full Google debloat, system-level tracker blocking, hardened DNS defaults, and a bundled Tor daemon listening locally. The runtime that wipes on every reboot, rotates your identity, and forces all app traffic through Tor's TransPort lands in v1.1 — the cm-14.1 sepolicy work to relabel the userspace scripts didn't fit the v1.0 window.
 
-The OS-level guardian — an AI that lives in the system, not as an app — is coming in v1.1. v1.0 is the foundation it'll run on.
+The OS-level guardian — an AI that lives in the system, not as an app, provider-agnostic — is also coming in v1.1.
 
 Sometimes the best way to protect someone is to forget them.
 
@@ -49,13 +49,13 @@ Link in comments.
 
 **r/privacy + r/degoogle:**
 
-Title: LETHE — a privacy-hardened Android that forgets everything on reboot
+Title: LETHE v1.0 — privacy-first Android overlay on LineageOS, R&D release
 
-We just released LETHE v1.0.0, a LineageOS overlay that ships with burner mode on by default. Every reboot wipes data + clipboard + notification log + WiFi/Bluetooth credentials and rotates your Android ID. All traffic forced through Tor via iptables — not a toggle, a rule. No Google services survive the build. System-level tracker blocking via hosts file. Hardened DNS (Quad9 DoT primary).
+We just released LETHE v1.0.0, a LineageOS overlay. v1.0 is R&D — the foundation: full Google debloat, system-level tracker blocking via hosts file, hardened DNS defaults (Quad9 DoT primary), and a bundled Tor daemon listening locally on `127.0.0.1:9050` (SOCKS) so SOCKS-aware apps (Mull, Briar, etc.) route through it today.
 
-Dead Man's Switch, panic wipe, and the in-OS AI guardian are in v1.1 — the configuration shipped in v1.0 but the runtime components needed more soak time than we had.
+Burner mode (every-boot wipe, Android ID + MAC rotation), Tor transparent-proxy enforcement (iptables NAT to the daemon's TransPort), Dead Man's Switch, panic wipe, and the in-OS AI guardian are all in v1.1. The configurations and binaries ship in v1.0; their init services don't run because cm-14.1's stock SELinux blocks `init execute_no_trans` on shell scripts inheriting `system_file`. The v1.1 sepolicy expansion fixes that.
 
-26 device codenames in the manifest, validated on Galaxy Note II — others in v1.0.x. Built as an overlay so it stays compatible with upstream LineageOS updates.
+26 device codenames in the manifest. Validated on Galaxy Note II (t0lte) under enforcing SELinux — others in v1.0.x. Built as an overlay so upstream LineageOS updates still apply cleanly.
 
 Check your local laws regarding encryption and privacy software before installing.
 
@@ -63,13 +63,13 @@ Check your local laws regarding encryption and privacy software before installin
 
 **r/LineageOS:**
 
-Title: LETHE v1.0.0 — privacy overlay for LineageOS with burner mode and Tor enforcement
+Title: LETHE v1.0.0 — privacy overlay for LineageOS, R&D release
 
-LETHE is an overlay applied at build time on top of LineageOS. It doesn't fork the source — all features are additive via PRODUCT_COPY_FILES. Burner mode (wipe on boot), Tor transparent proxy with iptables enforcement, system hosts blocking, hardened DNS, full Google debloat.
+LETHE is an overlay applied at build time on top of LineageOS. It doesn't fork the source — all features are additive via PRODUCT_COPY_FILES. v1.0 ships system hosts blocking, hardened DNS defaults, full Google debloat, LETHE theme, and a bundled Tor daemon running under enforcing SELinux in its own `tor` domain (listening on `127.0.0.1:9050`/`:9040`/`:5400`).
 
-Dead Man's Switch + AI guardian + IPFS OTA are coming in v1.1.
+Burner mode + Tor transparent-proxy iptables enforcement + MAC rotation + Dead Man's Switch + AI guardian + IPFS OTA are all in v1.1. Their init services ship in the v1.0 image but cm-14.1's stock SELinux blocks the .sh launcher scripts; the v1.1 file_contexts pass relabels them.
 
-26 device codenames in the manifest, LOS 22.1 (Android 15) targets for most + 14.1 for legacy (Galaxy Note II from 2012). v1.0 has been built and verified on t0lte; other codenames roll out in v1.0.x as they're individually validated.
+26 device codenames in the manifest, LOS 22.1 (Android 15) for most + 14.1 for legacy (Galaxy Note II, 2012). v1.0 validated end-to-end on t0lte under enforcing SELinux; other codenames roll out in v1.0.x as individually validated.
 
 Looking for feedback from anyone who wants to test.
 
@@ -79,11 +79,11 @@ Check your local laws regarding encryption and privacy software before installin
 
 **r/opensource + r/selfhosted:**
 
-Title: LETHE — open source privacy Android with burner mode and Tor enforcement
+Title: LETHE — open-source privacy Android overlay on LineageOS, v1.0 R&D release
 
-We just shipped v1.0.0. It's a LineageOS overlay — not a fork — that adds burner mode (every-boot wipe + identity rotation), Tor enforcement (iptables-routed transparent proxy), system-level tracker blocking, and hardened DNS. No Google, no phoning home.
+We just shipped v1.0.0. It's a LineageOS overlay — not a fork — that adds system-level tracker blocking, hardened DNS defaults, full Google debloat, and a bundled Tor daemon listening locally so SOCKS-aware apps can route through it. No Google, no phoning home.
 
-v1.1 brings the in-OS AI guardian (cloud LLMs via your key, on-device models for capable hardware), Dead Man's Switch, and IPFS-routed signed updates.
+v1.1 brings burner mode (every-boot wipe + identity rotation), Tor transparent-proxy iptables enforcement, the in-OS AI guardian (provider-agnostic — bring your own key), Dead Man's Switch, and IPFS-routed signed updates. Their configs ship in v1.0; the runtime activates after the v1.1 sepolicy expansion.
 
 The goal: old phones in drawers become private devices that actually protect you.
 
@@ -97,15 +97,15 @@ Check your local laws regarding encryption and privacy software before installin
 **When:** May 4th or 5th (weekday morning US time for best visibility)
 **Content:**
 
-Title: Show HN: LETHE — Privacy Android that forgets everything on reboot
+Title: Show HN: LETHE v1.0 — Privacy-first Android overlay on LineageOS (R&D release)
 
-LETHE is a privacy-hardened Android overlay on LineageOS. Burner mode is on by default — every reboot wipes user data, internal storage, WiFi/Bluetooth credentials, clipboard, notification log, and rotates the Android ID. All user-app traffic forced through a bundled Tor daemon via iptables (UDP dropped). System hosts file blocks ad/tracker domains for every app. No Google services in the build.
+LETHE is a privacy-hardened Android overlay on LineageOS. v1.0 ships system-level tracker blocking, hardened DNS defaults, full Google debloat, and a bundled Tor daemon running under enforcing SELinux in its own domain (listens on `127.0.0.1:9050`/`:9040`/`:5400` — SOCKS-aware apps route through it today).
 
-Coming in v1.1: an in-OS AI guardian as a system service (not a separate app), Dead Man's Switch with duress PIN, IPFS-routed signed firmware updates, panic wipe via 5× power.
+v1.1 brings burner mode (every-boot wipe, MAC + Android ID rotation), Tor transparent-proxy iptables enforcement, an in-OS AI guardian as a system service (not a separate app, provider-agnostic), Dead Man's Switch with duress PIN, IPFS-routed signed firmware updates, panic wipe via 5× power. All those have configs and binaries in the v1.0 image; their init services don't run because cm-14.1's stock SELinux blocks `init execute_no_trans` on the userspace launcher scripts. The v1.1 file_contexts pass relabels them.
 
 It started from years of collecting old hardware and finding hard drives full of other people's data. Devices don't forget their owners. We thought they should.
 
-Built as an overlay, not a fork — upstream LineageOS updates still apply cleanly. 26 device codenames in the build manifest, validated on Galaxy Note II for v1.0, others rolling out in v1.0.x.
+Built as an overlay, not a fork — upstream LineageOS updates still apply cleanly. 26 device codenames in the build manifest, validated on Galaxy Note II (t0lte) under enforcing SELinux for v1.0, others rolling out in v1.0.x.
 
 Check your local laws regarding encryption and privacy software before installing.
 
@@ -126,13 +126,13 @@ Check your local laws regarding encryption and privacy software before installin
 **When:** May 4th
 **Content:**
 
-LETHE v1.0.0 is out.
+LETHE v1.0.0 is out — R&D release.
 
-A privacy-hardened Android that forgets by default. Every reboot wipes your data and rotates your identity. All traffic through Tor — firewall-enforced, not a toggle. No Google services. The in-OS AI guardian is coming in v1.1.
+Privacy-first Android overlay on LineageOS. v1.0 ships full Google debloat, system-level tracker blocking, hardened DNS defaults, and a bundled Tor daemon listening locally. The runtime that wipes on reboot, rotates identity, and forces all app traffic through Tor — burner mode + transparent-proxy enforcement — lands in v1.1.
 
 Sometimes the best way to protect someone is to forget them.
 
-26 device codenames in the manifest. Validated on Galaxy Note II for v1.0; others in v1.0.x. Old phones in drawers welcome.
+26 device codenames in the manifest. Validated on Galaxy Note II (t0lte) for v1.0; others in v1.0.x. Old phones in drawers welcome.
 
 Check your local laws regarding encryption and privacy software before installing.
 

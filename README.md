@@ -2,7 +2,7 @@
 
 **Logical Erasure & Total History Elimination** — a privacy-hardened Android overlay on LineageOS.
 
-LETHE is named after the river of forgetting in Greek mythology. It's an overlay applied at build time to LineageOS — not a fork — that adds burner mode, identity rotation, hardened DNS, tracker blocking, and an AI guardian baked into the OS as a system service. The phone forgets by default. That's the point.
+LETHE is named after the river of forgetting in Greek mythology. It's an overlay applied at build time to LineageOS — not a fork. The pitch: privacy-first, AI-native, provider-agnostic. The phone aims to forget by default — that's the long-term point. v1.0 is the foundation; the runtime that makes the OS forget arrives in v1.1.
 
 - **Release notes:** [docs/RELEASE-v1.0.0.md](docs/RELEASE-v1.0.0.md)
 - **Privacy policy and disclaimers:** [PRIVACY.md](PRIVACY.md)
@@ -10,16 +10,28 @@ LETHE is named after the river of forgetting in Greek mythology. It's an overlay
 
 ## What ships in v1.0
 
-- **Burner mode** — every reboot wipes user data, internal storage, WiFi/Bluetooth credentials, clipboard, and notification log. MAC, Android ID, and device serial rotate on each cycle. On by default; user-disabled in Settings.
-- **Dead Man's Switch** — opt-in escalation chain (lock → wipe → optional brick) on missed check-in. Duress PIN supported. Configured in the first-boot wizard.
-- **Mesh signaling (preview)** — short-range BLE heartbeat between devices in your trust ring as a transport for the dead man's switch only. No chat, voice, or files cross the mesh. Off by default. For real conversations, install [Briar](https://briarproject.org) or [Molly-FOSS](https://molly.im).
-- **Panic wipe** — 5× power button press triggers wipe with a 5-second cancel window.
+v1.0 is R&D — the foundation, not the full product. What's actually live in the image:
+
 - **Debloat** — Google Play Services, Play Store, GSF, Maps, YouTube, TTS, setup wizard removed at build time.
-- **Tracker blocking** — system-level hosts file from StevenBlack and AdAway, refreshed weekly.
-- **Hardened DNS** — Quad9 DNS-over-TLS primary, Mullvad fallback, cleartext DNS rejected.
+- **Tracker blocking** — system-level hosts file from StevenBlack and AdAway baked into the system image.
+- **Hardened DNS defaults** — Quad9 DNS-over-TLS primary, Mullvad fallback declared in build.prop.
+- **Tor daemon** — bundled and listening locally on `127.0.0.1:9050` (SOCKS), `:9040` (TransPort), `:5400` (DNSPort). Apps that explicitly use SOCKS5 (e.g. Mull Browser, Briar) can route through it today.
+- **Privacy sensor defaults** — background location, body sensors, and nearby-devices denied by default.
+- **LETHE theme** — teal-on-black, custom boot animation, dark wallpaper.
+- **Validated** on Galaxy Note II (t0lte) under enforcing SELinux.
+
+## Coming in v1.1
+
+The runtime services for these features are wired up but silently fail under cm-14.1's stock SELinux policy because their shell-script labels need a relabel pass that didn't fit the v1.0 window. The configs ship today; the runtime activates in v1.1.
+
+- **Burner mode** — every-reboot wipe of user data, WiFi/Bluetooth credentials, clipboard, notification log; MAC + Android ID rotation per cycle.
+- **Tor transparent proxy** — iptables NAT for all user-app TCP, UDP dropped, per-app circuit isolation. The daemon ships in v1.0; the firewall enforcement waits on the script-label sepolicy work.
+- **Dead Man's Switch** — opt-in escalation chain (lock → wipe → optional brick) on missed check-in. Duress PIN. First-boot wizard.
+- **Mesh signaling (preview)** — short-range BLE heartbeat between devices in your trust ring as DMS transport. Not a messenger — for conversations install [Briar](https://briarproject.org) or [Molly-FOSS](https://molly.im).
+- **Panic wipe** — 5× power button press, 5-second cancel window.
 - **IPFS OTA** — firmware updates resolved via signed IPNS, fetched via Tor SOCKS, Ed25519-verified.
-- **Void launcher** — minimalist home screen: clock, mascot, gestures. No icons, no widgets, no search bar.
-- **AI guardian** — system-service agent (`org.osmosis.lethe.agent` on `localhost:8080`). Cloud LLMs via user-supplied keys; local on-device models in v1.1.
+- **Void launcher** — minimalist clock + mascot home screen. No icons, no widgets, no search bar.
+- **AI guardian** — system-service agent (`org.osmosis.lethe.agent` on `localhost:8080`). Provider-agnostic: bring your own key.
 
 ## Supported devices
 

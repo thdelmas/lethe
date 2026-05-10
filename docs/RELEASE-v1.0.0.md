@@ -10,13 +10,13 @@ OSmosis was built to free hardware from proprietary software. LETHE is where we'
 
 ## What ships in v1.0
 
-**Burner Mode is on by default.** Every reboot wipes user data, internal storage, WiFi/Bluetooth credentials, clipboard, and notification log, and rotates the Android ID. You're a fresh device each time you turn it on. You can disable it. But the default is: nothing is remembered unless you say so.
+v1.0 is R&D. What's actually live in the image:
 
-**All your traffic goes through Tor.** A bundled Tor daemon runs as a system service. iptables rules force every user app's TCP through it; UDP is dropped to prevent leaks. Per-app circuit isolation. Not a setting you toggle — a firewall rule.
+**Tor daemon, listening locally.** A bundled Tor daemon runs as a system service in its own SELinux domain (validated under enforcing on cm-14.1 t0lte). It listens on `127.0.0.1:9050` (SOCKS), `:9040` (TransPort), `:5400` (DNSPort). Apps that explicitly use SOCKS5 — Mull Browser, Briar, anything you point at the SOCKS port — route through it today. The iptables rules that would force *all* user-app TCP through the TransPort are silently dead in v1.0 (their shell-script init service is blocked by stock cm-14.1 SELinux until the v1.1 relabel pass) — see "Coming in v1.1" below.
 
 **Tracker blocking at the system level.** A curated `hosts` file from StevenBlack and AdAway intercepts known ad and tracker domains for every app, no per-app config.
 
-**Hardened DNS.** Quad9 DNS-over-TLS as primary, Mullvad as fallback. Cleartext DNS rejected.
+**Hardened DNS defaults.** Quad9 DNS-over-TLS primary, Mullvad fallback declared in the image's properties. The runtime applicator that pushes equivalent values into Settings.Global also ships in v1.1 with the rest of the userspace.
 
 **No Google.** Play Services, Play Store, Maps, YouTube, Setup Wizard, GSF — all removed at build time. F-Droid + Aurora Store ship instead.
 
@@ -24,17 +24,22 @@ OSmosis was built to free hardware from proprietary software. LETHE is where we'
 
 **LETHE theme.** Teal-on-black aesthetic, custom boot animation, dark wallpaper.
 
+**Validated** end-to-end on Galaxy Note II (t0lte) under enforcing SELinux. Other codenames in the manifest use the same overlay pipeline and are expected to work, but have not been individually verified for v1.0.
+
 ## Coming in v1.1 (preview/in-flight)
 
-These features have configuration in the v1.0 image but the runtime components are not yet packaged — they'll ship in v1.1 once they're validated end-to-end:
+The runtime components for these features have configuration shipped in the v1.0 image but their init services are silently failing because cm-14.1's stock SELinux policy doesn't grant init `execute_no_trans` on shell scripts inheriting the generic `system_file` label. The v1.1 sepolicy work (file_contexts entries mapping `/system/bin/lethe-*.sh` to a label init *can* exec) is what unblocks them:
 
-- **Dead Man's Switch** — the missed-check-in escalation chain (lock → wipe → optional brick), duress PIN, and hint-based recovery flow
-- **LETHE Agent** — the in-OS guardian. Cloud LLMs via user-supplied API key, with on-device models targeted for v1.1
-- **Void launcher** — minimalist clock-and-mascot home screen with gesture navigation
-- **IPFS OTA** — Tor-routed signed firmware updates (no central update server)
-- **Mesh signaling** — short-range BLE heartbeat between devices in your trust ring as a transport for the dead man's switch (not chat — for chat, install [Briar](https://briarproject.org) or [Molly-FOSS](https://molly.im))
-- **Panic wipe** — 5× power-button trigger
-- **ADB hardening** — paired-host RSA whitelisting, ADB-over-USB only by default
+- **Burner mode** — every-reboot wipe of user data, internal storage, WiFi/Bluetooth credentials, clipboard, notification log. MAC + Android ID rotation per cycle.
+- **Tor transparent proxy** — iptables NAT redirect from all user-app TCP into the running Tor daemon's TransPort. UDP dropped to prevent leaks. Per-app circuit isolation. Not a toggle, a firewall rule.
+- **Dead Man's Switch** — the missed-check-in escalation chain (lock → wipe → optional brick), duress PIN, hint-based recovery.
+- **LETHE Agent** — the in-OS guardian. Provider-agnostic: bring your own LLM key. Cloud first, on-device for capable hardware.
+- **Void launcher** — minimalist clock-and-mascot home screen with gesture navigation.
+- **IPFS OTA** — Tor-routed Ed25519-signed firmware updates (no central update server).
+- **Mesh signaling** — short-range BLE heartbeat between trust-ring devices as DMS transport (not chat — for chat install [Briar](https://briarproject.org) or [Molly-FOSS](https://molly.im)).
+- **Panic wipe** — 5× power-button press, 5-second cancel window.
+- **PT bridge selection** — obfs4 / meek / webtunnel / snowflake selectable via a persist prop.
+- **ADB hardening** — paired-host RSA whitelisting, ADB-over-USB only by default.
 
 ## Supported devices
 

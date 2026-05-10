@@ -1,12 +1,10 @@
-# LETHE v1.0.0 — Privacy Android that forgets everything on reboot
+# LETHE v1.0.0 — Privacy-first Android overlay on LineageOS
 
-**A LineageOS overlay with burner mode, identity rotation, and full Google debloat.**
+**A LineageOS overlay with full Google debloat, system-level tracker blocking, and a bundled Tor daemon.**
 
-LETHE is not a ROM — it's an overlay you flash on top of LineageOS. v1.0 adds privacy hardening, identity rotation, and tracker blocking without forking or modifying the LineageOS source.
+LETHE is not a ROM — it's an overlay you flash on top of LineageOS. v1.0 is R&D: the foundation. Build-time hardening (debloat, tracker blocking, hardened DNS defaults, theme) is live; the runtime services that make the OS actively forget — burner mode, MAC rotation, Tor transparent-proxy enforcement — ship in v1.1 once the cm-14.1 sepolicy work clears them.
 
-Every reboot wipes your data by default. Every tracker is blocked at the system level. DNS goes over TLS or it doesn't go. The phone forgets — and that's the point.
-
-The in-OS AI guardian, Dead Man's Switch, panic wipe, and Void launcher are coming in v1.1.
+The in-OS AI guardian, Dead Man's Switch, panic wipe, and Void launcher are also coming in v1.1.
 
 ---
 
@@ -14,16 +12,18 @@ The in-OS AI guardian, Dead Man's Switch, panic wipe, and Void launcher are comi
 
 | Feature | LineageOS | LETHE v1.0 |
 |---------|-----------|------------|
-| Data on reboot | Persists | Wiped (burner mode, disable in Settings) |
 | Trackers | Not blocked | System hosts file blocks ad/tracker domains |
 | Google services | Optional | Removed at build time |
-| Identity | Fixed | MAC + Android ID rotated on boot |
-| DNS | Google/ISP | Quad9 DNS-over-TLS, Mullvad fallback |
+| DNS defaults | Google/ISP | Quad9 DNS-over-TLS, Mullvad fallback (in build.prop) |
+| Tor daemon | — | Bundled, listens on `127.0.0.1:9050` (SOCKS), `:9040`, `:5400` |
 | Theme | LineageOS default | Teal-on-black, custom boot animation |
-| AI guardian | — | Coming in v1.1 |
-| Panic wipe | — | Coming in v1.1 |
-| Dead man's switch | — | Coming in v1.1 |
-| Void launcher | — | Coming in v1.1 |
+| Data on reboot | Persists | Wiped (burner mode) — **v1.1** |
+| Identity rotation | — | MAC + Android ID per boot — **v1.1** |
+| Tor transparent proxy | — | iptables NAT for all user-app TCP — **v1.1** |
+| AI guardian | — | **v1.1** |
+| Panic wipe | — | **v1.1** |
+| Dead man's switch | — | **v1.1** |
+| Void launcher | — | **v1.1** |
 
 ---
 
@@ -113,7 +113,7 @@ cd ~/OSmosis && make install && make serve
 
 6. After it finishes, tap "Reboot System"
 
-7. LETHE is now active. Burner mode is ON by default — your data will be wiped on every reboot. To disable: Settings → Privacy → Burner Mode.
+7. LETHE is now active. Tor daemon listens locally on `127.0.0.1:9050`/`:9040`/`:5400`. Burner mode + transparent-proxy enforcement are gated on v1.1 sepolicy work — see "Coming in v1.1" below.
 
 ---
 
@@ -127,18 +127,22 @@ When v1.1 ships, the agent's API key will live in /persist (survives the burner-
 
 ## What's included in v1.0
 
-- **Burner mode** — wipes /data on every reboot (user data, WiFi/Bluetooth credentials, clipboard, notification log) and rotates Android ID. Default ON; disable in Settings → Privacy.
-- **MAC + Android ID rotation** — fresh per-boot randomization for both.
 - **Tracker blocking** — system-level hosts file (StevenBlack + AdAway) intercepting ad/tracker domains for every app.
-- **Hardened DNS** — Quad9 DNS-over-TLS primary, Mullvad fallback. Cleartext DNS rejected.
+- **Hardened DNS defaults** — Quad9 DNS-over-TLS primary, Mullvad fallback declared in build.prop.
 - **Full Google debloat** — Play Services, Play Store, GSF, Maps, YouTube, Setup Wizard removed at build time. F-Droid + Aurora Store ship instead.
+- **Tor daemon** — bundled and running under enforcing SELinux in its own `tor` domain. Listens on `127.0.0.1:9050` (SOCKS), `:9040` (TransPort), `:5400` (DNSPort). Apps with explicit SOCKS5 support (Mull Browser, Briar) can route through it today.
 - **LETHE theme** — teal-on-black, custom boot animation, dark wallpaper.
 - **Privacy sensor defaults** — background location, body sensors, nearby-devices denied by default for all apps.
 
 ## Coming in v1.1
 
-- **Tor enforcement** — transparent Tor proxy + iptables NAT for all user-app TCP, UDP dropped, per-app circuit isolation. Binary and torrc ship in v1.0 but the SELinux policy that lets init exec the Tor daemon is deferred — see issue #122.
-- **LETHE agent** — in-OS AI guardian with tool calling, cloud LLMs via your API key, on-device models for capable hardware.
+The init services for these features ship in the v1.0 image but stock cm-14.1 SELinux blocks `init execute_no_trans` on shell scripts inheriting the generic `system_file` label. The v1.1 sepolicy expansion (file_contexts entries mapping `/system/bin/lethe-*.sh` to a label init can exec) unblocks them.
+
+- **Burner mode** — wipes /data on every reboot (user data, WiFi/Bluetooth credentials, clipboard, notification log) and rotates Android ID.
+- **MAC + Android ID rotation** — fresh per-boot randomization for both.
+- **Tor transparent proxy** — iptables NAT redirect from all user-app TCP into the running Tor daemon's TransPort. UDP dropped. Per-app circuit isolation. Daemon ships in v1.0; the firewall enforcement waits on the same sepolicy pass — see issue #122.
+- **PT bridge selection** — obfs4 / meek / webtunnel / snowflake selectable via persist prop.
+- **LETHE agent** — in-OS AI guardian with tool calling, provider-agnostic (bring your own key), on-device models for capable hardware.
 - **Void launcher** — minimalist clock + mascot home screen with gesture navigation.
 - **Dead man's switch** — missed-check-in escalation chain (lock → wipe → optional brick) with duress PIN and hint-based recovery.
 - **Panic wipe** — 5× power-button press = instant wipe.
@@ -190,8 +194,8 @@ Check your local laws regarding encryption and privacy software before installin
 **Q: Will this brick my phone?**
 A: No. LETHE is an overlay on LineageOS — you can always re-flash stock LineageOS to remove it.
 
-**Q: Can I keep my data between reboots?**
-A: Yes — disable burner mode in Settings → Privacy after first boot. Data will persist normally.
+**Q: Does v1.0 actually wipe data on reboot?**
+A: No — burner mode's runtime is gated on the v1.1 sepolicy work. The config ships in v1.0 but the init service can't exec under stock cm-14.1 SELinux. v1.0 acts like a privacy-themed LineageOS with Tor listening locally; the every-boot wipe activates in v1.1.
 
 **Q: When does the AI guardian ship?**
 A: v1.1. v1.0 is the foundation it'll run on (system service slot, agent settings UI, EU AI Act consent flow). When v1.1 ships, it'll route to a cloud LLM via your API key, with on-device models for capable hardware.
