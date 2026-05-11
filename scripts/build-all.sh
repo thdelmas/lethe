@@ -104,11 +104,22 @@ build_in_docker() {
     # ("_nl_intern_locale_data: Assertion ... failed. Aborted"). C-locale
     # sidesteps the locale-data path entirely. USE_CCACHE wires the
     # mounted /ccache into the build for warm rebuilds.
+    # Full env set matching the documented working invocation:
+    #   LC_ALL/LANG=C    flex-2.5.39 locale-data crash workaround
+    #   USE_CCACHE/CCACHE_DIR  wire the mounted /ccache into the build
+    #   USER/HOME        jack wrapper uses `set -u` and references $USER
+    #   GIT_CONFIG_*     silence "dubious ownership" warnings on /lineage
+    #                    (the source tree is owned by the host user, not root)
     docker run --rm \
         -e LC_ALL=C \
         -e LANG=C \
         -e USE_CCACHE=1 \
         -e CCACHE_DIR=/ccache \
+        -e USER=root \
+        -e HOME=/root \
+        -e GIT_CONFIG_COUNT=1 \
+        -e GIT_CONFIG_KEY_0=safe.directory \
+        -e GIT_CONFIG_VALUE_0='*' \
         -v "$tree:/lineage" \
         -v "$LETHE_DIR:/lethe" \
         -v "$HOME/.ccache:/ccache" \
