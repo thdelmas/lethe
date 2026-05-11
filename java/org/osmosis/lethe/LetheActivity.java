@@ -300,16 +300,36 @@ public class LetheActivity extends Activity {
         @JavascriptInterface
         public void setSystemProp(String key, String value) {
             if (key == null || value == null) return;
+            boolean allowed = false;
             switch (key) {
                 case "persist.lethe.mesh.enabled":
                 case "persist.lethe.mesh.ble":
                 case "persist.lethe.p2p.enabled":
+                case "persist.lethe.deadman.duress_pin.enabled":
+                case "persist.lethe.bfu.enabled":
+                case "persist.lethe.bfu.timeout":
+                    allowed = true;
                     break;
                 default:
-                    Log.w(TAG, "setSystemProp denied for " + key);
-                    return;
+                    // Auto-wipe policy keys live under persist.lethe.autowipe.*
+                    // and are toggled from settings-autowipe.js. Whitelist
+                    // by prefix rather than per-key so adding a new trigger
+                    // doesn't require a Java edit.
+                    if (key.startsWith("persist.lethe.autowipe.")) {
+                        allowed = true;
+                    }
+                    break;
+            }
+            if (!allowed) {
+                Log.w(TAG, "setSystemProp denied for " + key);
+                return;
             }
             LetheConfig.set(key, value);
+            // Push autowipe policy changes to DPM live so the keyguard
+            // threshold updates without waiting for next boot.
+            if (key.startsWith("persist.lethe.autowipe.")) {
+                AutoWipePolicy.applyPolicy(LetheActivity.this);
+            }
             if ("persist.lethe.mesh.enabled".equals(key)) {
                 Intent svc = new Intent(LetheActivity.this,
                     LetheMeshService.class);
@@ -323,6 +343,17 @@ public class LetheActivity extends Activity {
                     stopService(svc);
                 }
             }
+        }
+
+        /** Read a whitelisted system property. Same prefix policy as
+         *  setSystemProp — keep the surface tight. */
+        @JavascriptInterface
+        public String getSystemProp(String key, String defaultValue) {
+            if (key == null) return defaultValue;
+            if (key.startsWith("persist.lethe.")) {
+                return LetheConfig.get(key, defaultValue == null ? "" : defaultValue);
+            }
+            return defaultValue == null ? "" : defaultValue;
         }
 
         @JavascriptInterface

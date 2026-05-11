@@ -26,6 +26,22 @@ public class BootReceiver extends BroadcastReceiver {
 
         Log.i(TAG, "Boot completed — starting LETHE services");
 
+        // One-shot upgrade migration from v1.0/v1.1 property names.
+        AutoWipePolicy.migrateLegacyProps();
+
+        // Re-apply auto-wipe policy to DPM (idempotent). This is what pushes
+        // setMaximumFailedPasswordsForWipe(N) so a hostile actor failing N
+        // unlocks gets the device wiped by the stock keyguard.
+        AutoWipePolicy.applyPolicy(context);
+
+        // NOTE: the EVERY_RESTART trigger is intentionally NOT invoked here.
+        // Routing it through DPM.wipeData would reboot-to-recovery, then
+        // BootReceiver fires again on the next boot and loops forever.
+        // Every-restart stays on the post-fs-data shell path
+        // (init.lethe-burner.rc → lethe-burner-wipe.sh). When per-session
+        // crypto-erase ships (feat/per-session-keys), EVERY_RESTART becomes
+        // an O(1) keyring teardown and rejoins this chokepoint.
+
         // Start panic press monitor if enabled
         if (LetheConfig.isPanicButtonEnabled()) {
             Intent svc = new Intent(context, PanicPressService.class);

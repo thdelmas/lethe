@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  LETHE Device Admin policies.
+
+  Declared so LetheDeviceAdmin can be promoted to Device Owner at first
+  boot via `dpm set-device-owner` (see scripts/runtime/lethe-set-device-owner.sh).
+  Device Owner privilege unlocks:
+    - setMaximumFailedPasswordsForWipe(N)        — the iPhone-style trigger
+    - wipeData(WIPE_EXTERNAL_STORAGE | WIPE_EUICC) — the working wipe path
+      (system_server domain is exempt from the system_data_file neverallow
+       that the lethe domain hits with rm -rf)
+
+  Single source of truth for AutoWipePolicy callbacks (Phase 2+).
+-->
+<device-admin xmlns:android="http://schemas.android.com/apk/res/android"
+              android:visible="false">
+    <uses-policies>
+        <wipe-data />
+        <force-lock />
+        <watch-login />
+        <reset-password />
+        <limit-password />
+    </uses-policies>
+</device-admin>

@@ -101,6 +101,15 @@
             </intent-filter>
         </receiver>
 
+        <!-- DMS Stage 2 escalation — routes to AutoWipePolicy -->
+        <receiver
+            android:name=".DmsEscalateReceiver"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="lethe.intent.DMS_ESCALATE_STAGE2" />
+            </intent-filter>
+        </receiver>
+
         <!-- Check-in passphrase dialog -->
         <activity
             android:name=".CheckinDialogActivity"
@@ -182,6 +191,23 @@
             android:exported="true">
             <intent-filter>
                 <action android:name="lethe.intent.OTA_AVAILABLE" />
+            </intent-filter>
+        </receiver>
+
+        <!-- Device Admin (promoted to Device Owner at first boot).
+             Unlocks DPM.wipeData() — the working wipe path — and the
+             stock setMaximumFailedPasswordsForWipe API. -->
+        <receiver
+            android:name=".LetheDeviceAdmin"
+            android:permission="android.permission.BIND_DEVICE_ADMIN"
+            android:exported="true">
+            <meta-data
+                android:name="android.app.device_admin"
+                android:resource="@xml/device_admin" />
+            <intent-filter>
+                <action android:name="android.app.action.DEVICE_ADMIN_ENABLED" />
+                <action android:name="android.app.action.ACTION_PASSWORD_FAILED" />
+                <action android:name="android.app.action.ACTION_PASSWORD_SUCCEEDED" />
             </intent-filter>
         </receiver>
 
