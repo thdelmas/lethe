@@ -84,7 +84,8 @@ function settingsLoad() {
   // Optional sections live in their own settings-*.js modules; defensively
   // guarded so any one missing doesn't break the rest of the panel.
   ['renderBorderModeSection', 'renderBfuToggle',
-   'renderDuressPinSection', 'renderCloudContextToggle',
+   'renderDuressPinSection', 'renderAutoWipeSection',
+   'renderCloudContextToggle',
    'renderWarrantCanary'].forEach(function(fn) {
     if (typeof window[fn] === 'function') window[fn](container);
   });
