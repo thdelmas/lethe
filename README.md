@@ -14,21 +14,20 @@ v1.0 is R&D — the foundation, not the full product. What's actually live in th
 
 - **Debloat** — Google Play Services, Play Store, GSF, Maps, YouTube, TTS, setup wizard removed at build time.
 - **Tracker blocking** — system-level hosts file from StevenBlack and AdAway baked into the system image.
-- **Hardened DNS defaults** — Quad9 DNS-over-TLS primary, Mullvad fallback declared in build.prop.
-- **Tor daemon** — bundled and listening locally on `127.0.0.1:9050` (SOCKS), `:9040` (TransPort), `:5400` (DNSPort). Apps that explicitly use SOCKS5 (e.g. Mull Browser, Briar) can route through it today.
+- **Hardened DNS defaults** — Quad9 DNS-over-TLS primary, Mullvad fallback declared in build.prop, plus a first-boot applicator that pushes equivalent values into Settings.Global.
+- **Tor — daemon + transparent proxy** — Tor runs as a system service under its own SELinux domain, listening on `127.0.0.1:9050` (SOCKS), `:9040` (TransPort), `:5400` (DNSPort). An iptables NAT redirect routes every user-app TCP connection through the TransPort and drops non-DNS UDP. Not a toggle — a firewall rule.
+- **PT bridge selection** — `persist.lethe.tor.bridge_pt` picks obfs4 / meek / webtunnel / snowflake / none at boot.
+- **MAC rotation** — `lethe-mac-rotate` randomizes the WLAN MAC per connection when enabled.
 - **Privacy sensor defaults** — background location, body sensors, and nearby-devices denied by default.
 - **LETHE theme** — teal-on-black, custom boot animation, dark wallpaper.
 - **Validated** on Galaxy Note II (t0lte) under enforcing SELinux.
 
 ## Coming in v1.1
 
-The runtime services for these features are wired up but silently fail under cm-14.1's stock SELinux policy because their shell-script labels need a relabel pass that didn't fit the v1.0 window. The configs ship today; the runtime activates in v1.1.
-
-- **Burner mode** — every-reboot wipe of user data, WiFi/Bluetooth credentials, clipboard, notification log; MAC + Android ID rotation per cycle.
-- **Tor transparent proxy** — iptables NAT for all user-app TCP, UDP dropped, per-app circuit isolation. The daemon ships in v1.0; the firewall enforcement waits on the script-label sepolicy work.
+- **Full burner wipe** — `lethe-burner-wipe` launches in v1.0 and clears app-writable paths, but cm-14.1's `system_data_file` neverallow prevents a clean sweep of `/data/system` from any custom domain. The headline every-reboot wipe needs an architectural rework — likely triggering Android's factory-reset path through recovery rather than a userspace `rm` sweep.
 - **Dead Man's Switch** — opt-in escalation chain (lock → wipe → optional brick) on missed check-in. Duress PIN. First-boot wizard.
 - **Mesh signaling (preview)** — short-range BLE heartbeat between devices in your trust ring as DMS transport. Not a messenger — for conversations install [Briar](https://briarproject.org) or [Molly-FOSS](https://molly.im).
-- **Panic wipe** — 5× power button press, 5-second cancel window.
+- **Panic wipe** — 5× power button press, 5-second cancel window. Same `system_data_file` constraint as burner wipe — ships when that's resolved.
 - **IPFS OTA** — firmware updates resolved via signed IPNS, fetched via Tor SOCKS, Ed25519-verified.
 - **Void launcher** — minimalist clock + mascot home screen. No icons, no widgets, no search bar.
 - **AI guardian** — system-service agent (`org.osmosis.lethe.agent` on `localhost:8080`). Provider-agnostic: bring your own key.

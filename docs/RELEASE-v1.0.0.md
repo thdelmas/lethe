@@ -12,11 +12,15 @@ OSmosis was built to free hardware from proprietary software. LETHE is where we'
 
 v1.0 is R&D. What's actually live in the image:
 
-**Tor daemon, listening locally.** A bundled Tor daemon runs as a system service in its own SELinux domain (validated under enforcing on cm-14.1 t0lte). It listens on `127.0.0.1:9050` (SOCKS), `:9040` (TransPort), `:5400` (DNSPort). Apps that explicitly use SOCKS5 — Mull Browser, Briar, anything you point at the SOCKS port — route through it today. The iptables rules that would force *all* user-app TCP through the TransPort are silently dead in v1.0 (their shell-script init service is blocked by stock cm-14.1 SELinux until the v1.1 relabel pass) — see "Coming in v1.1" below.
+**Tor — daemon + transparent proxy enforcement.** A bundled Tor daemon runs as a system service in its own SELinux domain (validated under enforcing on cm-14.1 t0lte). It listens on `127.0.0.1:9050` (SOCKS), `:9040` (TransPort), `:5400` (DNSPort). An iptables NAT redirect routes every user-app TCP connection (UIDs 10000–99999) into the TransPort. Non-DNS UDP is dropped to prevent leaks. Not a toggle you flip — a firewall rule that lands at boot.
+
+**PT bridge selection.** `persist.lethe.tor.bridge_pt` picks the pluggable transport at boot — obfs4 / meek / webtunnel / snowflake / none. The selector script writes `torrc.bridges` before Tor reads it, so changing the PT is one `setprop` + reboot away.
+
+**MAC rotation.** `lethe-mac-rotate` randomizes the WLAN MAC per connection when enabled via `persist.lethe.mac_rand`.
 
 **Tracker blocking at the system level.** A curated `hosts` file from StevenBlack and AdAway intercepts known ad and tracker domains for every app, no per-app config.
 
-**Hardened DNS defaults.** Quad9 DNS-over-TLS primary, Mullvad fallback declared in the image's properties. The runtime applicator that pushes equivalent values into Settings.Global also ships in v1.1 with the rest of the userspace.
+**Hardened DNS.** Quad9 DNS-over-TLS primary, Mullvad fallback declared in the image's properties, and a first-boot applicator (`lethe-apply-settings`) pushes equivalent values into Settings.Global.
 
 **No Google.** Play Services, Play Store, Maps, YouTube, Setup Wizard, GSF — all removed at build time. F-Droid + Aurora Store ship instead.
 
@@ -28,18 +32,16 @@ v1.0 is R&D. What's actually live in the image:
 
 ## Coming in v1.1 (preview/in-flight)
 
-The runtime components for these features have configuration shipped in the v1.0 image but their init services are silently failing because cm-14.1's stock SELinux policy doesn't grant init `execute_no_trans` on shell scripts inheriting the generic `system_file` label. The v1.1 sepolicy work (file_contexts entries mapping `/system/bin/lethe-*.sh` to a label init *can* exec) is what unblocks them:
-
-- **Burner mode** — every-reboot wipe of user data, internal storage, WiFi/Bluetooth credentials, clipboard, notification log. MAC + Android ID rotation per cycle.
-- **Tor transparent proxy** — iptables NAT redirect from all user-app TCP into the running Tor daemon's TransPort. UDP dropped to prevent leaks. Per-app circuit isolation. Not a toggle, a firewall rule.
+- **Full burner wipe** — `lethe-burner-wipe` launches in v1.0 and clears app-writable paths, but cm-14.1's `system_data_file` neverallow (`domain.te:495`) reserves writes under `/data/system` to init / installd / system_server / system_app with no extension hook for a custom domain. A clean every-reboot wipe needs an architectural rework — likely triggering Android's factory-reset path through recovery rather than a userspace `rm` sweep.
 - **Dead Man's Switch** — the missed-check-in escalation chain (lock → wipe → optional brick), duress PIN, hint-based recovery.
 - **LETHE Agent** — the in-OS guardian. Provider-agnostic: bring your own LLM key. Cloud first, on-device for capable hardware.
 - **Void launcher** — minimalist clock-and-mascot home screen with gesture navigation.
 - **IPFS OTA** — Tor-routed Ed25519-signed firmware updates (no central update server).
 - **Mesh signaling** — short-range BLE heartbeat between trust-ring devices as DMS transport (not chat — for chat install [Briar](https://briarproject.org) or [Molly-FOSS](https://molly.im)).
-- **Panic wipe** — 5× power-button press, 5-second cancel window.
-- **PT bridge selection** — obfs4 / meek / webtunnel / snowflake selectable via a persist prop.
-- **ADB hardening** — paired-host RSA whitelisting, ADB-over-USB only by default.
+- **Panic wipe** — 5× power-button press, 5-second cancel window. Same `system_data_file` constraint as full burner wipe; ships with it.
+- **Android ID rotation** — currently bound to the burner wipe path; lands when full wipe lands.
+- **Tor uid drop** — `lethe-tor` runs as root in v1.0; v1.1 moves it to uid 9050 with proper privilege drop, matching the `tor_uid: 9050` spec in the manifest.
+- **ADB hardening** — paired-host RSA whitelisting, ADB-over-USB only by default. (`ro.adb.secure=1` is already on; the harder constraints come in v1.1.)
 
 ## Supported devices
 

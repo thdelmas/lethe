@@ -1,10 +1,8 @@
 # LETHE v1.0.0 — Privacy-first Android overlay on LineageOS
 
-**A LineageOS overlay with full Google debloat, system-level tracker blocking, and a bundled Tor daemon.**
+**A LineageOS overlay with full Google debloat, system-level tracker blocking, hardened DNS, and Tor transparent-proxy enforcement.**
 
-LETHE is not a ROM — it's an overlay you flash on top of LineageOS. v1.0 is R&D: the foundation. Build-time hardening (debloat, tracker blocking, hardened DNS defaults, theme) is live; the runtime services that make the OS actively forget — burner mode, MAC rotation, Tor transparent-proxy enforcement — ship in v1.1 once the cm-14.1 sepolicy work clears them.
-
-The in-OS AI guardian, Dead Man's Switch, panic wipe, and Void launcher are also coming in v1.1.
+LETHE is not a ROM — it's an overlay you flash on top of LineageOS. v1.0 is R&D — testers wanted, not users yet. What lands today: build-time hardening (debloat, tracker blocking, hardened DNS, theme), Tor with iptables transparent-proxy enforcement, MAC rotation, PT bridge selection, Settings.Global runtime applicator. The headline burner-mode wipe ships in v1.1 once the architectural rework around the `system_data_file` neverallow is done. The in-OS AI guardian, Dead Man's Switch, and Void launcher are also v1.1.
 
 ---
 
@@ -14,12 +12,14 @@ The in-OS AI guardian, Dead Man's Switch, panic wipe, and Void launcher are also
 |---------|-----------|------------|
 | Trackers | Not blocked | System hosts file blocks ad/tracker domains |
 | Google services | Optional | Removed at build time |
-| DNS defaults | Google/ISP | Quad9 DNS-over-TLS, Mullvad fallback (in build.prop) |
+| DNS | Google/ISP | Quad9 DNS-over-TLS, Mullvad fallback — build.prop + Settings.Global |
 | Tor daemon | — | Bundled, listens on `127.0.0.1:9050` (SOCKS), `:9040`, `:5400` |
+| Tor enforcement | — | iptables NAT routes user-app TCP through Tor, UDP dropped |
+| PT bridges | — | obfs4 / meek / webtunnel / snowflake via `persist.lethe.tor.bridge_pt` |
+| MAC | Fixed | Per-connection randomization (`persist.lethe.mac_rand`) |
 | Theme | LineageOS default | Teal-on-black, custom boot animation |
-| Data on reboot | Persists | Wiped (burner mode) — **v1.1** |
-| Identity rotation | — | MAC + Android ID per boot — **v1.1** |
-| Tor transparent proxy | — | iptables NAT for all user-app TCP — **v1.1** |
+| Data on reboot (burner) | Persists | Service launches; full wipe needs v1.1 architectural rework |
+| Android ID rotation | — | **v1.1** (bound to burner-wipe path) |
 | AI guardian | — | **v1.1** |
 | Panic wipe | — | **v1.1** |
 | Dead man's switch | — | **v1.1** |
@@ -113,7 +113,7 @@ cd ~/OSmosis && make install && make serve
 
 6. After it finishes, tap "Reboot System"
 
-7. LETHE is now active. Tor daemon listens locally on `127.0.0.1:9050`/`:9040`/`:5400`. Burner mode + transparent-proxy enforcement are gated on v1.1 sepolicy work — see "Coming in v1.1" below.
+7. LETHE is now active. Tor daemon listens locally on `127.0.0.1:9050`/`:9040`/`:5400` and the iptables NAT routes user-app TCP through it. Burner-mode full wipe is still v1.1 work — see "Coming in v1.1" below.
 
 ---
 
@@ -128,27 +128,26 @@ When v1.1 ships, the agent's API key will live in /persist (survives the burner-
 ## What's included in v1.0
 
 - **Tracker blocking** — system-level hosts file (StevenBlack + AdAway) intercepting ad/tracker domains for every app.
-- **Hardened DNS defaults** — Quad9 DNS-over-TLS primary, Mullvad fallback declared in build.prop.
+- **Hardened DNS** — Quad9 DNS-over-TLS primary, Mullvad fallback in build.prop, plus `lethe-apply-settings` pushes equivalent keys into Settings.Global at first boot.
 - **Full Google debloat** — Play Services, Play Store, GSF, Maps, YouTube, Setup Wizard removed at build time. F-Droid + Aurora Store ship instead.
-- **Tor daemon** — bundled and running under enforcing SELinux in its own `tor` domain. Listens on `127.0.0.1:9050` (SOCKS), `:9040` (TransPort), `:5400` (DNSPort). Apps with explicit SOCKS5 support (Mull Browser, Briar) can route through it today.
+- **Tor — daemon + transparent proxy** — bundled, running under enforcing SELinux in its own `tor` domain. Listens on `127.0.0.1:9050` (SOCKS), `:9040` (TransPort), `:5400` (DNSPort). iptables NAT redirects user-app TCP (UIDs 10000–99999) into the TransPort and drops non-DNS UDP.
+- **PT bridge selection** — `persist.lethe.tor.bridge_pt` (one of `none|obfs4|meek|webtunnel|snowflake`) chooses the pluggable transport. One setprop + reboot to switch.
+- **MAC rotation** — `lethe-mac-rotate` re-randomizes the WLAN MAC per connection when `persist.lethe.mac_rand` is enabled.
 - **LETHE theme** — teal-on-black, custom boot animation, dark wallpaper.
 - **Privacy sensor defaults** — background location, body sensors, nearby-devices denied by default for all apps.
 
 ## Coming in v1.1
 
-The init services for these features ship in the v1.0 image but stock cm-14.1 SELinux blocks `init execute_no_trans` on shell scripts inheriting the generic `system_file` label. The v1.1 sepolicy expansion (file_contexts entries mapping `/system/bin/lethe-*.sh` to a label init can exec) unblocks them.
-
-- **Burner mode** — wipes /data on every reboot (user data, WiFi/Bluetooth credentials, clipboard, notification log) and rotates Android ID.
-- **MAC + Android ID rotation** — fresh per-boot randomization for both.
-- **Tor transparent proxy** — iptables NAT redirect from all user-app TCP into the running Tor daemon's TransPort. UDP dropped. Per-app circuit isolation. Daemon ships in v1.0; the firewall enforcement waits on the same sepolicy pass — see issue #122.
-- **PT bridge selection** — obfs4 / meek / webtunnel / snowflake selectable via persist prop.
+- **Full burner-mode wipe** — the `lethe-burner-wipe` service launches in v1.0 and clears app-writable paths, but cm-14.1's `system_data_file` neverallow (`domain.te:495`) reserves writes under `/data/system` to init / installd / system_server / system_app with no extension hook for a custom domain. A clean every-reboot wipe needs an architectural rework — likely triggering Android's factory-reset path through recovery.
+- **Android ID rotation** — currently bound to the burner-wipe path; lands when full wipe lands.
 - **LETHE agent** — in-OS AI guardian with tool calling, provider-agnostic (bring your own key), on-device models for capable hardware.
 - **Void launcher** — minimalist clock + mascot home screen with gesture navigation.
 - **Dead man's switch** — missed-check-in escalation chain (lock → wipe → optional brick) with duress PIN and hint-based recovery.
-- **Panic wipe** — 5× power-button press = instant wipe.
+- **Panic wipe** — 5× power-button press = instant wipe. Same `system_data_file` constraint as full burner wipe; ships with it.
 - **Mesh signaling preview** — short-range BLE heartbeat between trust-ring devices as DMS transport (chat lives in Briar/Molly, not the mesh).
 - **IPFS OTA** — Tor-routed, Ed25519-signed firmware updates.
-- **ADB hardening** — paired-host RSA whitelisting, ADB-over-USB only by default.
+- **Tor uid drop** — `lethe-tor` runs as root in v1.0; v1.1 moves it to uid 9050 with proper privilege drop.
+- **ADB hardening** — paired-host RSA whitelisting, ADB-over-USB only by default. (`ro.adb.secure=1` is already on.)
 - **Anthropic OAuth** — use your claude.ai subscription as the agent backend.
 
 ## Not yet planned
@@ -195,7 +194,7 @@ Check your local laws regarding encryption and privacy software before installin
 A: No. LETHE is an overlay on LineageOS — you can always re-flash stock LineageOS to remove it.
 
 **Q: Does v1.0 actually wipe data on reboot?**
-A: No — burner mode's runtime is gated on the v1.1 sepolicy work. The config ships in v1.0 but the init service can't exec under stock cm-14.1 SELinux. v1.0 acts like a privacy-themed LineageOS with Tor listening locally; the every-boot wipe activates in v1.1.
+A: Partially. `lethe-burner-wipe` launches and clears app-writable paths under `/data/data` and `/data/user`, but cm-14.1's `system_data_file` neverallow blocks any custom SELinux domain from writing under `/data/system` — so a clean sweep needs an architectural rework. v1.1 will trigger Android's factory-reset path via recovery instead of a userspace `rm`. v1.0's Tor enforcement and tracker blocking are fully active.
 
 **Q: When does the AI guardian ship?**
 A: v1.1. v1.0 is the foundation it'll run on (system service slot, agent settings UI, EU AI Act consent flow). When v1.1 ships, it'll route to a cloud LLM via your API key, with on-device models for capable hardware.
