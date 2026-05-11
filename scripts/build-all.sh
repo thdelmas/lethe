@@ -97,7 +97,18 @@ build_in_docker() {
     # /lethe must be rw — apply-overlays.sh chmods source files before
     # staging them (and we don't want a chmod side-effect on the host
     # to be the precondition for a build to succeed).
+    #
+    # LC_ALL=C / LANG=C are mandatory: the cm-14.1 prebuilt
+    # prebuilts/misc/linux-x86/flex/flex-2.5.39 crashes inside the
+    # Ubuntu-18.04 container on hosts with newer glibc locale data
+    # ("_nl_intern_locale_data: Assertion ... failed. Aborted"). C-locale
+    # sidesteps the locale-data path entirely. USE_CCACHE wires the
+    # mounted /ccache into the build for warm rebuilds.
     docker run --rm \
+        -e LC_ALL=C \
+        -e LANG=C \
+        -e USE_CCACHE=1 \
+        -e CCACHE_DIR=/ccache \
         -v "$tree:/lineage" \
         -v "$LETHE_DIR:/lethe" \
         -v "$HOME/.ccache:/ccache" \
