@@ -1,9 +1,22 @@
 #!/system/bin/sh
 # Lethe burner mode — wipe user data on boot if enabled.
 # Installed to /system/bin/ at build time.
+#
+# v1.2: this remains the EVERY_RESTART trigger's mechanism. Routing the
+# every-restart wipe through DPM.wipeData would reboot-to-recovery and
+# loop on every boot, so this path stays. Other triggers (panic, duress,
+# DMS, failed-unlock, USB) all moved to AutoWipePolicy + DPM.wipeData.
+# When per-session crypto-erase lands, this script becomes an O(1)
+# keyring teardown invoked from AutoWipePolicy.
 set -e
 
-ENABLED=$(getprop persist.lethe.burner.enabled)
+# Read the unified property first; fall back to the legacy name so users
+# upgrading from v1.0/v1.1 with persist.lethe.burner.enabled=true keep
+# their setting. Phase-5 migration syncs both at first boot post-upgrade.
+ENABLED=$(getprop persist.lethe.autowipe.every_restart.enabled)
+if [ -z "$ENABLED" ]; then
+    ENABLED=$(getprop persist.lethe.burner.enabled)
+fi
 log -t lethe-burner "Burner check: enabled=$ENABLED"
 
 if [ "$ENABLED" != "true" ]; then

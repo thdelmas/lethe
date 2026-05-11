@@ -105,13 +105,21 @@ allow lethe tor_data_file:file { read write open getattr create unlink rename se
 # (-dex2oat, -postinstall_dexopt for dalvikcache). There's no attribute
 # to piggyback on — we'd have to patch domain.te to exempt `lethe`.
 #
-# Practical implication: burner-wipe.sh runs (no execute_no_trans failure
-# anymore) but its `rm -rf /data/*` will silently partial-fail under
-# enforcing — same observable behavior as v1.0 today, just shifted from
-# "service crash-loop" to "service runs, deletes what it can, gets EACCES
-# elsewhere". The headline burner-mode wipe needs an architectural
-# rework — likely triggering Android's factory-reset path via recovery
-# rather than doing our own rm sweep — and that's deferred to v1.2.
+# v1.2 resolution: ALL user-facing wipe triggers (panic, duress, DMS,
+# failed-unlock, USB) moved to AutoWipePolicy.java → DPM.wipeData, which
+# runs in the system_server domain — already in the neverallow's exempt
+# set. The lethe-domain partial-fail described below now applies only to
+# the every_restart (burner) trigger, which stays on post-fs-data shell
+# because routing it through DPM would reboot-to-recovery and loop on
+# every boot. When per-session crypto-erase (feat/per-session-keys)
+# ships, every_restart also leaves this domain.
+#
+# Practical implication (every_restart only): burner-wipe.sh runs (no
+# execute_no_trans failure) but its `rm -rf /data/*` will silently
+# partial-fail under enforcing — "service runs, deletes what it can,
+# gets EACCES elsewhere". The standard wipe surface no longer relies on
+# this path, but burner-mode-on-every-restart users are still affected
+# until crypto-erase lands.
 allow lethe system_data_file:dir { search getattr open read };
 allow lethe system_data_file:file { read getattr };
 allow lethe app_data_file:dir { search getattr open read };
