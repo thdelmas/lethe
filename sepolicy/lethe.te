@@ -1,0 +1,138 @@
+# LETHE — SELinux policy (v1.1 userspace expansion)
+#
+# Single `lethe` domain covers all 5 LETHE userspace shell scripts:
+#   - lethe-burner-wipe.sh       (rm -rf /data subtree; identity rotation)
+#   - lethe-mac-rotate.sh        (ip link, /sys/class/net/wlan0/address)
+#   - lethe-tor-rules.sh         (iptables transparent-proxy NAT)
+#   - lethe-tor-pt-select.sh     (writes torrc.bridges, chowns 9050:9050)
+#   - lethe-apply-settings.sh    (settings put global → binder to system_server)
+#
+# Why single-domain instead of the original "two-domain" plan:
+# init.te:307 has an absolute neverallow — `neverallow init { file_type
+# fs_type }:file execute_no_trans;` — that blocks init from staying in
+# init: across an execve of any file_type label. So the original plan to
+# run burner-wipe + mac-rotate in init: via execute_no_trans on lethe_exec
+# doesn't compile. Pivot: transition all 5 into a privileged lethe domain
+# with broad caps. The system_data_file / app_data_file / sysfs neverallows
+# in stock cm-14.1 are per-domain (appdomain, logd, netd, recovery_*) and
+# don't restrict a custom domain like ours.
+#
+# Original disabled-in-v1.0 version of this file used set_prop(lethe,
+# system_prop) — we keep that; cm-14.1 doesn't have persist_prop, and
+# persist.lethe.* is labeled system_prop via sepolicy/property_contexts.
+# Rules for deferred services (agent, ipfs, p2p, dead-man) are not yet
+# added — they come when those services ship.
+
+type lethe, domain;
+type lethe_exec, exec_type, file_type;
+
+# ── LETHE domain ──
+# init_daemon_domain expands to the type_transition + allow rules that
+# let init fork → execve(lethe_exec) → land in lethe: process domain.
+init_daemon_domain(lethe)
+
+# Execute LETHE binaries from within the lethe domain (recursive: a lethe
+# script may exec another lethe-labeled file).
+allow lethe lethe_exec:file { read open getattr execute execute_no_trans };
+
+# The .sh scripts shebang to /system/bin/sh and call out to iptables, ip,
+# settings, log, getprop, setprop, cat, sed — all live under /system/bin/
+# and inherit either shell_exec, toolbox_exec, or the generic system_file.
+allow lethe shell_exec:file { read open getattr execute execute_no_trans };
+allow lethe toolbox_exec:file { read open getattr execute execute_no_trans };
+allow lethe system_file:dir { search getattr open read };
+allow lethe system_file:file { read open getattr execute execute_no_trans };
+allow lethe system_file:lnk_file read;
+
+# ── Capabilities ──
+#   net_admin:          iptables (tor-rules), ip link (mac-rotate)
+#   net_bind_service:   future-proofing
+#   chown / fowner:     tor-pt-select chowns torrc.bridges to 9050:9050;
+#                       burner-wipe needs ownership manipulation across
+#                       /data subtrees during the wipe sweep.
+#   dac_override / dac_read_search: burner-wipe traverses + deletes
+#                       directories owned by various uids without per-uid
+#                       handoff. mac-rotate writes /sys/class/net which
+#                       may require dac override depending on sysfs perms.
+#   sys_admin:          mac-rotate's `ip link set down/up` cycle touches
+#                       device state via netlink RTM_SETLINK.
+allow lethe self:capability { net_admin net_bind_service net_raw chown fowner fsetid dac_override dac_read_search sys_admin };
+
+# ── Sockets ──
+# iptables uses netlink_xfrm + netfilter sockets; settings put uses binder
+# (handled below). Keep the standard TCP/UDP set in case a future lethe-
+# domain script does direct socket work.
+allow lethe self:tcp_socket { create connect bind listen accept setopt getopt read write shutdown };
+allow lethe self:udp_socket { create connect bind setopt getopt read write };
+allow lethe self:netlink_route_socket { create bind read write nlmsg_read };
+allow lethe self:netlink_xfrm_socket { create bind read write nlmsg_read nlmsg_write };
+# iptables uses a raw IP socket to commit netfilter changes via setsockopt.
+# Without this, lethe-tor-rules.sh exits 0 at shell level but the kernel
+# netfilter chains stay empty — silent transparent-proxy failure.
+allow lethe self:rawip_socket { create getopt setopt };
+
+# ── Property access ──
+# Read persist.lethe.* via getprop (tor-pt-select reads bridge_pt,
+# apply-settings reads settings_applied gate). Write persist.lethe.*
+# (apply-settings sets persist.lethe.settings_applied=1 once it ran).
+# persist.lethe.* is labeled system_prop in sepolicy/property_contexts —
+# that's the type cm-14.1 stock policy defines for general persist+system
+# properties; persist_prop doesn't exist in this AOSP era. A future
+# refinement would define a `lethe_prop` type for least-privilege; for
+# now, system_prop matches what property_contexts already assigns.
+allow lethe property_socket:sock_file write;
+allow lethe init:unix_stream_socket connectto;
+set_prop(lethe, system_prop)
+
+# ── Binder to system_server ──
+# lethe-apply-settings.sh calls `settings put global <key> <val>` which
+# binders into system_server's Settings provider.
+allow lethe system_server:binder { call transfer };
+allow lethe servicemanager:binder { call };
+binder_use(lethe)
+
+# ── Tor data dir access ──
+# tor-pt-select writes /data/lethe/tor/torrc.bridges (labeled tor_data_file
+# via sepolicy/file_contexts). tor_data_file is defined in tor.te.
+allow lethe tor_data_file:dir { search getattr open read write add_name remove_name create rmdir setattr };
+allow lethe tor_data_file:file { read write open getattr create unlink rename setattr append };
+
+# ── /data read access (traversal only) ──
+# /data/lethe and /data subtree traversal so the network/IPC scripts can
+# reach their working dirs. WRITE / unlink on system_data_file,
+# app_data_file lnk_file, and dalvikcache_data_file are reserved by stock
+# cm-14.1 neverallows in domain.te to init / installd / system_server /
+# (-dex2oat, -postinstall_dexopt for dalvikcache). There's no attribute
+# to piggyback on — we'd have to patch domain.te to exempt `lethe`.
+#
+# Practical implication: burner-wipe.sh runs (no execute_no_trans failure
+# anymore) but its `rm -rf /data/*` will silently partial-fail under
+# enforcing — same observable behavior as v1.0 today, just shifted from
+# "service crash-loop" to "service runs, deletes what it can, gets EACCES
+# elsewhere". The headline burner-mode wipe needs an architectural
+# rework — likely triggering Android's factory-reset path via recovery
+# rather than doing our own rm sweep — and that's deferred to v1.2.
+allow lethe system_data_file:dir { search getattr open read };
+allow lethe system_data_file:file { read getattr };
+allow lethe app_data_file:dir { search getattr open read };
+allow lethe app_data_file:file { read getattr };
+
+# ── /sys/class/net writes (mac-rotate.sh) ──
+# mac-rotate writes /sys/class/net/wlan0/address. The wifi sysfs leaf is
+# labeled sysfs_wifi (or sysfs_mac_addr on some trees). Grant write on
+# both; harmless if the latter doesn't exist on this kernel.
+allow lethe sysfs:dir { search getattr };
+allow lethe sysfs:file { read write open getattr };
+allow lethe sysfs:lnk_file read;
+
+# ── /proc + logging ──
+# mac-rotate reads /proc/sys/kernel/random/uuid; iptables reads
+# /proc/<pid>/net/ip_tables_names (proc_net) to introspect kernel chains.
+allow lethe proc:file { read open getattr };
+allow lethe proc_net:file { read open getattr };
+allow lethe devpts:chr_file { read write open getattr };
+
+# iptables probes /proc/sys/kernel/modprobe to see if it can autoload
+# netfilter modules. Stock kernel includes them; the autoload check is
+# harmless to deny.
+dontaudit lethe usermodehelper:file read;

@@ -23,7 +23,6 @@ service lethe_tor_rules /system/bin/lethe-tor-rules.sh
     group root inet net_admin
     oneshot
     disabled
-    seclabel u:r:init:s0
 
 # Pluggable-transport selector (lethe#108). Reads
 # persist.lethe.tor.bridge_pt and writes /data/lethe/tor/torrc.bridges
@@ -33,18 +32,32 @@ service lethe_tor_pt /system/bin/lethe-tor-pt-select.sh
     user root
     group root
     oneshot
-    seclabel u:r:init:s0
 
 on post-fs-data
     mkdir /data/lethe 0700 root root
     mkdir /data/lethe/tor 0700 root root
+    # Re-assert root ownership of DataDirectory each boot. mkdir above is
+    # a no-op if the dir already exists, so a prior boot that chowned it
+    # to a different uid (e.g. an earlier pt-select version) would leave
+    # it misaligned with Tor's expected ownership. Tor runs as root in
+    # v1.0/v1.1; ownership mismatch makes it exit at startup.
+    chown root root /data/lethe/tor
+    chmod 0700 /data/lethe/tor
     # Pre-create empty torrc.bridges so torrc's %include succeeds even when
-    # lethe_tor_pt is skipped or fails (v1.0: PT selector .sh script silently
-    # fails with execute_no_trans because shell-script SELinux labels are
-    # deferred to v1.1). Without this, Tor exits 1 on missing-include.
+    # lethe_tor_pt is skipped or fails. Without this, Tor exits 1 on
+    # missing-include.
     write /data/lethe/tor/torrc.bridges ""
     chown root root /data/lethe/tor/torrc.bridges
     chmod 0600 /data/lethe/tor/torrc.bridges
+    # State file: delete on every boot. Tor refuses to bootstrap if the
+    # state file's timestamp is in the future relative to the current
+    # clock (CLOCK_SKEW check). On a device with no RTC battery and no
+    # NTP sync at boot, this fires every time. Burner mode is supposed
+    # to handle this via /data wipe but the wipe is restricted under
+    # enforcing SELinux (system_data_file neverallow). Bandaid:
+    # delete /data/lethe/tor/state here so Tor always starts fresh.
+    rm /data/lethe/tor/state
+    rm /data/lethe/tor/lock
     start lethe_tor_pt
 
 on property:sys.boot_completed=1

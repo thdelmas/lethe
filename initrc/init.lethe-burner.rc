@@ -4,13 +4,18 @@
 # cm-14.1 also enforces a 16-char limit on service names; lethe_burner_wipe
 # (17 chars) was silently dropped pre-v1.0.1 — see issue #125. lethe_burnwipe
 # is 14 chars, safely under the limit.
+#
+# Both services drop their seclabel so the type_transition in
+# sepolicy/lethe.te (init_daemon_domain) puts them in the lethe: domain
+# via the lethe_exec label on the .sh files. The original plan was to
+# run these in init: via execute_no_trans, but init.te:307 has an
+# absolute neverallow against that — see sepolicy/lethe.te header.
 
 service lethe_burnwipe /system/bin/lethe-burner-wipe.sh
     class main
     user root
     group root
     oneshot
-    seclabel u:r:init:s0
 
 service lethe_mac_rotate /system/bin/lethe-mac-rotate.sh
     class core
@@ -18,7 +23,6 @@ service lethe_mac_rotate /system/bin/lethe-mac-rotate.sh
     group root inet net_admin
     oneshot
     disabled
-    seclabel u:r:init:s0
 
 on post-fs-data
     start lethe_burnwipe

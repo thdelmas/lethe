@@ -1,8 +1,18 @@
-# LETHE — SELinux file context labels (v1.0 partial — Tor only)
+# LETHE — SELinux file context labels (v1.1 — Tor + userspace scripts)
 #
-# Scope: this file is the Tor-only re-enable. The full LETHE labeling lives
-# in file_contexts.disabled-in-v1.0 (covers burner, mac-rotate, agent, etc.)
-# and is restored in v1.1. See sepolicy/README.md and tor.te.
+# Tor entries shipped in v1.0 (sepolicy/tor.te); script entries added in
+# v1.1 (sepolicy/lethe.te). Each .sh script gets lethe_exec so init can
+# either execute_no_trans (privileged scripts staying in init: via init.rc
+# seclabel) or type_transition to the lethe: domain (network/IPC scripts
+# without seclabel). See sepolicy/lethe.te for the two-domain split.
 
-/system/bin/tor             u:object_r:tor_exec:s0
-/data/lethe/tor(/.*)?       u:object_r:tor_data_file:s0
+# ── Tor daemon (v1.0) ──
+/system/bin/tor                         u:object_r:tor_exec:s0
+/data/lethe/tor(/.*)?                   u:object_r:tor_data_file:s0
+
+# ── LETHE userspace scripts (v1.1) ──
+/system/bin/lethe-burner-wipe\.sh       u:object_r:lethe_exec:s0
+/system/bin/lethe-mac-rotate\.sh        u:object_r:lethe_exec:s0
+/system/bin/lethe-tor-rules\.sh         u:object_r:lethe_exec:s0
+/system/bin/lethe-tor-pt-select\.sh     u:object_r:lethe_exec:s0
+/system/bin/lethe-apply-settings\.sh    u:object_r:lethe_exec:s0

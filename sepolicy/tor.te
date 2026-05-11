@@ -80,3 +80,7 @@ dontaudit tor proc:file { read getattr };
 # but doesn't get the fwmark optimization. Granting the write would mean
 # linking tor into the Android networking domain — out of scope for v1.0.
 dontaudit tor fwmarkd_socket:sock_file write;
+# Tor probes /data/local/tmp at startup to look for a temp location;
+# /data/local/tmp is shell_data_file. The probe failure is harmless —
+# Tor falls back to /tmp inside DataDirectory.
+dontaudit tor shell_data_file:dir search;

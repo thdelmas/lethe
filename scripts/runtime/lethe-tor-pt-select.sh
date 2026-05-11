@@ -19,7 +19,12 @@ BRIDGES_FILE="/data/lethe/tor/torrc.bridges"
 BRIDGES_DIR="/data/lethe/tor"
 
 mkdir -p "$BRIDGES_DIR"
-chown 9050:9050 "$BRIDGES_DIR" 2>/dev/null || true
+# DataDirectory ownership: init.lethe-tor.rc runs Tor as `user root` in
+# v1.0/v1.1, so the dir stays root-owned. The manifest's tor_uid: 9050
+# spec is aspirational — when Tor is moved to drop privileges (v1.2),
+# re-add the chown here AND change init.rc to `user lethe-tor` and grant
+# setuid/setgid in tor.te. Until then, chowning to 9050:9050 makes Tor
+# (as root) misalign with DataDirectory ownership and exit at startup.
 
 case "$PT" in
     obfs4)
@@ -68,5 +73,6 @@ EOF
         ;;
 esac
 
-chmod 644 "$BRIDGES_FILE"
-chown 9050:9050 "$BRIDGES_FILE" 2>/dev/null || true
+chmod 600 "$BRIDGES_FILE"
+# Ownership left as the init.rc-created root:root — see DataDirectory
+# note above. Re-introduce chown 9050:9050 when Tor drops privileges.

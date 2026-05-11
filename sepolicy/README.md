@@ -2,15 +2,17 @@
 
 Custom SELinux domain for LETHE init services.
 
-> **v1.0 status — partial (Tor only).** `tor.te` + `file_contexts` ship active.
-> `lethe.te.disabled-in-v1.0` and `file_contexts.disabled-in-v1.0` retain the
-> full LETHE labeling for v1.1 reference. The May-4 zygote-crash claim that
-> motivated the original strip was made under the same misframing as the
-> bisect (see project memory: v1.0.x boot regression resolved 2026-05-09);
-> may not have been a real bug. The narrow tor.te is conservative — it covers
-> only the Tor binary so we don't re-introduce whatever (if anything) was
-> wrong with the broader policy. v1.1 expands to cover burner, mac-rotate,
-> tor-rules, tor-pt, settings-applicator. Investigation: [issue #122].
+> **v1.1 status — Tor + LETHE userspace re-enabled.** `tor.te` + `lethe.te`
+> + `file_contexts` ship active. The 5 userspace scripts (burner-wipe,
+> mac-rotate, tor-rules, tor-pt-select, apply-settings) are labeled
+> `lethe_exec`; init either keeps them in init: via seclabel (privileged
+> scripts that need system_data_file write) or transitions them into the
+> `lethe:` domain via init_daemon_domain (network/IPC scripts that need
+> net_admin + binder). The original `lethe.te.disabled-in-v1.0` is kept
+> for diff reference — it contains rules for deferred services
+> (agent/ipfs/p2p/dead-man) plus the overbroad `set_prop(lethe,
+> system_prop)` that the v1.1 policy narrows to `persist_prop`.
+> Investigation that established this design: [issue #122].
 >
 > [issue #122]: https://github.com/thdelmas/lethe/issues/122
 

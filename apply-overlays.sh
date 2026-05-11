@@ -356,13 +356,13 @@ echo "[10/17] IPFS OTA — deferred to v1.1, not packaged."
 echo "[11/17] LETHE agent — deferred to v1.1, not packaged."
 
 # ── 12. SELinux policy ──
-# v1.0 partial: tor.te + file_contexts (Tor-only label) ship active so
-# /system/bin/tor can execute_no_trans cleanly. The broader lethe.te /
-# file_contexts.disabled-in-v1.0 stay disabled — they cover burner-wipe,
-# mac-rotate, tor-rules, tor-pt, settings; v1.1 re-enables those. See
-# sepolicy/README.md and project memory: v1.0.x boot regression resolved
-# 2026-05-09.
-echo "[12/17] Installing SELinux policy (Tor domain only; rest deferred to v1.1)..."
+# v1.1: tor.te + lethe.te + file_contexts ship active. The lethe domain
+# covers the 5 LETHE userspace scripts (burner-wipe, mac-rotate, tor-rules,
+# tor-pt-select, apply-settings) — two-domain split per sepolicy/lethe.te
+# header. The deferred-service rules (agent, ipfs, p2p, dead-man) in
+# lethe.te.disabled-in-v1.0 are NOT re-enabled here; they come with those
+# services when each ships.
+echo "[12/17] Installing SELinux policy (Tor + LETHE userspace)..."
 bash "$SCRIPT_DIR/scripts/install-sepolicy.sh" "$SCRIPT_DIR/sepolicy" "$CODENAME"
 
 # ── 13. Build fingerprint ──

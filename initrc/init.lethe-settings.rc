@@ -4,12 +4,15 @@
 # SystemServer is up. Uses a standalone script (inline shell breaks on
 # Android 7.1 init).
 
+# No seclabel — type_transition in sepolicy/lethe.te lands this in the
+# lethe: domain via the lethe_exec label on /system/bin/lethe-apply-settings.sh.
+# lethe domain has binder access to system_server (for `settings put global`)
+# + persist_prop write (to set persist.lethe.settings_applied=1).
 service lethe_settings /system/bin/lethe-apply-settings.sh
     class late_start
     user root
     group root
     oneshot
-    seclabel u:r:init:s0
 
 on property:sys.boot_completed=1
     start lethe_settings
