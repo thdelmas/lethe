@@ -94,9 +94,12 @@ build_in_docker() {
     if ! docker image inspect "$image" >/dev/null 2>&1; then
         docker build -t "$image" -f "$LETHE_DIR/Dockerfile.cm14-build" "$LETHE_DIR"
     fi
+    # /lethe must be rw — apply-overlays.sh chmods source files before
+    # staging them (and we don't want a chmod side-effect on the host
+    # to be the precondition for a build to succeed).
     docker run --rm \
         -v "$tree:/lineage" \
-        -v "$LETHE_DIR:/lethe:ro" \
+        -v "$LETHE_DIR:/lethe" \
         -v "$HOME/.ccache:/ccache" \
         "$image" \
         bash -c "cd /lineage && /lethe/apply-overlays.sh ${codename} && source build/envsetup.sh && lunch lineage_${codename}-user && mka bacon"
