@@ -246,6 +246,61 @@ features:
       show_decoy: false             # Optional: show factory setup screen instead
     overlay_file: "burner-mode.conf"
 
+  # Unified Auto-Wipe Policy (v1.2 redesign).
+  #
+  # Single user-facing surface for all wipe triggers. Each trigger maps to
+  # a persist.lethe.autowipe.* system property; the launcher's
+  # Settings → Auto-Wipe Policy page is the only place the user toggles them.
+  #
+  # All triggers except every_restart route through AutoWipePolicy.executeWipe,
+  # which calls DPM.wipeData via the LetheDeviceAdmin Device Owner. The
+  # system_server domain has the system_data_file neverallow exemption that
+  # the lethe domain hits with its legacy rm-sweep — so the new path wipes
+  # to completion instead of partial-failing under enforcing SELinux.
+  #
+  # every_restart is intentionally kept on the legacy post-fs-data shell
+  # path: DPM.wipeData reboots-to-recovery and would loop on every boot.
+  # When per-session crypto-erase (feat/per-session-keys) lands, this
+  # trigger becomes an O(1) keyring teardown and rejoins the chokepoint.
+  auto_wipe_policy:
+    description: "Unified user-configurable wipe triggers (panic, duress, DMS, failed-unlock, every-restart, USB)"
+    enabled_by_default: false       # User opts in per trigger via Settings
+    device_owner: true              # Requires LetheDeviceAdmin promoted at first boot
+    triggers:
+      failed_unlock:
+        default: false
+        threshold_default: 10       # iPhone-style — fail this many to wipe
+        delays_default: ""          # csv of minutes for lockout staircase; blank = none
+        property_prefix: "persist.lethe.autowipe.failed_unlock."
+      inactivity_dms:
+        default: false
+        property: "persist.lethe.autowipe.dms.enabled"
+      every_restart:
+        default: false              # Changed from v1.0/v1.1 where burner default was true
+        property: "persist.lethe.autowipe.every_restart.enabled"
+        mechanism: "post-fs-data shell (legacy)"
+      panic_press:
+        default: true
+        property: "persist.lethe.autowipe.panic.enabled"
+      duress_pin:
+        default: false
+        property: "persist.lethe.autowipe.duress.enabled"
+      usb_signal:
+        default: false
+        property: "persist.lethe.autowipe.usb_signal.enabled"
+    audit_log: "/persist/lethe/autowipe.log"
+    upgrade_migration:
+      enabled: true                 # AutoWipePolicy.migrateLegacyProps at first post-upgrade boot
+      mappings:
+        - from: "persist.lethe.burner.enabled"
+          to: "persist.lethe.autowipe.every_restart.enabled"
+        - from: "persist.lethe.burner.trigger.panic_button"
+          to: "persist.lethe.autowipe.panic.enabled"
+        - from: "persist.lethe.deadman.duress_pin.enabled"
+          to: "persist.lethe.autowipe.duress.enabled"
+        - from: "persist.lethe.deadman.enabled"
+          to: "persist.lethe.autowipe.dms.enabled"
+
   dead_mans_switch:
     description: "If you stop checking in, the device assumes the worst"
     enabled_by_default: false       # First-boot wizard asks — never silently armed

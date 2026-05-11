@@ -36,6 +36,7 @@ with zero authentication.~~
 
 Items below are tracked individually but called out here so they don't slip:
 
+- **Unified Auto-Wipe Policy** (v1.2) — DELIVERED. LetheDeviceAdmin promoted to Device Owner at first boot; `AutoWipePolicy.executeWipe` is now the single chokepoint for panic / duress / DMS / failed-unlock / USB triggers; uses `DPM.wipeData` so the `system_data_file` neverallow no longer partial-fails the wipe. iPhone-style "N failed unlocks → wipe" wired through stock `setMaximumFailedPasswordsForWipe`. Every-restart trigger stays on the legacy post-fs-data shell path (DPM would reboot-loop) until per-session crypto-erase ships.
 - **Per-session encryption keys** (was P2) — issue [#101](https://github.com/OSmosis-org/lethe/issues/101), design at [journalist-audit/per-session-keys.md](journalist-audit/per-session-keys.md). Foundational — burner-mode claim depends on it.
 - **USB data lockout when locked** — issue [#99](https://github.com/OSmosis-org/lethe/issues/99), design at [journalist-audit/usb-data-lockout.md](journalist-audit/usb-data-lockout.md). Cellebrite/GrayKey defense.
 - **Remote DMS / wipe channel** — issue [#103](https://github.com/OSmosis-org/lethe/issues/103), design at [journalist-audit/remote-dms-channel.md](journalist-audit/remote-dms-channel.md). Closes competitive-gap §3.
