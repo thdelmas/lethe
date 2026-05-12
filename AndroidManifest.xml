@@ -33,7 +33,7 @@
 
         <!-- Main activity — WebView wrapper -->
         <activity
-            android:name=".LetheActivity"
+            android:name="org.osmosis.lethe.LetheActivity"
             android:label="LETHE"
             android:launchMode="singleTask"
             android:screenOrientation="portrait"
@@ -46,7 +46,7 @@
 
         <!-- Voice assist handler — long-press home triggers LETHE -->
         <activity
-            android:name=".LetheAssistActivity"
+            android:name="org.osmosis.lethe.LetheAssistActivity"
             android:label="LETHE"
             android:launchMode="singleTask"
             android:theme="@android:style/Theme.Translucent.NoTitleBar"
@@ -67,13 +67,13 @@
 
         <!-- Persistent notification service — always-on quick access -->
         <service
-            android:name=".LetheNotificationService"
+            android:name="org.osmosis.lethe.LetheNotificationService"
             android:exported="false">
         </service>
 
         <!-- Quick Settings tile -->
         <service
-            android:name=".LetheTileService"
+            android:name="org.osmosis.lethe.LetheTileService"
             android:label="LETHE"
             android:icon="@mipmap/ic_lethe"
             android:permission="android.permission.BIND_QUICK_SETTINGS_TILE"
@@ -85,7 +85,7 @@
 
         <!-- Boot receiver — start services on boot -->
         <receiver
-            android:name=".BootReceiver"
+            android:name="org.osmosis.lethe.BootReceiver"
             android:exported="true">
             <intent-filter>
                 <action android:name="android.intent.action.BOOT_COMPLETED" />
@@ -94,7 +94,7 @@
 
         <!-- Dead man's switch check-in receiver -->
         <receiver
-            android:name=".CheckinReceiver"
+            android:name="org.osmosis.lethe.CheckinReceiver"
             android:exported="true">
             <intent-filter>
                 <action android:name="lethe.intent.CHECKIN_DUE" />
@@ -103,7 +103,7 @@
 
         <!-- DMS Stage 2 escalation — routes to AutoWipePolicy -->
         <receiver
-            android:name=".DmsEscalateReceiver"
+            android:name="org.osmosis.lethe.DmsEscalateReceiver"
             android:exported="true">
             <intent-filter>
                 <action android:name="lethe.intent.DMS_ESCALATE_STAGE2" />
@@ -112,14 +112,14 @@
 
         <!-- Check-in passphrase dialog -->
         <activity
-            android:name=".CheckinDialogActivity"
+            android:name="org.osmosis.lethe.CheckinDialogActivity"
             android:theme="@android:style/Theme.DeviceDefault.Dialog"
             android:excludeFromRecents="true"
             android:exported="false" />
 
         <!-- DMS settings — passphrase-protected disable -->
         <activity
-            android:name=".DeadmanSettingsActivity"
+            android:name="org.osmosis.lethe.DeadmanSettingsActivity"
             android:theme="@android:style/Theme.DeviceDefault.Dialog"
             android:excludeFromRecents="true"
             android:exported="true">
@@ -131,19 +131,19 @@
 
         <!-- Panic press monitor (5x power = wipe) -->
         <service
-            android:name=".PanicPressService"
+            android:name="org.osmosis.lethe.PanicPressService"
             android:exported="false" />
 
         <!-- BFU auto-reboot (lethe#100): return to BFU after inactivity -->
         <service
-            android:name=".BfuRebootService"
+            android:name="org.osmosis.lethe.BfuRebootService"
             android:exported="false" />
 
         <!-- System-wide EXIF strip on share (lethe#109).
              Registers a high-priority handler for image/* and video/*
              ACTION_SEND so it appears at the top of the share sheet. -->
         <activity
-            android:name=".ShareScrubberActivity"
+            android:name="org.osmosis.lethe.ShareScrubberActivity"
             android:label="Strip metadata"
             android:theme="@android:style/Theme.DeviceDefault.Dialog"
             android:excludeFromRecents="true"
@@ -172,13 +172,13 @@
 
         <!-- Mesh signaling (BLE heartbeat for dead man's switch) -->
         <service
-            android:name=".LetheMeshService"
+            android:name="org.osmosis.lethe.LetheMeshService"
             android:exported="false"
             android:foregroundServiceType="connectedDevice" />
 
         <!-- Duress PIN receiver (silent wipe on fake unlock) -->
         <receiver
-            android:name=".DuressPinReceiver"
+            android:name="org.osmosis.lethe.DuressPinReceiver"
             android:exported="true">
             <intent-filter>
                 <action android:name="lethe.intent.DURESS_UNLOCK" />
@@ -187,7 +187,7 @@
 
         <!-- OTA update notification receiver -->
         <receiver
-            android:name=".OtaReceiver"
+            android:name="org.osmosis.lethe.OtaReceiver"
             android:exported="true">
             <intent-filter>
                 <action android:name="lethe.intent.OTA_AVAILABLE" />
@@ -198,7 +198,7 @@
              Unlocks DPM.wipeData() — the working wipe path — and the
              stock setMaximumFailedPasswordsForWipe API. -->
         <receiver
-            android:name=".LetheDeviceAdmin"
+            android:name="org.osmosis.lethe.LetheDeviceAdmin"
             android:permission="android.permission.BIND_DEVICE_ADMIN"
             android:exported="true">
             <meta-data

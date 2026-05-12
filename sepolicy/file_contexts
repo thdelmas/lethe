@@ -21,3 +21,9 @@
 # One-shot at first boot; binders into DevicePolicyManagerService to promote
 # LetheDeviceAdmin. Runs in the lethe domain — already has system_server:binder.
 /system/bin/lethe-set-device-owner\.sh  u:object_r:lethe_exec:s0
+
+# ── Agent launcher (v1.2) ──
+# Wraps the Rust backend; idles when bender/ isn't packaged. Without this
+# lethe_exec label the init service fail-loops on { entrypoint } AVC denials
+# because init.lethe-agent.rc puts the service in the lethe domain.
+/system/bin/lethe-agent-start\.sh       u:object_r:lethe_exec:s0

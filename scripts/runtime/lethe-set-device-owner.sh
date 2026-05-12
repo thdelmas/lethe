@@ -24,19 +24,26 @@ if [ "$(getprop "$DONE_PROP")" = "true" ]; then
     exit 0
 fi
 
-# Wait briefly for PackageManager to settle. Repeated polling is cheap;
-# the alternative (firing too early) gives "Unknown admin" errors.
-for i in 1 2 3 4 5 6 7 8 9 10; do
+# Wait for PackageManager to settle. The init service fires on
+# sys.boot_completed=1, but on Note II / Exynos 4412 first-boot after a
+# wipe PM keeps enumerating priv-apps for ~30-60s after that. Empirically
+# 10s was too short — script bailed before pm path could see Lethe.apk
+# even though BootReceiver fired moments later (see #143 verification
+# 2026-05-12). 60s is comfortable with slack for slower hardware.
+i=0
+while [ $i -lt 60 ]; do
     if pm path org.osmosis.lethe.agent >/dev/null 2>&1; then
         break
     fi
     sleep 1
+    i=$((i + 1))
 done
 
 if ! pm path org.osmosis.lethe.agent >/dev/null 2>&1; then
-    log -p e -t "$TAG" "LETHE package not installed; cannot set Device Owner."
+    log -p e -t "$TAG" "LETHE package not installed after ${i}s; cannot set Device Owner."
     exit 1
 fi
+log -t "$TAG" "PackageManager found LETHE after ${i}s."
 
 # `dpm set-device-owner` exits 0 on success, non-zero with a clear message
 # otherwise (e.g. "Not allowed to set the device owner because there are
