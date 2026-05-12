@@ -25,13 +25,16 @@ if [ "$(getprop "$DONE_PROP")" = "true" ]; then
 fi
 
 # Wait for PackageManager to settle. The init service fires on
-# sys.boot_completed=1, but on Note II / Exynos 4412 first-boot after a
-# wipe PM keeps enumerating priv-apps for ~30-60s after that. Empirically
-# 10s was too short — script bailed before pm path could see Lethe.apk
-# even though BootReceiver fired moments later (see #143 verification
-# 2026-05-12). 60s is comfortable with slack for slower hardware.
+# sys.boot_completed=1, but PM keeps enumerating priv-apps for some time
+# after that — on Note II / Exynos 4412 first-boot after a wipe we've
+# seen >60s, sometimes much longer when the device is also doing CPU-heavy
+# first-boot work (dexopt, AccountManager init, etc). 300s is the safety
+# bound; the loop exits as soon as `pm path` succeeds.
+#
+# History: 10s → too short (#143 first verify, 2026-05-12 14:22Z); 60s →
+# still too short on slower first-boots (#143 third verify, 18:56Z).
 i=0
-while [ $i -lt 60 ]; do
+while [ $i -lt 300 ]; do
     if pm path org.osmosis.lethe.agent >/dev/null 2>&1; then
         break
     fi

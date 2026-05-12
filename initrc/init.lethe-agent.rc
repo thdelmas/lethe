@@ -18,6 +18,11 @@ service lethe_set_owner /system/bin/lethe-set-device-owner.sh
     group root
     oneshot
     disabled
+    # Required: without seclabel init tries to exec_no_trans into its own
+    # domain, which lacks `lethe_exec:file execute_no_trans`. Same pattern
+    # as lethe-agent above — init type_transitions into the lethe domain
+    # (which already has system_server:binder for the dpm call).
+    seclabel u:r:lethe:s0
 
 on property:sys.boot_completed=1
     start lethe-agent
