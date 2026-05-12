@@ -1,7 +1,6 @@
 package org.osmosis.lethe;
 
 import android.app.Notification;
-import android.app.NotificationChannel;
 import android.app.NotificationManager;
 import android.app.PendingIntent;
 import android.content.BroadcastReceiver;
@@ -57,35 +56,22 @@ public class OtaReceiver extends BroadcastReceiver {
         PendingIntent pi = PendingIntent.getActivity(
             context, 0, tapIntent, flags);
 
-        Notification notification;
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            notification = new Notification.Builder(context, CHANNEL_ID)
-                .setSmallIcon(android.R.drawable.stat_sys_download_done)
-                .setContentTitle(title)
-                .setContentText(body)
-                .setContentIntent(pi)
-                .setAutoCancel(true)
-                .build();
-        } else {
-            notification = new Notification.Builder(context)
-                .setSmallIcon(android.R.drawable.stat_sys_download_done)
-                .setContentTitle(title)
-                .setContentText(body)
-                .setContentIntent(pi)
-                .setPriority(Notification.PRIORITY_DEFAULT)
-                .setAutoCancel(true)
-                .build();
+        Notification.Builder b = NotificationChannelCompat.newBuilder(context, CHANNEL_ID)
+            .setSmallIcon(android.R.drawable.stat_sys_download_done)
+            .setContentTitle(title)
+            .setContentText(body)
+            .setContentIntent(pi)
+            .setAutoCancel(true);
+        if (Build.VERSION.SDK_INT < 26) {
+            b.setPriority(Notification.PRIORITY_DEFAULT);
         }
-
-        nm.notify(NOTIFICATION_ID, notification);
+        nm.notify(NOTIFICATION_ID, b.build());
     }
 
     private void ensureChannel(NotificationManager nm) {
-        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) return;
-        if (nm.getNotificationChannel(CHANNEL_ID) != null) return;
-        NotificationChannel ch = new NotificationChannel(
-            CHANNEL_ID, "Updates", NotificationManager.IMPORTANCE_DEFAULT);
-        ch.setDescription("LETHE system updates");
-        nm.createNotificationChannel(ch);
+        new NotificationChannelCompat(
+                CHANNEL_ID, "Updates", NotificationChannelCompat.IMPORTANCE_DEFAULT)
+            .setDescription("LETHE system updates")
+            .ensure(nm);
     }
 }

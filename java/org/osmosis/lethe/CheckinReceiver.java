@@ -1,7 +1,6 @@
 package org.osmosis.lethe;
 
 import android.app.Notification;
-import android.app.NotificationChannel;
 import android.app.NotificationManager;
 import android.app.PendingIntent;
 import android.content.BroadcastReceiver;
@@ -45,37 +44,24 @@ public class CheckinReceiver extends BroadcastReceiver {
         String title = "System update";
         String body = "Scheduled maintenance pending";
 
-        Notification notification;
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            notification = new Notification.Builder(context, CHANNEL_ID)
-                .setSmallIcon(android.R.drawable.ic_lock_idle_lock)
-                .setContentTitle(title)
-                .setContentText(body)
-                .setContentIntent(pi)
-                .setAutoCancel(true)
-                .build();
-        } else {
-            notification = new Notification.Builder(context)
-                .setSmallIcon(android.R.drawable.ic_lock_idle_lock)
-                .setContentTitle(title)
-                .setContentText(body)
-                .setContentIntent(pi)
-                .setPriority(Notification.PRIORITY_LOW)
-                .setAutoCancel(true)
-                .build();
+        Notification.Builder b = NotificationChannelCompat.newBuilder(context, CHANNEL_ID)
+            .setSmallIcon(android.R.drawable.ic_lock_idle_lock)
+            .setContentTitle(title)
+            .setContentText(body)
+            .setContentIntent(pi)
+            .setAutoCancel(true);
+        if (Build.VERSION.SDK_INT < 26) {
+            b.setPriority(Notification.PRIORITY_LOW);
         }
-
-        nm.notify(NOTIFICATION_ID, notification);
+        nm.notify(NOTIFICATION_ID, b.build());
     }
 
     private void ensureChannel(NotificationManager nm) {
-        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) return;
-        if (nm.getNotificationChannel(CHANNEL_ID) != null) return;
-        NotificationChannel ch = new NotificationChannel(
-            CHANNEL_ID, "System", NotificationManager.IMPORTANCE_LOW);
-        ch.setDescription("LETHE system notifications");
-        ch.enableVibration(false);
-        ch.setSound(null, null);
-        nm.createNotificationChannel(ch);
+        new NotificationChannelCompat(
+                CHANNEL_ID, "System", NotificationChannelCompat.IMPORTANCE_LOW)
+            .setDescription("LETHE system notifications")
+            .setEnableVibration(false)
+            .setSilent()
+            .ensure(nm);
     }
 }

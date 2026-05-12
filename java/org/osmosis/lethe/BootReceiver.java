@@ -1,7 +1,6 @@
 package org.osmosis.lethe;
 
 import android.app.Notification;
-import android.app.NotificationChannel;
 import android.app.NotificationManager;
 import android.content.BroadcastReceiver;
 import android.content.Context;
@@ -44,34 +43,22 @@ public class BootReceiver extends BroadcastReceiver {
 
         // Start panic press monitor if enabled
         if (LetheConfig.isPanicButtonEnabled()) {
-            Intent svc = new Intent(context, PanicPressService.class);
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                context.startForegroundService(svc);
-            } else {
-                context.startService(svc);
-            }
+            NotificationChannelCompat.startServiceCompat(context,
+                new Intent(context, PanicPressService.class));
             Log.i(TAG, "Panic press monitor started");
         }
 
         // Start mesh BLE signaling if enabled
         if (LetheConfig.isMeshEnabled()) {
-            Intent mesh = new Intent(context, LetheMeshService.class);
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                context.startForegroundService(mesh);
-            } else {
-                context.startService(mesh);
-            }
+            NotificationChannelCompat.startServiceCompat(context,
+                new Intent(context, LetheMeshService.class));
             Log.i(TAG, "Mesh service started");
         }
 
         // Start BFU auto-reboot monitor if enabled (lethe#100)
         if (LetheConfig.isBfuEnabled()) {
-            Intent bfu = new Intent(context, BfuRebootService.class);
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                context.startForegroundService(bfu);
-            } else {
-                context.startService(bfu);
-            }
+            NotificationChannelCompat.startServiceCompat(context,
+                new Intent(context, BfuRebootService.class));
             Log.i(TAG, "BFU auto-reboot monitor started");
         }
 
@@ -87,40 +74,22 @@ public class BootReceiver extends BroadcastReceiver {
             context.getSystemService(Context.NOTIFICATION_SERVICE);
         if (nm == null) return;
 
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            if (nm.getNotificationChannel(CHANNEL_ID) == null) {
-                NotificationChannel ch = new NotificationChannel(
-                    CHANNEL_ID, "Burner mode",
-                    NotificationManager.IMPORTANCE_LOW);
-                ch.setDescription("Active when burner mode is on");
-                ch.enableVibration(false);
-                ch.setSound(null, null);
-                nm.createNotificationChannel(ch);
-            }
+        new NotificationChannelCompat(
+                CHANNEL_ID, "Burner mode", NotificationChannelCompat.IMPORTANCE_LOW)
+            .setDescription("Active when burner mode is on")
+            .setEnableVibration(false)
+            .setSilent()
+            .ensure(nm);
+
+        Notification.Builder b = NotificationChannelCompat.newBuilder(context, CHANNEL_ID)
+            .setSmallIcon(android.R.drawable.ic_dialog_alert)
+            .setContentTitle("Burner mode active")
+            .setContentText("Photos, files, and data are erased on reboot")
+            .setOngoing(true);
+        if (Build.VERSION.SDK_INT < 26) {
+            b.setPriority(Notification.PRIORITY_LOW);
         }
-
-        Notification notification;
-        String title = "Burner mode active";
-        String body = "Photos, files, and data are erased on reboot";
-
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            notification = new Notification.Builder(context, CHANNEL_ID)
-                .setSmallIcon(android.R.drawable.ic_dialog_alert)
-                .setContentTitle(title)
-                .setContentText(body)
-                .setOngoing(true)
-                .build();
-        } else {
-            notification = new Notification.Builder(context)
-                .setSmallIcon(android.R.drawable.ic_dialog_alert)
-                .setContentTitle(title)
-                .setContentText(body)
-                .setPriority(Notification.PRIORITY_LOW)
-                .setOngoing(true)
-                .build();
-        }
-
-        nm.notify(BURNER_NOTIFICATION_ID, notification);
+        nm.notify(BURNER_NOTIFICATION_ID, b.build());
         Log.i(TAG, "Burner mode notification shown");
     }
 }

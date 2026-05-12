@@ -334,11 +334,8 @@ public class LetheActivity extends Activity {
                 Intent svc = new Intent(LetheActivity.this,
                     LetheMeshService.class);
                 if ("true".equals(value)) {
-                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                        startForegroundService(svc);
-                    } else {
-                        startService(svc);
-                    }
+                    NotificationChannelCompat.startServiceCompat(
+                        LetheActivity.this, svc);
                 } else {
                     stopService(svc);
                 }
@@ -514,8 +511,9 @@ public class LetheActivity extends Activity {
                     }
                     case "toggle_flashlight":
                         if (Build.VERSION.SDK_INT >= 23) {
-                            var cm = (android.hardware.camera2.CameraManager)
-                                getSystemService(Context.CAMERA_SERVICE);
+                            android.hardware.camera2.CameraManager cm =
+                                (android.hardware.camera2.CameraManager)
+                                    getSystemService(Context.CAMERA_SERVICE);
                             cm.setTorchMode(cm.getCameraIdList()[0], true);
                         }
                         break;

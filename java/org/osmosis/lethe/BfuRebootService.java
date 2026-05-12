@@ -1,7 +1,6 @@
 package org.osmosis.lethe;
 
 import android.app.Notification;
-import android.app.NotificationChannel;
 import android.app.NotificationManager;
 import android.app.Service;
 import android.content.BroadcastReceiver;
@@ -168,24 +167,19 @@ public class BfuRebootService extends Service {
     private Notification buildNotification() {
         NotificationManager nm = (NotificationManager)
             getSystemService(NOTIFICATION_SERVICE);
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O && nm != null) {
-            if (nm.getNotificationChannel(CHANNEL_ID) == null) {
-                NotificationChannel ch = new NotificationChannel(
-                    CHANNEL_ID, "Auto-reboot",
-                    NotificationManager.IMPORTANCE_MIN);
-                ch.setDescription("Periodic reboot to evict at-rest keys");
-                ch.enableVibration(false);
-                ch.setSound(null, null);
-                ch.setShowBadge(false);
-                nm.createNotificationChannel(ch);
-            }
-            return new Notification.Builder(this, CHANNEL_ID)
-                .setSmallIcon(android.R.drawable.ic_lock_idle_lock)
-                .build();
+        new NotificationChannelCompat(
+                CHANNEL_ID, "Auto-reboot", NotificationChannelCompat.IMPORTANCE_MIN)
+            .setDescription("Periodic reboot to evict at-rest keys")
+            .setEnableVibration(false)
+            .setSilent()
+            .setShowBadge(false)
+            .ensure(nm);
+
+        Notification.Builder b = NotificationChannelCompat.newBuilder(this, CHANNEL_ID)
+            .setSmallIcon(android.R.drawable.ic_lock_idle_lock);
+        if (Build.VERSION.SDK_INT < 26) {
+            b.setPriority(Notification.PRIORITY_MIN);
         }
-        return new Notification.Builder(this)
-            .setSmallIcon(android.R.drawable.ic_lock_idle_lock)
-            .setPriority(Notification.PRIORITY_MIN)
-            .build();
+        return b.build();
     }
 }

@@ -1,7 +1,6 @@
 package org.osmosis.lethe;
 
 import android.app.Notification;
-import android.app.NotificationChannel;
 import android.app.NotificationManager;
 import android.app.Service;
 import android.bluetooth.BluetoothAdapter;
@@ -324,20 +323,17 @@ public class LetheMeshService extends Service {
     /* ── Foreground notification ── */
 
     private void startForegroundCompat() {
-        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) return;
+        if (Build.VERSION.SDK_INT < 26) return;
         NotificationManager nm = (NotificationManager)
             getSystemService(NOTIFICATION_SERVICE);
         if (nm == null) return;
-        if (nm.getNotificationChannel(CHANNEL_ID) == null) {
-            NotificationChannel ch = new NotificationChannel(
-                CHANNEL_ID, "Mesh signaling",
-                NotificationManager.IMPORTANCE_MIN);
-            ch.setDescription("Active when LETHE mesh broadcasts heartbeats");
-            ch.enableVibration(false);
-            ch.setSound(null, null);
-            nm.createNotificationChannel(ch);
-        }
-        Notification n = new Notification.Builder(this, CHANNEL_ID)
+        new NotificationChannelCompat(
+                CHANNEL_ID, "Mesh signaling", NotificationChannelCompat.IMPORTANCE_MIN)
+            .setDescription("Active when LETHE mesh broadcasts heartbeats")
+            .setEnableVibration(false)
+            .setSilent()
+            .ensure(nm);
+        Notification n = NotificationChannelCompat.newBuilder(this, CHANNEL_ID)
             .setSmallIcon(android.R.drawable.stat_sys_data_bluetooth)
             .setContentTitle("LETHE mesh active")
             .setContentText("Broadcasting heartbeat")

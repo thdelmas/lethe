@@ -1,7 +1,6 @@
 package org.osmosis.lethe;
 
 import android.app.Notification;
-import android.app.NotificationChannel;
 import android.app.NotificationManager;
 import android.app.PendingIntent;
 import android.app.Service;
@@ -89,10 +88,22 @@ public class PanicPressService extends Service {
         IntentFilter cancelFilter = new IntentFilter(ACTION_CANCEL_WIPE);
         // Cancel intent is fired by the user via the lockscreen notification,
         // not exported to other apps.
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            registerReceiver(cancelReceiver, cancelFilter,
-                Context.RECEIVER_NOT_EXPORTED);
-        } else {
+        // The 3-arg registerReceiver(receiver, filter, int) and the
+        // RECEIVER_NOT_EXPORTED constant (0x4) are both API 33+. On cm-14.1's
+        // API-25 framework.jar neither symbol resolves, so call reflectively
+        // when present and fall back to the 2-arg form otherwise.
+        boolean registered = false;
+        if (Build.VERSION.SDK_INT >= 33) {
+            try {
+                Context.class.getMethod("registerReceiver",
+                        BroadcastReceiver.class, IntentFilter.class, int.class)
+                    .invoke(this, cancelReceiver, cancelFilter, 0x4);
+                registered = true;
+            } catch (ReflectiveOperationException e) {
+                Log.w(TAG, "registerReceiver(flags) failed; using 2-arg form", e);
+            }
+        }
+        if (!registered) {
             registerReceiver(cancelReceiver, cancelFilter);
         }
     }
@@ -169,11 +180,9 @@ public class PanicPressService extends Service {
         PendingIntent cancelPi = PendingIntent.getBroadcast(
             this, 0, cancel, flags);
 
-        Notification.Builder b;
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            b = new Notification.Builder(this, CHANNEL_ID_ALERT);
-        } else {
-            b = new Notification.Builder(this).setPriority(Notification.PRIORITY_MAX);
+        Notification.Builder b = NotificationChannelCompat.newBuilder(this, CHANNEL_ID_ALERT);
+        if (Build.VERSION.SDK_INT < 26) {
+            b.setPriority(Notification.PRIORITY_MAX);
         }
         b.setSmallIcon(android.R.drawable.ic_lock_idle_lock)
          .setContentTitle("Panic wipe in " + cooloffSeconds + "s")
@@ -202,39 +211,30 @@ public class PanicPressService extends Service {
     private Notification buildIdleNotification() {
         NotificationManager nm = (NotificationManager)
             getSystemService(NOTIFICATION_SERVICE);
+        if (nm != null) ensureChannels(nm);
 
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O && nm != null) {
-            ensureChannels(nm);
-            return new Notification.Builder(this, CHANNEL_ID)
-                .setSmallIcon(android.R.drawable.ic_lock_idle_lock)
-                .build();
+        Notification.Builder b = NotificationChannelCompat.newBuilder(this, CHANNEL_ID)
+            .setSmallIcon(android.R.drawable.ic_lock_idle_lock);
+        if (Build.VERSION.SDK_INT < 26) {
+            b.setPriority(Notification.PRIORITY_MIN);
         }
-        return new Notification.Builder(this)
-            .setSmallIcon(android.R.drawable.ic_lock_idle_lock)
-            .setPriority(Notification.PRIORITY_MIN)
-            .build();
+        return b.build();
     }
 
     private void ensureChannels(NotificationManager nm) {
-        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) return;
-        if (nm.getNotificationChannel(CHANNEL_ID) == null) {
-            NotificationChannel ch = new NotificationChannel(
-                CHANNEL_ID, "Security", NotificationManager.IMPORTANCE_MIN);
-            ch.setDescription("Security monitoring");
-            ch.enableVibration(false);
-            ch.setSound(null, null);
-            ch.setShowBadge(false);
-            nm.createNotificationChannel(ch);
-        }
-        if (nm.getNotificationChannel(CHANNEL_ID_ALERT) == null) {
-            NotificationChannel ch = new NotificationChannel(
-                CHANNEL_ID_ALERT, "Panic countdown",
-                NotificationManager.IMPORTANCE_HIGH);
-            ch.setDescription("Cancel-window before panic wipe");
-            ch.enableVibration(true);
-            ch.setLockscreenVisibility(Notification.VISIBILITY_PUBLIC);
-            nm.createNotificationChannel(ch);
-        }
+        new NotificationChannelCompat(
+                CHANNEL_ID, "Security", NotificationChannelCompat.IMPORTANCE_MIN)
+            .setDescription("Security monitoring")
+            .setEnableVibration(false)
+            .setSilent()
+            .setShowBadge(false)
+            .ensure(nm);
+        new NotificationChannelCompat(
+                CHANNEL_ID_ALERT, "Panic countdown", NotificationChannelCompat.IMPORTANCE_HIGH)
+            .setDescription("Cancel-window before panic wipe")
+            .setEnableVibration(true)
+            .setLockscreenVisibility(Notification.VISIBILITY_PUBLIC)
+            .ensure(nm);
     }
 
     private void vibrate(long ms) {
