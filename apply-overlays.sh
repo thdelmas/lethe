@@ -348,12 +348,84 @@ fi
 # are packaged into the v1.0 system image.
 echo "[10/17] IPFS OTA — deferred to v1.1, not packaged."
 
-# ── 11. LETHE agent ──
-# Deferred to v1.1: the Rust backend + WebView wrapper system_app needs
-# proper Android.mk integration for the system_app + native binary, plus
-# end-to-end agent validation that did not fit in v1.0. Source lives in
-# the repo; no artifacts are packaged into the v1.0 system image.
-echo "[11/17] LETHE agent — deferred to v1.1, not packaged."
+# ── 11. LETHE agent (system app + init services) ──
+# v1.2 ships the Java system app — AutoWipePolicy, LetheDeviceAdmin (Device
+# Owner), panic-press service, DMS receivers, share-scrubber, OTA receiver —
+# plus the lethe_set_owner one-shot that promotes LetheDeviceAdmin via
+# `dpm set-device-owner` at first boot. The Rust agent backend (bender/) is
+# NOT bundled here; lethe-agent-start.sh idles harmlessly if the binary is
+# absent, so init.lethe-agent.rc can ship as-is.
+echo "[11/17] Installing LETHE system app and init services..."
+
+LETHE_APP_SRC="$SCRIPT_DIR/java"
+LETHE_APP_DEST="packages/apps/Lethe"
+LETHE_RES_SRC="$LETHE_APP_SRC/org/osmosis/lethe/res"
+
+if [ -d "$LETHE_APP_SRC/org/osmosis/lethe" ] && [ -f "$SCRIPT_DIR/AndroidManifest.xml" ]; then
+    # Re-runs of apply-overlays.sh shouldn't accumulate stale staged files.
+    rm -rf "$LETHE_APP_DEST"
+    mkdir -p "$LETHE_APP_DEST/java/org/osmosis/lethe" "$LETHE_APP_DEST/res/xml"
+
+    cp "$LETHE_APP_SRC/org/osmosis/lethe"/*.java "$LETHE_APP_DEST/java/org/osmosis/lethe/"
+    cp "$SCRIPT_DIR/AndroidManifest.xml"           "$LETHE_APP_DEST/AndroidManifest.xml"
+    cp "$LETHE_RES_SRC/xml/device_admin.xml"       "$LETHE_APP_DEST/res/xml/device_admin.xml"
+
+    # Launcher icon — AndroidManifest references @mipmap/ic_lethe; AAPT fails
+    # the build if it's missing, so this is a hard dep, not a nice-to-have.
+    if [ -f "$OVERLAY_DIR/mascot.png" ] && command -v python3 >/dev/null 2>&1; then
+        python3 "$SCRIPT_DIR/scripts/generate-ic-lethe.py" \
+            "$OVERLAY_DIR/mascot.png" "$LETHE_APP_DEST/res" \
+            || { echo "  -> ERROR: launcher icon generation failed" >&2; exit 1; }
+    else
+        echo "  -> ERROR: mascot.png or python3 missing; cannot build Lethe.apk" >&2
+        exit 1
+    fi
+
+    # LOCAL_PRIVATE_PLATFORM_APIS is silently ignored on cm-14.1 / Android 7.1
+    # (omitting LOCAL_SDK_VERSION is enough there) and required on Android 9+
+    # to keep DPM hidden methods + sharedUserId=android.uid.system reachable.
+    cat > "$LETHE_APP_DEST/Android.mk" <<'LETHE_MK'
+LOCAL_PATH := $(call my-dir)
+include $(CLEAR_VARS)
+
+LOCAL_MODULE_TAGS := optional
+LOCAL_PACKAGE_NAME := Lethe
+LOCAL_CERTIFICATE := platform
+LOCAL_PRIVILEGED_MODULE := true
+LOCAL_PRIVATE_PLATFORM_APIS := true
+
+LOCAL_SRC_FILES := $(call all-java-files-under, java)
+LOCAL_RESOURCE_DIR := $(LOCAL_PATH)/res
+LOCAL_MANIFEST_FILE := AndroidManifest.xml
+
+LOCAL_PROGUARD_ENABLED := disabled
+LOCAL_DEX_PREOPT := false
+
+include $(BUILD_PACKAGE)
+LETHE_MK
+
+    LETHE_PACKAGE_LINE="PRODUCT_PACKAGES += Lethe"
+    if [ -n "$PROPS_TARGET" ] && ! grep -qF "$LETHE_PACKAGE_LINE" "$PROPS_TARGET" 2>/dev/null; then
+        {
+            echo ""
+            echo "# Lethe system app (org.osmosis.lethe.agent) — v1.2 Auto-Wipe Policy."
+            echo "$LETHE_PACKAGE_LINE"
+        } >> "$PROPS_TARGET"
+        echo "  -> Registered Lethe in $PROPS_TARGET."
+    fi
+
+    echo "  -> System app staged at $LETHE_APP_DEST."
+else
+    echo "  -> ERROR: java/ sources or AndroidManifest.xml missing; cannot package agent" >&2
+    exit 1
+fi
+
+chmod 755 "$SCRIPT_DIR/scripts/runtime/lethe-set-device-owner.sh" \
+          "$SCRIPT_DIR/scripts/runtime/lethe-agent-start.sh"
+add_to_system "$SCRIPT_DIR/scripts/runtime/lethe-set-device-owner.sh" "system/bin/lethe-set-device-owner.sh"
+add_to_system "$SCRIPT_DIR/scripts/runtime/lethe-agent-start.sh"      "system/bin/lethe-agent-start.sh"
+install_initrc init.lethe-agent.rc agent
+echo "  -> LETHE agent packaging complete."
 
 # ── 12. SELinux policy ──
 # v1.1: tor.te + lethe.te + file_contexts ship active. The lethe domain
