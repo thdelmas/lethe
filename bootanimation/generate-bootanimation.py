@@ -68,9 +68,7 @@ def generate_frames(source_path):
     for i in range(BREATH_FRAMES):
         t = i / BREATH_FRAMES
         # Sinusoidal breathing: oscillates around MAX_BRIGHTNESS
-        brightness = MAX_BRIGHTNESS + BREATH_AMPLITUDE * math.sin(
-            2 * math.pi * t
-        )
+        brightness = MAX_BRIGHTNESS + BREATH_AMPLITUDE * math.sin(2 * math.pi * t)
         frames_part1.append(make_dimmed(source, brightness))
 
     return frames_part0, frames_part1
@@ -122,9 +120,7 @@ def write_bootanimation_zip(frames_part0, frames_part1, output_path):
 
 
 def main():
-    parser = argparse.ArgumentParser(
-        description="Generate Lethe boot animation"
-    )
+    parser = argparse.ArgumentParser(description="Generate Lethe boot animation")
     parser.add_argument(
         "--source",
         type=Path,
@@ -147,9 +143,7 @@ def main():
     print(
         f"Animation: {FADEIN_FRAMES} fade-in + {BREATH_FRAMES} breathing loop @ {FPS} fps"
     )
-    print(
-        f"Brightness: {MAX_BRIGHTNESS:.0%} hold, ±{BREATH_AMPLITUDE:.0%} pulse"
-    )
+    print(f"Brightness: {MAX_BRIGHTNESS:.0%} hold, ±{BREATH_AMPLITUDE:.0%} pulse")
 
     frames_part0, frames_part1 = generate_frames(args.source)
     write_bootanimation_zip(frames_part0, frames_part1, args.output)

@@ -143,9 +143,11 @@ for channel_file in "$CHANNELS_DIR"/*.json; do
                 cp "$CONTENT_FILE" "$TARGET_PATH"
                 chmod 600 "$TARGET_PATH"
                 # Reload nftables if available
-                nft -f "$TARGET_PATH" 2>/dev/null && \
-                    log "  Firewall rules reloaded" || \
+                if nft -f "$TARGET_PATH" 2>/dev/null; then
+                    log "  Firewall rules reloaded"
+                else
                     log "  WARN: nft reload failed"
+                fi
             fi
             ;;
         advisory)

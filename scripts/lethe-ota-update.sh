@@ -1,4 +1,8 @@
 #!/system/bin/sh
+# shellcheck shell=bash
+# (cm-14.1+ /system/bin/sh is mksh, which accepts `local` and other
+#  ksh-isms shellcheck flags as POSIX-incompatible. shell=bash silences
+#  the spurious SC3043/SC3011 warnings.)
 # Lethe OTA updater — fetches, verifies, and applies updates via IPFS.
 #
 # Called by the lethe-ota-check init service every 6 hours.
@@ -74,6 +78,7 @@ http_fetch() {
     if [ -n "$HTTP_PROXY" ]; then
         proxy_flag="--proxy $HTTP_PROXY"
     fi
+    # shellcheck disable=SC2086  # $proxy_flag must word-split when set
     curl -sfL --max-time 60 $proxy_flag "$url" 2>/dev/null
 }
 

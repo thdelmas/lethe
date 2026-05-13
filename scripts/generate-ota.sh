@@ -15,6 +15,7 @@ BUILD_DIR="${LETHE_BUILD_DIR:-$HOME/Osmosis-downloads/lethe-builds}"
 KEYS_DIR="$SCRIPT_DIR/../../keys"
 
 # Find latest signed build
+# shellcheck disable=SC2012  # ls -t is the natural sort-by-mtime here
 ZIP=$(ls -t "$BUILD_DIR"/Lethe-*-"$CODENAME".zip 2>/dev/null | head -1)
 if [ -z "$ZIP" ]; then
     echo "ERROR: No build found for '$CODENAME' in $BUILD_DIR"
@@ -28,7 +29,8 @@ fi
 
 # Extract version from filename: Lethe-1.0.0-codename.zip
 BASENAME="$(basename "$ZIP" .zip)"
-VERSION=$(echo "$BASENAME" | sed 's/Lethe-\(.*\)-'"$CODENAME"'/\1/')
+VERSION="${BASENAME#Lethe-}"
+VERSION="${VERSION%-"$CODENAME"}"
 SHA256=$(cat "$ZIP.sha256")
 SIZE=$(stat -c%s "$ZIP" 2>/dev/null || stat -f%z "$ZIP")
 DATE=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
@@ -89,12 +91,12 @@ fi
 if [ "$PUBLISH" = "--publish" ] && command -v ipfs &>/dev/null; then
     echo "  -> Publishing manifest to IPNS..."
     MANIFEST_CID=$(ipfs add -Q --pin "$MANIFEST")
-    ipfs name publish --key=lethe-ota "$MANIFEST_CID" 2>/dev/null && {
+    if ipfs name publish --key=lethe-ota "$MANIFEST_CID" 2>/dev/null; then
         echo "  -> Published to IPNS."
-    } || {
+    else
         echo "  -> IPNS key 'lethe-ota' not found. Create with:"
         echo "     ipfs key gen lethe-ota"
-    }
+    fi
 fi
 
 echo ""

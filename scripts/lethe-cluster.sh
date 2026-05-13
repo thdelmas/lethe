@@ -1,4 +1,6 @@
 #!/system/bin/sh
+# shellcheck shell=bash
+# (cm-14.1+ /system/bin/sh is mksh; here-strings are supported.)
 # LETHE — Device cluster (EdgeVPN) wrapper.
 # Starts the edgevpn daemon with the cluster token and battery-aware
 # heartbeat tuning.

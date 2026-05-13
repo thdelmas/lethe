@@ -84,9 +84,7 @@ def parse_cargo_lock(path: Path) -> list[dict[str, Any]]:
                 "purl": _purl("cargo", attrs["name"], attrs["version"]),
             }
             if "checksum" in attrs:
-                comp["hashes"] = [
-                    {"alg": "SHA-256", "content": attrs["checksum"]}
-                ]
+                comp["hashes"] = [{"alg": "SHA-256", "content": attrs["checksum"]}]
             out.append(comp)
     return out
 
@@ -175,12 +173,8 @@ def build_sbom(repo_root: Path) -> dict[str, Any]:
     components.sort(key=lambda c: c.get("purl") or c["name"])
 
     metadata = {
-        "timestamp": _dt.datetime.now(_dt.timezone.utc).strftime(
-            "%Y-%m-%dT%H:%M:%SZ"
-        ),
-        "tools": [
-            {"vendor": "lethe", "name": "generate-sbom.py", "version": "1"}
-        ],
+        "timestamp": _dt.datetime.now(_dt.timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
+        "tools": [{"vendor": "lethe", "name": "generate-sbom.py", "version": "1"}],
         "component": {
             "type": "operating-system",
             "name": "lethe",
