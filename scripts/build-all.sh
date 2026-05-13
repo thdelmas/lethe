@@ -110,6 +110,11 @@ build_in_docker() {
     #   USER/HOME        jack wrapper uses `set -u` and references $USER
     #   GIT_CONFIG_*     silence "dubious ownership" warnings on /lineage
     #                    (the source tree is owned by the host user, not root)
+    # Resolve build tag on the host. Inside the docker (.git/config has a
+    # host-absolute worktree = path that doesn't resolve to /lethe), git
+    # rev-parse fails — so we pass the tag in via env instead.
+    local build_tag="${LETHE_BUILD_TAG:-$(date +%Y%m%d)-$(git -C "$LETHE_DIR" rev-parse --short HEAD 2>/dev/null || echo dev)}"
+
     docker run --rm \
         -e LC_ALL=C \
         -e LANG=C \
@@ -120,6 +125,7 @@ build_in_docker() {
         -e GIT_CONFIG_COUNT=1 \
         -e GIT_CONFIG_KEY_0=safe.directory \
         -e GIT_CONFIG_VALUE_0='*' \
+        -e LETHE_BUILD_TAG="$build_tag" \
         -v "$tree:/lineage" \
         -v "$LETHE_DIR:/lethe" \
         -v "$HOME/.ccache:/ccache" \
@@ -130,9 +136,10 @@ build_in_docker() {
 # LOS 22.1+ — build natively against the host toolchain.
 build_native() {
     local tree="$1" codename="$2"
+    local build_tag="${LETHE_BUILD_TAG:-$(date +%Y%m%d)-$(git -C "$LETHE_DIR" rev-parse --short HEAD 2>/dev/null || echo dev)}"
     (
         cd "$tree"
-        "$LETHE_DIR/apply-overlays.sh" "$codename"
+        LETHE_BUILD_TAG="$build_tag" "$LETHE_DIR/apply-overlays.sh" "$codename"
         bash -c "source build/envsetup.sh && lunch lineage_${codename}-user && mka bacon"
     )
 }
