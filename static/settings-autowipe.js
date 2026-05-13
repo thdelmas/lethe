@@ -1,7 +1,10 @@
 /* LETHE Settings — Auto-Wipe Policy.
  *
  * Unified surface for the six auto-wipe triggers. Backed by the
- * persist.lethe.autowipe.* property family read by AutoWipePolicy.java.
+ * persist.lethe.aw.* property family read by AutoWipePolicy.java. The
+ * keys are kept short (<=31 chars) so they fit Android 7.1's
+ * PROP_NAME_MAX — the prior persist.lethe.autowipe.* names exceeded
+ * the limit and __system_property_set silently dropped writes.
  * The Device-Owner-promoted LetheDeviceAdmin pushes the failed-unlock
  * threshold into the stock keyguard via setMaximumFailedPasswordsForWipe,
  * so toggling the failed-unlock checkbox here is what wires up the
@@ -15,14 +18,14 @@
  */
 
 var _AW = {
-  failed_unlock_enabled: 'persist.lethe.autowipe.failed_unlock.enabled',
-  failed_unlock_threshold: 'persist.lethe.autowipe.failed_unlock.threshold',
-  failed_unlock_delays: 'persist.lethe.autowipe.failed_unlock.delays',
-  dms_enabled: 'persist.lethe.autowipe.dms.enabled',
-  every_restart_enabled: 'persist.lethe.autowipe.every_restart.enabled',
-  panic_enabled: 'persist.lethe.autowipe.panic.enabled',
-  duress_enabled: 'persist.lethe.autowipe.duress.enabled',
-  usb_signal_enabled: 'persist.lethe.autowipe.usb_signal.enabled',
+  failed_unlock_enabled: 'persist.lethe.aw.fu.enabled',
+  failed_unlock_threshold: 'persist.lethe.aw.fu.threshold',
+  failed_unlock_delays: 'persist.lethe.aw.fu.delays',
+  dms_enabled: 'persist.lethe.aw.dms.enabled',
+  every_restart_enabled: 'persist.lethe.aw.er.enabled',
+  panic_enabled: 'persist.lethe.aw.panic.enabled',
+  duress_enabled: 'persist.lethe.aw.duress.enabled',
+  usb_signal_enabled: 'persist.lethe.aw.usb.enabled',
 };
 
 function _awGet(key, fallback) {

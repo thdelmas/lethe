@@ -13,7 +13,7 @@ set -e
 # Read the unified property first; fall back to the legacy name so users
 # upgrading from v1.0/v1.1 with persist.lethe.burner.enabled=true keep
 # their setting. Phase-5 migration syncs both at first boot post-upgrade.
-ENABLED=$(getprop persist.lethe.autowipe.every_restart.enabled)
+ENABLED=$(getprop persist.lethe.aw.er.enabled)
 if [ -z "$ENABLED" ]; then
     ENABLED=$(getprop persist.lethe.burner.enabled)
 fi

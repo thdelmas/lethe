@@ -23,15 +23,18 @@ import java.lang.reflect.InvocationTargetException;
  * the future swap to per-session crypto-erase (feat/per-session-keys) a
  * one-class edit.
  *
- * Property surface (read/written via {@link LetheConfig}):
- *   persist.lethe.autowipe.failed_unlock.enabled    boolean
- *   persist.lethe.autowipe.failed_unlock.threshold  int (default 10)
- *   persist.lethe.autowipe.failed_unlock.delays     csv minutes
- *   persist.lethe.autowipe.dms.enabled              boolean
- *   persist.lethe.autowipe.every_restart.enabled    boolean
- *   persist.lethe.autowipe.panic.enabled            boolean
- *   persist.lethe.autowipe.duress.enabled           boolean
- *   persist.lethe.autowipe.usb_signal.enabled       boolean
+ * Property surface (read/written via {@link LetheConfig}). Names are kept
+ * &lt;=31 chars so they fit Android 7.1's PROP_NAME_MAX (32 bytes incl. null);
+ * the prior persist.lethe.autowipe.* names exceeded the limit and were
+ * silently rejected by libc's __system_property_set on cm-14.1.
+ *   persist.lethe.aw.fu.enabled        boolean
+ *   persist.lethe.aw.fu.threshold      int (default 10)
+ *   persist.lethe.aw.fu.delays         csv minutes
+ *   persist.lethe.aw.dms.enabled       boolean
+ *   persist.lethe.aw.er.enabled        boolean
+ *   persist.lethe.aw.panic.enabled     boolean
+ *   persist.lethe.aw.duress.enabled    boolean
+ *   persist.lethe.aw.usb.enabled       boolean
  *
  * Audit log: each call writes one line to /persist/lethe/autowipe.log
  * before invoking the wipe. /persist survives the wipe by design; lets a
@@ -74,17 +77,17 @@ public final class AutoWipePolicy {
      * overwritten on subsequent boots.
      */
     public static void migrateLegacyProps() {
-        final String MARK = "persist.lethe.autowipe.migrated";
+        final String MARK = "persist.lethe.aw.migrated";
         if ("true".equals(LetheConfig.get(MARK, "false"))) return;
 
         copyIfUnset("persist.lethe.burner.enabled",
-                    "persist.lethe.autowipe.every_restart.enabled");
+                    "persist.lethe.aw.er.enabled");
         copyIfUnset("persist.lethe.burner.trigger.panic_button",
-                    "persist.lethe.autowipe.panic.enabled");
+                    "persist.lethe.aw.panic.enabled");
         copyIfUnset("persist.lethe.deadman.duress_pin.enabled",
-                    "persist.lethe.autowipe.duress.enabled");
+                    "persist.lethe.aw.duress.enabled");
         copyIfUnset("persist.lethe.deadman.enabled",
-                    "persist.lethe.autowipe.dms.enabled");
+                    "persist.lethe.aw.dms.enabled");
 
         LetheConfig.set(MARK, "true");
         Log.i(TAG, "legacy property migration complete");
@@ -201,7 +204,7 @@ public final class AutoWipePolicy {
     public static int getFailedUnlockThreshold() {
         try {
             int n = Integer.parseInt(LetheConfig.get(
-                "persist.lethe.autowipe.failed_unlock.threshold", "10"));
+                "persist.lethe.aw.fu.threshold", "10"));
             return n < 1 ? 1 : n;
         } catch (NumberFormatException e) {
             return 10;
@@ -219,7 +222,7 @@ public final class AutoWipePolicy {
      */
     public static int[] getFailedUnlockDelaysMinutes() {
         String csv = LetheConfig.get(
-            "persist.lethe.autowipe.failed_unlock.delays", "");
+            "persist.lethe.aw.fu.delays", "");
         if (csv.isEmpty()) return new int[0];
         String[] parts = csv.split(",");
         int[] out = new int[parts.length];
@@ -257,28 +260,28 @@ public final class AutoWipePolicy {
         switch (t) {
             case PANIC:
                 return "true".equals(LetheConfig.get(
-                    "persist.lethe.autowipe.panic.enabled",
+                    "persist.lethe.aw.panic.enabled",
                     // Legacy fallback: panic was wired through burner.trigger.panic_button.
                     LetheConfig.get("persist.lethe.burner.trigger.panic_button", "true")));
             case DURESS:
                 return "true".equals(LetheConfig.get(
-                    "persist.lethe.autowipe.duress.enabled",
+                    "persist.lethe.aw.duress.enabled",
                     LetheConfig.get("persist.lethe.deadman.duress_pin.enabled", "false")));
             case DMS:
                 return "true".equals(LetheConfig.get(
-                    "persist.lethe.autowipe.dms.enabled",
+                    "persist.lethe.aw.dms.enabled",
                     LetheConfig.get("persist.lethe.deadman.enabled", "false")));
             case FAILED_UNLOCK:
                 return "true".equals(LetheConfig.get(
-                    "persist.lethe.autowipe.failed_unlock.enabled", "false"));
+                    "persist.lethe.aw.fu.enabled", "false"));
             case EVERY_RESTART:
                 return "true".equals(LetheConfig.get(
-                    "persist.lethe.autowipe.every_restart.enabled",
+                    "persist.lethe.aw.er.enabled",
                     // Legacy fallback: v1.0 stored this as burner.enabled.
                     LetheConfig.get("persist.lethe.burner.enabled", "false")));
             case USB_SIGNAL:
                 return "true".equals(LetheConfig.get(
-                    "persist.lethe.autowipe.usb_signal.enabled", "false"));
+                    "persist.lethe.aw.usb.enabled", "false"));
         }
         return false;
     }

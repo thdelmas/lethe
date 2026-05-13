@@ -19,9 +19,9 @@ Closes lethe#141.
                  mCallback.reportUnlockAttempt(userId, false, timeoutMs);
 +                // LETHE staircase (lethe#141): override timeoutMs with the
 +                // configured delay vector so lockout fires from the first
-+                // failed attempt when persist.lethe.autowipe.failed_unlock
-+                // .delays is set; returns 0 when unset so the framework
-+                // default applies unchanged.
++                // failed attempt when persist.lethe.aw.fu.delays is set;
++                // returns 0 when unset so the framework default applies
++                // unchanged.
 +                long letheMs = mLockPatternUtils.getLetheStaircaseTimeoutMs(
 +                        KeyguardUpdateMonitor.getInstance(mContext)
 +                                .getFailedUnlockAttempts(userId));
