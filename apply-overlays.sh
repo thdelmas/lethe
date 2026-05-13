@@ -94,9 +94,35 @@ install_initrc() {
     echo "  -> $label init service registered for /system/etc/init/$rc."
 }
 
+# Apply a unified-diff patch to a subdir of the LineageOS source tree.
+# Idempotent: a reverse-apply dry-run detects an already-applied patch
+# and short-circuits. Hard fail on any actual apply error so a broken
+# patch isn't silently dropped.
+# Args: <subdir relative to tree root, e.g. frameworks/base>
+#       <patch file absolute path>
+apply_patch() {
+    local subdir="$1" patchfile="$2"
+    local name
+    name="$(basename "$patchfile")"
+    if [ ! -d "$subdir" ]; then
+        echo "  -> WARNING: $subdir not present, skipping $name."
+        return 0
+    fi
+    if patch -R -p1 --dry-run -s -d "$subdir" -i "$patchfile" >/dev/null 2>&1; then
+        echo "  -> $name already applied (skipping)."
+        return 0
+    fi
+    if patch -p1 -s -d "$subdir" -i "$patchfile"; then
+        echo "  -> applied $name to $subdir."
+    else
+        echo "  -> FAILED to apply $name to $subdir."
+        return 1
+    fi
+}
+
 # ── 1. System properties (privacy defaults) ──
 if [ -f "$OVERLAY_DIR/privacy-defaults.conf" ]; then
-    echo "[1/17] Applying privacy system properties..."
+    echo "[1/18] Applying privacy system properties..."
     # PROPS_TARGET is detected up front; both this block and add_to_system use it.
     # Versioned label embedded in the identity comment for traceability. The
     # strip-and-rewrite below now runs unconditionally (#140), so this is
@@ -197,7 +223,7 @@ fi
 
 # ── 2. Hosts file (tracker blocking) ──
 if [ -f "$OVERLAY_DIR/hosts" ]; then
-    echo "[2/17] Installing tracker-blocking hosts file..."
+    echo "[2/18] Installing tracker-blocking hosts file..."
     HOSTS_TARGET="system/core/rootdir/etc/hosts"
     if [ -d "system/core/rootdir/etc" ]; then
         cp "$OVERLAY_DIR/hosts" "$HOSTS_TARGET"
@@ -209,14 +235,14 @@ fi
 
 # ── 3. Firewall rules ──
 if [ -f "$OVERLAY_DIR/firewall-rules.conf" ]; then
-    echo "[3/17] Installing default firewall rules..."
+    echo "[3/18] Installing default firewall rules..."
     add_to_system "$OVERLAY_DIR/firewall-rules.conf" "system/extras/lethe/firewall-rules.conf"
     echo "  -> Firewall rules installed."
 fi
 
 # ── 4. Burner mode ──
 if [ -f "$OVERLAY_DIR/burner-mode.conf" ]; then
-    echo "[4/17] Installing burner mode configuration..."
+    echo "[4/18] Installing burner mode configuration..."
     RUNTIME_DIR="$SCRIPT_DIR/scripts/runtime"
     chmod 755 "$RUNTIME_DIR/lethe-burner-wipe.sh" "$RUNTIME_DIR/lethe-mac-rotate.sh"
     add_to_system "$OVERLAY_DIR/burner-mode.conf"           "system/extras/lethe/burner-mode.conf"
@@ -230,10 +256,10 @@ fi
 # Deferred to v1.1: DMS needs full state-machine validation that did not fit
 # in the v1.0 window. Configuration files and scripts exist in the repo but
 # are not packaged into the v1.0 system image.
-echo "[5/17] Dead man's switch — deferred to v1.1, not packaged."
+echo "[5/18] Dead man's switch — deferred to v1.1, not packaged."
 
 # ── 6. Debloat — remove Google and analytics packages from build ──
-echo "[6/17] Applying debloat list..."
+echo "[6/18] Applying debloat list..."
 DEBLOAT_PACKAGES=(
     "packages/apps/GoogleContactsSyncAdapter"
     "packages/apps/GoogleCalendarSyncAdapter"
@@ -284,7 +310,7 @@ fi
 echo "  -> Debloat complete."
 
 # ── 7. Boot animation ──
-echo "[7/17] Installing boot animation..."
+echo "[7/18] Installing boot animation..."
 BOOTANIM_ZIP="$SCRIPT_DIR/bootanimation/bootanimation.zip"
 if [ ! -f "$BOOTANIM_ZIP" ]; then
     GENERATOR="$SCRIPT_DIR/bootanimation/generate-bootanimation.py"
@@ -304,7 +330,7 @@ fi
 # v1.0 keeps the LineageOS default launcher (Trebuchet) — Void launcher
 # ships in v1.1. Removing Trebuchet without an alternative left the
 # system with no Home activity, which crash-loops zygote on boot.
-echo "[8/17] Installing theme assets..."
+echo "[8/18] Installing theme assets..."
 WALLPAPER_GEN="$SCRIPT_DIR/bootanimation/generate-wallpaper.py"
 if [ -f "$WALLPAPER_GEN" ] && command -v python3 >/dev/null 2>&1; then
     echo "  -> Generating minimalist wallpapers..."
@@ -316,7 +342,7 @@ echo "  -> Theme assets registered."
 
 # ── 9. Tor transparent proxy ──
 if [ -f "$OVERLAY_DIR/tor.conf" ]; then
-    echo "[9/17] Installing Tor transparent proxy..."
+    echo "[9/18] Installing Tor transparent proxy..."
     RUNTIME_DIR="$SCRIPT_DIR/scripts/runtime"
     chmod 755 "$RUNTIME_DIR/lethe-tor-rules.sh"
     chmod 755 "$RUNTIME_DIR/lethe-tor-pt-select.sh"
@@ -342,7 +368,7 @@ fi
 # Deferred to v1.1: IPFS binary integration + signed-manifest pipeline did
 # not fit in v1.0. Configuration files exist in the repo; no artifacts
 # are packaged into the v1.0 system image.
-echo "[10/17] IPFS OTA — deferred to v1.1, not packaged."
+echo "[10/18] IPFS OTA — deferred to v1.1, not packaged."
 
 # ── 11. LETHE agent (system app + init services) ──
 # v1.2 Java system app (AutoWipePolicy, LetheDeviceAdmin, panic-press, DMS,
@@ -350,7 +376,7 @@ echo "[10/17] IPFS OTA — deferred to v1.1, not packaged."
 # AutoWipePolicy.ensureDeviceOwner (no dpm shell-out, see #145). Rust
 # agent backend (bender/) is NOT bundled; lethe-agent-start.sh idles
 # harmlessly if absent so init.lethe-agent.rc can ship as-is.
-echo "[11/17] Installing LETHE system app and init services..."
+echo "[11/18] Installing LETHE system app and init services..."
 LETHE_APP_SRC="$SCRIPT_DIR/java"
 LETHE_APP_DEST="packages/apps/Lethe"
 LETHE_ICON_SRC="$OVERLAY_DIR/launcher-icon"
@@ -436,11 +462,11 @@ echo "  -> LETHE agent packaging complete."
 # header. The deferred-service rules (agent, ipfs, p2p, dead-man) in
 # lethe.te.disabled-in-v1.0 are NOT re-enabled here; they come with those
 # services when each ships.
-echo "[12/17] Installing SELinux policy (Tor + LETHE userspace)..."
+echo "[12/18] Installing SELinux policy (Tor + LETHE userspace)..."
 bash "$SCRIPT_DIR/scripts/install-sepolicy.sh" "$SCRIPT_DIR/sepolicy" "$CODENAME"
 
 # ── 13. Build fingerprint ──
-echo "[13/17] Setting Lethe build fingerprint..."
+echo "[13/18] Setting Lethe build fingerprint..."
 # Detect per-device base version from manifest (default: 21.0)
 MANIFEST="$SCRIPT_DIR/manifest.yaml"
 BASE_VERSION="21.0"
@@ -463,9 +489,9 @@ echo "  -> Build: $BUILD_DESC"
 # All deferred to v1.1. Each needs a non-trivial native binary + Android.mk
 # glue + validation that did not fit in v1.0. Configuration files exist
 # in the repo; no artifacts are packaged into the v1.0 system image.
-echo "[14/17] Decentralized channels — deferred to v1.1, not packaged."
-echo "[15/17] libp2p peer inference — deferred to v1.1, not packaged."
-echo "[16/17] EdgeVPN cluster — deferred to v1.1, not packaged."
+echo "[14/18] Decentralized channels — deferred to v1.1, not packaged."
+echo "[15/18] libp2p peer inference — deferred to v1.1, not packaged."
+echo "[16/18] EdgeVPN cluster — deferred to v1.1, not packaged."
 
 # ── Field build: strip cloud providers from the agent UI (issue #95) ──
 # When LETHE_FIELD_BUILD=1, post-process the static/ tree so the field-build
@@ -488,7 +514,34 @@ if [ "${LETHE_FIELD_BUILD:-0}" = "1" ]; then
     fi
 fi
 
-echo "[17/17] Overlay summary..."
+# ── 17. Framework source patches ──
+# Patches under patches/<base>/<subdir_with_underscores>/*.patch get applied
+# against <subdir_with_slashes> in the LineageOS tree. Today only cm-14.1 has
+# patches; the directory presence + PROPS_TARGET shape gate selection. Add
+# patches/lineage-22.1/ etc. as later bases land.
+PATCHES_BASE=""
+case "$PROPS_TARGET" in
+    vendor/cm/config/common.mk)        PATCHES_BASE="cm-14.1" ;;
+    vendor/lineage/config/common.mk)   PATCHES_BASE="" ;;  # add when a base needs patches
+esac
+if [ -n "$PATCHES_BASE" ] && [ -d "$SCRIPT_DIR/patches/$PATCHES_BASE" ]; then
+    echo "[17/18] Applying framework source patches ($PATCHES_BASE)..."
+    for subdir_path in "$SCRIPT_DIR/patches/$PATCHES_BASE"/*/; do
+        [ -d "$subdir_path" ] || continue
+        # patches/cm-14.1/frameworks_base/ → frameworks/base
+        target="${subdir_path%/}"
+        target="${target##*/}"
+        target="${target//_//}"
+        for patchfile in "$subdir_path"*.patch; do
+            [ -f "$patchfile" ] || continue
+            apply_patch "$target" "$patchfile"
+        done
+    done
+else
+    echo "[17/18] Framework source patches — none for this base, skipping."
+fi
+
+echo "[18/18] Overlay summary..."
 echo "  Overlays installed:"
 for f in "$OVERLAY_DIR"/*; do
     [ -f "$f" ] && echo "    - $(basename "$f")"

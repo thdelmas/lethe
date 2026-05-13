@@ -1,0 +1,32 @@
+LETHE — KeyguardPatternView: apply staircase to timeoutMs.
+
+After reportUnlockAttempt, ask LockPatternUtils for the LETHE-configured
+lockout duration for the current 1-indexed failed-attempt count. If set,
+substitute it for the framework-default timeoutMs so lockout fires from
+the first failed attempt instead of waiting for the stock threshold.
+
+When the staircase prop is empty, getLetheStaircaseTimeoutMs returns 0
+and we leave timeoutMs alone — no regression for users who haven't
+opted into auto-wipe staircase lockouts.
+
+Closes lethe#141.
+
+--- a/packages/Keyguard/src/com/android/keyguard/KeyguardPatternView.java
++++ b/packages/Keyguard/src/com/android/keyguard/KeyguardPatternView.java
+@@ -296,6 +296,16 @@
+                 mLockPatternView.setDisplayMode(LockPatternView.DisplayMode.Wrong);
+                 if (isValidPattern) {
+                     mCallback.reportUnlockAttempt(userId, false, timeoutMs);
++                    // LETHE staircase (lethe#141): override timeoutMs with the
++                    // configured delay vector so lockout fires from the first
++                    // failed attempt when persist.lethe.autowipe.failed_unlock
++                    // .delays is set; returns 0 when unset so the framework
++                    // default applies unchanged.
++                    long letheMs = mLockPatternUtils.getLetheStaircaseTimeoutMs(
++                            mKeyguardUpdateMonitor.getFailedUnlockAttempts(userId));
++                    if (letheMs > 0L) {
++                        timeoutMs = (int) Math.min(letheMs, Integer.MAX_VALUE);
++                    }
+                     if (!(mMaxCountdownTimes > 0) && timeoutMs > 0) {
+                         long deadline = mLockPatternUtils.setLockoutAttemptDeadline(
+                                 userId, timeoutMs);
