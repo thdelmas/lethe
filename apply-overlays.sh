@@ -94,32 +94,6 @@ install_initrc() {
     echo "  -> $label init service registered for /system/etc/init/$rc."
 }
 
-# Apply a unified-diff patch to a subdir of the LineageOS source tree.
-# Idempotent: a reverse-apply dry-run detects an already-applied patch
-# and short-circuits. Hard fail on any actual apply error so a broken
-# patch isn't silently dropped.
-# Args: <subdir relative to tree root, e.g. frameworks/base>
-#       <patch file absolute path>
-apply_patch() {
-    local subdir="$1" patchfile="$2"
-    local name
-    name="$(basename "$patchfile")"
-    if [ ! -d "$subdir" ]; then
-        echo "  -> WARNING: $subdir not present, skipping $name."
-        return 0
-    fi
-    if patch -R -p1 --dry-run -s -d "$subdir" -i "$patchfile" >/dev/null 2>&1; then
-        echo "  -> $name already applied (skipping)."
-        return 0
-    fi
-    if patch -p1 -s -d "$subdir" -i "$patchfile"; then
-        echo "  -> applied $name to $subdir."
-    else
-        echo "  -> FAILED to apply $name to $subdir."
-        return 1
-    fi
-}
-
 # ── 1. System properties (privacy defaults) ──
 if [ -f "$OVERLAY_DIR/privacy-defaults.conf" ]; then
     echo "[1/18] Applying privacy system properties..."
@@ -514,33 +488,8 @@ if [ "${LETHE_FIELD_BUILD:-0}" = "1" ]; then
     fi
 fi
 
-# ── 17. Framework source patches ──
-# Patches under patches/<base>/<subdir_with_underscores>/*.patch get applied
-# against <subdir_with_slashes> in the LineageOS tree. Today only cm-14.1 has
-# patches; the directory presence + PROPS_TARGET shape gate selection. Add
-# patches/lineage-22.1/ etc. as later bases land.
-PATCHES_BASE=""
-case "$PROPS_TARGET" in
-    vendor/cm/config/common.mk)        PATCHES_BASE="cm-14.1" ;;
-    vendor/lineage/config/common.mk)   PATCHES_BASE="" ;;  # add when a base needs patches
-esac
-if [ -n "$PATCHES_BASE" ] && [ -d "$SCRIPT_DIR/patches/$PATCHES_BASE" ]; then
-    echo "[17/18] Applying framework source patches ($PATCHES_BASE)..."
-    for subdir_path in "$SCRIPT_DIR/patches/$PATCHES_BASE"/*/; do
-        [ -d "$subdir_path" ] || continue
-        # patches/cm-14.1/frameworks_base/ → frameworks/base
-        target="${subdir_path%/}"
-        target="${target##*/}"
-        target="${target//_//}"
-        for patchfile in "$subdir_path"*.patch; do
-            [ -f "$patchfile" ] || continue
-            apply_patch "$target" "$patchfile"
-        done
-    done
-else
-    echo "[17/18] Framework source patches — none for this base, skipping."
-fi
-
+echo "[17/18] Applying framework source patches..."
+PROPS_TARGET="$PROPS_TARGET" bash "$SCRIPT_DIR/scripts/apply-framework-patches.sh"
 echo "[18/18] Overlay summary..."
 echo "  Overlays installed:"
 for f in "$OVERLAY_DIR"/*; do
