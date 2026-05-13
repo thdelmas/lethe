@@ -100,9 +100,7 @@ def generate_wallpaper(width, height, seed):
     ]
     for cx, cy, prob in corners:
         if rng.random() < prob:
-            angle = math.atan2(height / 2 - cy, width / 2 - cx) + rng.gauss(
-                0, 0.5
-            )
+            angle = math.atan2(height / 2 - cy, width / 2 - cx) + rng.gauss(0, 0.5)
             spawn_points.append((cx, cy, angle))
 
     # Edge origins (subtler)
@@ -174,9 +172,7 @@ def generate_wallpaper_fast(width, height, seed):
     ]
     for cx, cy, prob in corners:
         if rng.random() < prob:
-            angle = math.atan2(height / 2 - cy, width / 2 - cx) + rng.gauss(
-                0, 0.5
-            )
+            angle = math.atan2(height / 2 - cy, width / 2 - cx) + rng.gauss(0, 0.5)
             spawn_points.append((cx, cy, angle))
 
     for _ in range(rng.randint(2, 5)):
@@ -215,15 +211,9 @@ def generate_wallpaper_fast(width, height, seed):
 
 
 def main():
-    parser = argparse.ArgumentParser(
-        description="Generate Lethe minimalist wallpaper"
-    )
-    parser.add_argument(
-        "--width", type=int, default=1080, help="Width in pixels"
-    )
-    parser.add_argument(
-        "--height", type=int, default=2400, help="Height in pixels"
-    )
+    parser = argparse.ArgumentParser(description="Generate Lethe minimalist wallpaper")
+    parser.add_argument("--width", type=int, default=1080, help="Width in pixels")
+    parser.add_argument("--height", type=int, default=2400, help="Height in pixels")
     parser.add_argument(
         "--seed", type=int, default=42, help="RNG seed for reproducibility"
     )
@@ -231,9 +221,7 @@ def main():
     parser.add_argument("--lockscreen", type=Path, default=DEFAULT_LOCKSCREEN)
     args = parser.parse_args()
 
-    print(
-        f"Generating {args.width}x{args.height} wallpaper (seed={args.seed})..."
-    )
+    print(f"Generating {args.width}x{args.height} wallpaper (seed={args.seed})...")
 
     wallpaper = generate_wallpaper_fast(args.width, args.height, args.seed)
     wallpaper.save(args.wallpaper, "PNG", optimize=True)

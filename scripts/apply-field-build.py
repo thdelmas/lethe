@@ -123,9 +123,7 @@ def _delete_named_string_entry(text: str, name: str) -> str:
     literal can use ' or " quotes.
     """
     pattern = re.compile(
-        r"^[ \t]*"
-        + re.escape(name)
-        + r"\s*:\s*(['\"])(?:\\.|(?!\1).)*\1\s*,?[ \t]*\n",
+        r"^[ \t]*" + re.escape(name) + r"\s*:\s*(['\"])(?:\\.|(?!\1).)*\1\s*,?[ \t]*\n",
         re.MULTILINE,
     )
     return pattern.sub("", text)
