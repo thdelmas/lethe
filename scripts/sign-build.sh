@@ -23,6 +23,7 @@ PRIVKEY="$KEYS_DIR/update-privkey.pem"
 MANIFEST="$LETHE_DIR/manifest.yaml"
 
 # Find the latest build for this codename
+# shellcheck disable=SC2012  # ls -t for mtime sort
 ZIP=$(ls -t "$BUILD_DIR"/Lethe-*-"$CODENAME".zip 2>/dev/null | head -1)
 if [ -z "$ZIP" ]; then
     echo "ERROR: No build found for codename '$CODENAME' in $BUILD_DIR"
@@ -49,7 +50,7 @@ echo "  -> SHA256: $(cat "$ZIP.sha256")"
 # Ed25519 detached signature (use temp file — process substitution unreliable
 # with openssl pkeyutl on some systems)
 HASH_FILE=$(mktemp)
-cat "$ZIP.sha256" | tr -d '\n' > "$HASH_FILE"
+tr -d '\n' < "$ZIP.sha256" > "$HASH_FILE"
 openssl pkeyutl -sign \
     -inkey "$PRIVKEY" \
     -rawin \

@@ -150,6 +150,7 @@ collect_build() {
     local tree="$1" codename="$2" version="$3"
     local out_dir="$tree/out/target/product/$codename"
     local zip
+    # shellcheck disable=SC2012  # ls -t for mtime sort
     zip="$(ls -t "$out_dir"/lineage-*-"$codename".zip 2>/dev/null | head -1 || true)"
     if [ -z "$zip" ]; then
         echo "  -> ERROR: no OUT zip for $codename in $out_dir" >&2

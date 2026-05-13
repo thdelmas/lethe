@@ -54,7 +54,9 @@ jobs:
         run: cargo check --manifest-path agent/Cargo.toml
 
       - name: Check (armv7)
-        run: cargo ndk --manifest-path agent/Cargo.toml -t armeabi-v7a check
+        working-directory: agent
+        run: cargo ndk -t armeabi-v7a check
 
       - name: Check (aarch64)
-        run: cargo ndk --manifest-path agent/Cargo.toml -t arm64-v8a check
+        working-directory: agent
+        run: cargo ndk -t arm64-v8a check
