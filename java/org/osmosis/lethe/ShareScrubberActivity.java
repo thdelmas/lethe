@@ -10,6 +10,7 @@ import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
 import android.util.Log;
+import android.widget.Toast;
 
 import java.io.File;
 import java.io.FileOutputStream;
@@ -118,9 +119,20 @@ public class ShareScrubberActivity extends Activity {
                                  : copyThrough(inputs[i], outDir, i);
             if (stripped != null) {
                 outs.add(stripped);
-            } else {
-                outs.add(inputs[i]);  // fail-open: share original on copy fail
             }
+        }
+
+        if (outs.isEmpty()) {
+            Toast.makeText(this, "Scrub failed — nothing shared",
+                Toast.LENGTH_LONG).show();
+            finish();
+            return;
+        }
+        if (outs.size() < inputs.length) {
+            int dropped = inputs.length - outs.size();
+            Toast.makeText(this,
+                "Scrub failed for " + dropped + " item(s); they were dropped",
+                Toast.LENGTH_LONG).show();
         }
 
         Intent out;
@@ -175,9 +187,9 @@ public class ShareScrubberActivity extends Activity {
             exif.saveAttributes();
         } catch (IOException e) {
             Log.w(TAG, "EXIF strip failed for " + input + ": " + e.getMessage());
-            // Fall through and ship the copy — better to over-share metadata
-            // than to fail the share entirely. The user explicitly asked for
-            // strip; this is a degraded path with logging.
+            // User asked for strip; if we can't deliver that, fail closed.
+            out.delete();
+            return null;
         }
         return makeShareableUri(out);
     }
