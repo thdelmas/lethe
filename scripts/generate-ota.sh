@@ -64,14 +64,25 @@ cat > "$MANIFEST" <<EOF
 EOF
 echo "  -> Manifest: $MANIFEST"
 
-# Sign the manifest too
+# Sign the manifest. Ed25519 + -rawin signs the raw manifest bytes (no
+# pre-hashing) — must match scripts/lethe-ota-update.sh's verifier, which
+# also passes -rawin against the manifest content directly. The signed
+# output is base64-encoded on the wire so the on-device verifier can pass
+# it through a shell variable without binary-truncation issues.
+#
+# Previous form fed `sha256 hex | openssl ... -rawin` via process
+# substitution; pkeyutl reported "Could not allocate 0 bytes" on the
+# non-seekable input AND signed a different payload than the verifier
+# checks. Both fixed here.
 if [ -f "$KEYS_DIR/update-privkey.pem" ]; then
     openssl pkeyutl -sign \
         -inkey "$KEYS_DIR/update-privkey.pem" \
         -rawin \
-        -in <(sha256sum "$MANIFEST" | cut -d' ' -f1 | tr -d '\n') \
-        -out "$MANIFEST.sig"
-    echo "  -> Manifest signed."
+        -in "$MANIFEST" \
+        -out "$MANIFEST.sig.bin"
+    base64 -w 0 < "$MANIFEST.sig.bin" > "$MANIFEST.sig"
+    rm -f "$MANIFEST.sig.bin"
+    echo "  -> Manifest signed (Ed25519, base64-encoded)."
 fi
 
 # Publish to IPNS if requested
