@@ -34,15 +34,27 @@ jobs:
         with:
           targets: aarch64-linux-android,armv7-linux-androideabi,x86_64-linux-android
 
+      # ring's build.rs invokes cc directly for its C glue, so the Android
+      # NDK toolchain has to be on PATH for the cross-target checks below.
+      # cargo-ndk wires the right CC_<target>/AR_<target> env per target.
+      - uses: nttld/setup-ndk@v1
+        id: ndk
+        with:
+          ndk-version: r25c
+          add-to-path: true
+
       - uses: Swatinem/rust-cache@v2
         with:
           workspaces: agent
+
+      - name: Install cargo-ndk
+        run: cargo install --locked cargo-ndk
 
       - name: Check (host)
         run: cargo check --manifest-path agent/Cargo.toml
 
       - name: Check (armv7)
-        run: cargo check --manifest-path agent/Cargo.toml --target armv7-linux-androideabi
+        run: cargo ndk --manifest-path agent/Cargo.toml -t armeabi-v7a check
 
       - name: Check (aarch64)
-        run: cargo check --manifest-path agent/Cargo.toml --target aarch64-linux-android
+        run: cargo ndk --manifest-path agent/Cargo.toml -t arm64-v8a check
