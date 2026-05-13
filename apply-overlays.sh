@@ -98,25 +98,24 @@ install_initrc() {
 if [ -f "$OVERLAY_DIR/privacy-defaults.conf" ]; then
     echo "[1/17] Applying privacy system properties..."
     # PROPS_TARGET is detected up front; both this block and add_to_system use it.
-    # Versioned idempotency marker. Bump LETHE_PROPS_VERSION whenever the
-    # identity block changes (as in #124's PRODUCT_DEFAULT_PROPERTY_OVERRIDES
-    # split). Old marker → strip the prior block and re-apply.
+    # Versioned label embedded in the identity comment for traceability. The
+    # strip-and-rewrite below now runs unconditionally (#140), so this is
+    # not load-bearing for idempotency.
     LETHE_PROPS_VERSION="3"
-    # Marker embeds BUILD_TAG so a SHA change re-triggers strip-and-rewrite.
     LETHE_PROPS_MARKER="# Lethe identity v${LETHE_PROPS_VERSION}-${LETHE_BUILD_TAG}"
-    if [ -n "$PROPS_TARGET" ] && [ -f "$PROPS_TARGET" ] && grep -qF "$LETHE_PROPS_MARKER" "$PROPS_TARGET"; then
-        echo "  -> Properties already applied to $PROPS_TARGET (idempotent, $LETHE_PROPS_MARKER)."
-    elif [ -n "$PROPS_TARGET" ] && [ -f "$PROPS_TARGET" ]; then
-        # Strip any previous LETHE identity block (any version/tag, or the old
-        # un-versioned marker). Block runs from "# Lethe identity" through
-        # the next blank line — covers both the LETHE_PROPS and the privacy
-        # defaults we appended in the same step.
+    if [ -n "$PROPS_TARGET" ] && [ -f "$PROPS_TARGET" ]; then
+        # Always strip-and-rewrite (#140). The previous marker-shortcut hid
+        # edits to overlays/privacy-defaults.conf when the SHA was unchanged
+        # and never cleaned PRODUCT_COPY_FILES entries from removed files.
+        # Block runs from "# Lethe identity" through EOF — covers the
+        # identity overrides, the parsed privacy props, every PRODUCT_COPY_FILES
+        # entry add_to_system appended below it, and any trailing blanks that
+        # would otherwise accumulate across runs.
         if grep -q "^# Lethe identity" "$PROPS_TARGET"; then
-            echo "  -> Found prior LETHE identity block; rewriting for $LETHE_PROPS_MARKER."
-            # Delete from the first "# Lethe identity" line through the end
-            # of file. Step 1 always wrote the LETHE block at the file's
-            # tail, so this cleanup is safe.
+            echo "  -> Stripping prior LETHE block for rewrite ($LETHE_PROPS_MARKER)."
             sed -i '/^# Lethe identity/,$d' "$PROPS_TARGET"
+            # Trim trailing blank lines so re-runs settle to a fixed point.
+            sed -i -e :a -e '/^[[:space:]]*$/{$d;N;ba' -e '}' "$PROPS_TARGET"
         fi
         # LETHE identity props (not in conf — fixed at build time).
         # The heredoc preamble below carries the #124 read-only-prop explainer.
