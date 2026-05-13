@@ -8,22 +8,11 @@ service lethe-agent /system/bin/lethe-agent-start.sh
     disabled
     seclabel u:r:lethe:s0
 
-# One-shot Device Owner promotion (see scripts/runtime/lethe-set-device-owner.sh).
-# Idempotent: bails if persist.lethe.device_owner_set=true. Must run after
-# sys.boot_completed=1 so PackageManager + the `dpm` shell tool are up.
-# cm-14.1 caps service names at 16 chars — lethe_set_owner is 15, safe.
-service lethe_set_owner /system/bin/lethe-set-device-owner.sh
-    class late_start
-    user root
-    group root
-    oneshot
-    disabled
-    # Required: without seclabel init tries to exec_no_trans into its own
-    # domain, which lacks `lethe_exec:file execute_no_trans`. Same pattern
-    # as lethe-agent above — init type_transitions into the lethe domain
-    # (which already has system_server:binder for the dpm call).
-    seclabel u:r:lethe:s0
+# Device Owner promotion is no longer an init service. The shell-out path
+# required granting the `lethe` SELinux domain zygote_exec perms to invoke
+# pm/dpm (#145); we now do it from BootReceiver.onReceive, which runs in
+# the platform_app domain and can talk to DPMS directly. Same trigger
+# window — BOOT_COMPLETED fires before setup wizard sets DEVICE_PROVISIONED.
 
 on property:sys.boot_completed=1
     start lethe-agent
-    start lethe_set_owner

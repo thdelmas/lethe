@@ -113,16 +113,10 @@ if [ -f "$OVERLAY_DIR/privacy-defaults.conf" ]; then
             sed -i '/^# Lethe identity/,$d' "$PROPS_TARGET"
         fi
         # LETHE identity props (not in conf — fixed at build time).
-        #
-        # ro.build.display.id, ro.lineage.display.version, ro.modversion are
-        # also written by LineageOS's buildinfo.sh / vendor/cm makefiles into
-        # system/build.prop. Android marks ro.* properties read-only after
-        # first set (see system/core/init/property_service.cpp), so a *later*
-        # PRODUCT_PROPERTY_OVERRIDES entry is silently rejected — the FIRST
-        # value wins. Issue #124. Fix: put these in PRODUCT_DEFAULT_PROPERTY_OVERRIDES
-        # so they land in /default.prop (ramdisk), which init loads BEFORE
-        # /system/build.prop. The LETHE values lock first, then the LineageOS
-        # values in system/build.prop hit the read-only check and are dropped.
+        # ro.build.display.id et al. must go in PRODUCT_DEFAULT_PROPERTY_OVERRIDES
+        # so they land in /default.prop (ramdisk) and lock before /system/build.prop
+        # is loaded; otherwise LineageOS's buildinfo.sh wins the read-only race (#124).
+        # See the heredoc preamble below for the on-disk explainer.
         cat >> "$PROPS_TARGET" <<PROPS
 
 # Lethe identity v${LETHE_PROPS_VERSION} — display-id overrides.
@@ -350,9 +344,10 @@ echo "[10/17] IPFS OTA — deferred to v1.1, not packaged."
 
 # ── 11. LETHE agent (system app + init services) ──
 # v1.2 Java system app (AutoWipePolicy, LetheDeviceAdmin, panic-press, DMS,
-# share-scrubber) + lethe_set_owner one-shot. The Rust agent backend (bender/)
-# is NOT bundled here; lethe-agent-start.sh idles harmlessly if the binary is
-# absent so init.lethe-agent.rc can ship as-is.
+# share-scrubber). Device Owner promotion runs from BootReceiver via
+# AutoWipePolicy.ensureDeviceOwner (no dpm shell-out, see #145). Rust
+# agent backend (bender/) is NOT bundled; lethe-agent-start.sh idles
+# harmlessly if absent so init.lethe-agent.rc can ship as-is.
 echo "[11/17] Installing LETHE system app and init services..."
 LETHE_APP_SRC="$SCRIPT_DIR/java"
 LETHE_APP_DEST="packages/apps/Lethe"
@@ -427,10 +422,8 @@ if [ -n "$PROPS_TARGET" ] && ! grep -qF "$LETHE_PACKAGE_LINE" "$PROPS_TARGET" 2>
 fi
 echo "  -> System app staged at $LETHE_APP_DEST."
 
-chmod 755 "$SCRIPT_DIR/scripts/runtime/lethe-set-device-owner.sh" \
-          "$SCRIPT_DIR/scripts/runtime/lethe-agent-start.sh"
-add_to_system "$SCRIPT_DIR/scripts/runtime/lethe-set-device-owner.sh" "system/bin/lethe-set-device-owner.sh"
-add_to_system "$SCRIPT_DIR/scripts/runtime/lethe-agent-start.sh"      "system/bin/lethe-agent-start.sh"
+chmod 755 "$SCRIPT_DIR/scripts/runtime/lethe-agent-start.sh"
+add_to_system "$SCRIPT_DIR/scripts/runtime/lethe-agent-start.sh" "system/bin/lethe-agent-start.sh"
 install_initrc init.lethe-agent.rc agent
 echo "  -> LETHE agent packaging complete."
 

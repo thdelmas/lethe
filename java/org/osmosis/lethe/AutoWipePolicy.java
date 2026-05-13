@@ -5,10 +5,12 @@ import android.content.ComponentName;
 import android.content.Context;
 import android.os.Build;
 import android.os.SystemClock;
+import android.provider.Settings;
 import android.util.Log;
 
 import java.io.File;
 import java.io.FileWriter;
+import java.lang.reflect.InvocationTargetException;
 
 /**
  * Unified auto-wipe chokepoint.
@@ -94,6 +96,73 @@ public final class AutoWipePolicy {
         String val = LetheConfig.get(src, "");
         if (val.isEmpty()) return;
         LetheConfig.set(dst, val);
+    }
+
+    /**
+     * One-shot promotion of LetheDeviceAdmin to Device Owner. Replaces the
+     * v1.2 init shell-out path (lethe-set-device-owner.sh + lethe_set_owner
+     * service), which required granting the lethe SELinux domain
+     * zygote_exec perms to invoke pm/dpm — see #145. BootReceiver runs as
+     * system uid in the platform_app domain, which already has the DPM
+     * binder access; this method goes through the same DevicePolicyManagerService
+     * path as the dpm shell tool but bypasses the lethe-domain sepolicy gap.
+     *
+     * Timing: DevicePolicyManagerService.enforceCanSetDeviceOwner refuses
+     * once DEVICE_PROVISIONED=1 (primary user established). BOOT_COMPLETED
+     * on a fresh flash fires before setup wizard sets that flag — same
+     * window the old init service relied on (sys.boot_completed=1).
+     *
+     * Idempotent via persist.lethe.device_owner_set. On transient failure
+     * (DPM not ready, reflection blocked) we leave the marker unset so a
+     * later boot retries.
+     */
+    public static void ensureDeviceOwner(Context ctx) {
+        final String DONE = "persist.lethe.device_owner_set";
+        if ("true".equals(LetheConfig.get(DONE, "false"))) return;
+
+        int provisioned = Settings.Global.getInt(
+            ctx.getContentResolver(), Settings.Global.DEVICE_PROVISIONED, 0);
+        if (provisioned != 0) {
+            Log.w(TAG, "ensureDeviceOwner: DEVICE_PROVISIONED=" + provisioned
+                + " — window closed; manual `dpm set-device-owner` required");
+            return;
+        }
+
+        DevicePolicyManager dpm = (DevicePolicyManager)
+            ctx.getSystemService(Context.DEVICE_POLICY_SERVICE);
+        if (dpm == null) {
+            Log.e(TAG, "ensureDeviceOwner: DPM unavailable");
+            return;
+        }
+        ComponentName admin = LetheDeviceAdmin.getComponent(ctx);
+
+        try {
+            if (!dpm.isAdminActive(admin)) {
+                // setActiveAdmin(ComponentName, boolean refreshing) — @hide on
+                // API 25; reachable from a platform-signed system-uid app via
+                // LOCAL_PRIVATE_PLATFORM_APIS + reflection. Mirrors what the
+                // dpm shell tool does internally before set-device-owner.
+                DevicePolicyManager.class
+                    .getMethod("setActiveAdmin", ComponentName.class, boolean.class)
+                    .invoke(dpm, admin, false);
+            }
+            // setDeviceOwner(ComponentName, String ownerName) — @hide on API 25.
+            // Returns boolean. DPMS enforces DEVICE_PROVISIONED==0 internally,
+            // so a TOCTOU with setup wizard surfaces as `false`, not an exception.
+            Object ok = DevicePolicyManager.class
+                .getMethod("setDeviceOwner", ComponentName.class, String.class)
+                .invoke(dpm, admin, "LETHE");
+            if (Boolean.TRUE.equals(ok)) {
+                LetheConfig.set(DONE, "true");
+                Log.i(TAG, "Device Owner promotion complete");
+            } else {
+                Log.w(TAG, "Device Owner promotion returned false; will retry next boot");
+            }
+        } catch (InvocationTargetException e) {
+            Log.e(TAG, "ensureDeviceOwner: DPM call threw", e.getTargetException());
+        } catch (ReflectiveOperationException e) {
+            Log.e(TAG, "ensureDeviceOwner: reflection failed", e);
+        }
     }
 
     /**
@@ -242,8 +311,8 @@ public final class AutoWipePolicy {
         int flags = WIPE_EXTERNAL_STORAGE;
         if (Build.VERSION.SDK_INT >= 28) flags |= WIPE_EUICC;
         if (Build.VERSION.SDK_INT >= 29 && shouldSilence(reason)) flags |= WIPE_SILENTLY;
-        // WIPE_RESET_PROTECTION_DATA only honored on Device-Owner-managed devices,
-        // which is exactly what lethe-set-device-owner.sh sets up.
+        // WIPE_RESET_PROTECTION_DATA only honored on Device-Owner-managed
+        // devices, which is exactly what ensureDeviceOwner sets up at boot.
         flags |= WIPE_RESET_PROTECTION;
 
         Log.w(TAG, "WIPE: reason=" + reason + " flags=0x" + Integer.toHexString(flags));

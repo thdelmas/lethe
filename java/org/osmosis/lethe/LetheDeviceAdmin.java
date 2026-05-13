@@ -9,10 +9,11 @@ import android.util.Log;
 /**
  * Device Admin receiver for LETHE.
  *
- * Promoted to Device Owner at first boot (see lethe-set-device-owner.sh).
- * That registration is what gives AutoWipePolicy a working wipe path —
- * DPM.wipeData() runs as system_server, which is exempt from the
- * system_data_file neverallow that today's lethe-domain rm-sweep hits.
+ * Promoted to Device Owner at first boot from BootReceiver.onReceive,
+ * via {@link AutoWipePolicy#ensureDeviceOwner}. That registration is
+ * what gives AutoWipePolicy a working wipe path — DPM.wipeData() runs
+ * as system_server, which is exempt from the system_data_file
+ * neverallow that today's lethe-domain rm-sweep hits.
  *
  * Phase 1 ships the receiver only; Phase 2 wires AutoWipePolicy through
  * it; Phase 3 hooks onPasswordFailed for the iPhone-style trigger.

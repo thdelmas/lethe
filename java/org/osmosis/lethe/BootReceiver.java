@@ -28,6 +28,12 @@ public class BootReceiver extends BroadcastReceiver {
         // One-shot upgrade migration from v1.0/v1.1 property names.
         AutoWipePolicy.migrateLegacyProps();
 
+        // Promote LetheDeviceAdmin to Device Owner if the provisioning
+        // window is still open (DEVICE_PROVISIONED=0). Must run before
+        // applyPolicy — applyPolicy bails if isAdminActive() is false,
+        // which it is until setDeviceOwner activates the admin.
+        AutoWipePolicy.ensureDeviceOwner(context);
+
         // Re-apply auto-wipe policy to DPM (idempotent). This is what pushes
         // setMaximumFailedPasswordsForWipe(N) so a hostile actor failing N
         // unlocks gets the device wiped by the stock keyguard.
