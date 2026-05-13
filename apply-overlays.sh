@@ -13,6 +13,11 @@ OVERLAY_DIR="$SCRIPT_DIR/overlays"
 INITRC_DIR="$SCRIPT_DIR/initrc"
 CODENAME="${1:-}"
 
+# Per-build tag suffixed to ro.build.display.id so Settings → About phone
+# reflects the actual artifact (YYYYMMDD-shortsha; "dev" on no-git). Override
+# LETHE_BUILD_TAG to pin (release tagging, reproducible builds).
+LETHE_BUILD_TAG="${LETHE_BUILD_TAG:-$(date +%Y%m%d)-$(git -C "$SCRIPT_DIR" rev-parse --short HEAD 2>/dev/null || echo dev)}"
+
 # Map Rust/build target names to Android ABI directory names used by prebuilt/.
 # TARGET_ARCH may be set by the build environment or defaults later.
 # PREBUILT_ARCH is the directory name under prebuilt/{tor,ipfs}/.
@@ -97,36 +102,34 @@ if [ -f "$OVERLAY_DIR/privacy-defaults.conf" ]; then
     # identity block changes (as in #124's PRODUCT_DEFAULT_PROPERTY_OVERRIDES
     # split). Old marker → strip the prior block and re-apply.
     LETHE_PROPS_VERSION="3"
-    LETHE_PROPS_MARKER="# Lethe identity v${LETHE_PROPS_VERSION}"
+    # Marker embeds BUILD_TAG so a SHA change re-triggers strip-and-rewrite.
+    LETHE_PROPS_MARKER="# Lethe identity v${LETHE_PROPS_VERSION}-${LETHE_BUILD_TAG}"
     if [ -n "$PROPS_TARGET" ] && [ -f "$PROPS_TARGET" ] && grep -qF "$LETHE_PROPS_MARKER" "$PROPS_TARGET"; then
-        echo "  -> Properties already applied to $PROPS_TARGET (idempotent, v${LETHE_PROPS_VERSION})."
+        echo "  -> Properties already applied to $PROPS_TARGET (idempotent, $LETHE_PROPS_MARKER)."
     elif [ -n "$PROPS_TARGET" ] && [ -f "$PROPS_TARGET" ]; then
-        # Strip any previous LETHE identity block (any version, or the old
+        # Strip any previous LETHE identity block (any version/tag, or the old
         # un-versioned marker). Block runs from "# Lethe identity" through
         # the next blank line — covers both the LETHE_PROPS and the privacy
         # defaults we appended in the same step.
         if grep -q "^# Lethe identity" "$PROPS_TARGET"; then
-            echo "  -> Found prior LETHE identity block; rewriting for v${LETHE_PROPS_VERSION}."
+            echo "  -> Found prior LETHE identity block; rewriting for $LETHE_PROPS_MARKER."
             # Delete from the first "# Lethe identity" line through the end
             # of file. Step 1 always wrote the LETHE block at the file's
             # tail, so this cleanup is safe.
             sed -i '/^# Lethe identity/,$d' "$PROPS_TARGET"
         fi
         # LETHE identity props (not in conf — fixed at build time).
-        # ro.build.display.id et al. must go in PRODUCT_DEFAULT_PROPERTY_OVERRIDES
-        # so they land in /default.prop (ramdisk) and lock before /system/build.prop
-        # is loaded; otherwise LineageOS's buildinfo.sh wins the read-only race (#124).
-        # See the heredoc preamble below for the on-disk explainer.
+        # The heredoc preamble below carries the #124 read-only-prop explainer.
         cat >> "$PROPS_TARGET" <<PROPS
 
-# Lethe identity v${LETHE_PROPS_VERSION} — display-id overrides.
+# Lethe identity v${LETHE_PROPS_VERSION}-${LETHE_BUILD_TAG} — display-id overrides.
 # These MUST be PRODUCT_DEFAULT_PROPERTY_OVERRIDES — they go to /default.prop
 # in the ramdisk and lock before /system/build.prop is loaded. Otherwise
 # LineageOS's buildinfo line wins (read-only-prop semantics, see #124).
 PRODUCT_DEFAULT_PROPERTY_OVERRIDES += \\
-    ro.build.display.id=LETHE-1.0.0 \\
-    ro.lineage.display.version=LETHE-1.0.0 \\
-    ro.modversion=LETHE-1.0.0
+    ro.build.display.id=LETHE-1.0.0-${LETHE_BUILD_TAG} \\
+    ro.lineage.display.version=LETHE-1.0.0-${LETHE_BUILD_TAG} \\
+    ro.modversion=LETHE-1.0.0-${LETHE_BUILD_TAG}
 
 # Lethe identity (LETHE-only namespace, no LineageOS conflict).
 PRODUCT_PROPERTY_OVERRIDES += \\
