@@ -1,0 +1,33 @@
+LETHE — KeyguardAbsKeyInputView: apply staircase to timeoutMs.
+
+Same change as the pattern view (0002): override the framework-default
+timeoutMs with the LETHE staircase value after each failed unlock when
+the prop is set. Covers PIN and password keyguards, which inherit from
+this base class.
+
+This view doesn't cache the KeyguardUpdateMonitor instance, so we use
+getInstance(mContext) — matching the existing access at line 221 inside
+getMessageWithCount.
+
+Closes lethe#141.
+
+--- a/packages/Keyguard/src/com/android/keyguard/KeyguardAbsKeyInputView.java
++++ b/packages/Keyguard/src/com/android/keyguard/KeyguardAbsKeyInputView.java
+@@ -175,6 +175,17 @@
+         } else {
+             if (isValidPassword) {
+                 mCallback.reportUnlockAttempt(userId, false, timeoutMs);
++                // LETHE staircase (lethe#141): override timeoutMs with the
++                // configured delay vector so lockout fires from the first
++                // failed attempt when persist.lethe.autowipe.failed_unlock
++                // .delays is set; returns 0 when unset so the framework
++                // default applies unchanged.
++                long letheMs = mLockPatternUtils.getLetheStaircaseTimeoutMs(
++                        KeyguardUpdateMonitor.getInstance(mContext)
++                                .getFailedUnlockAttempts(userId));
++                if (letheMs > 0L) {
++                    timeoutMs = (int) Math.min(letheMs, Integer.MAX_VALUE);
++                }
+                 if  (!(mMaxCountdownTimes > 0) && timeoutMs > 0) {
+                     long deadline = mLockPatternUtils.setLockoutAttemptDeadline(
+                             userId, timeoutMs);

@@ -213,11 +213,9 @@ public final class AutoWipePolicy {
      * Empty / unset / malformed = no staircase. Caller indexes by
      * (attempts - 1), clamping to the last entry.
      *
-     * Note: the framework already enforces a 30s cooldown after 5 failed
-     * attempts (LockPatternUtils.FAILED_ATTEMPT_TIMEOUT_MS). Honoring
-     * larger configured delays requires a keyguard-side patch and is
-     * tracked as a follow-up; today this method's value is recorded so
-     * the UI is faithful and the keyguard patch can read the same prop.
+     * The keyguard reads the same prop via LockPatternUtils.
+     * getLetheStaircaseTimeoutMs and enforces the cooldown directly;
+     * this method exists for UI surfaces (settings panel, audit log).
      */
     public static int[] getFailedUnlockDelaysMinutes() {
         String csv = LetheConfig.get(
@@ -250,7 +248,8 @@ public final class AutoWipePolicy {
             "/" + threshold + " delay=" + delayMin + "m");
 
         // The wipe itself fires automatically via setMaximumFailedPasswordsForWipe;
-        // we only log here. Delay enforcement is a keyguard-patch follow-up.
+        // staircase cooldowns are enforced by the keyguard patch
+        // (LockPatternUtils.getLetheStaircaseTimeoutMs). This method just logs.
     }
 
     /** True if the given trigger is enabled by user policy. */

@@ -1,0 +1,50 @@
+LETHE — Add getLetheStaircaseTimeoutMs to LockPatternUtils.
+
+Reads the persist.lethe.autowipe.failed_unlock.delays CSV (minutes) and
+returns the timeout for the given 1-indexed failed-attempt count. Callers
+(KeyguardPatternView / KeyguardAbsKeyInputView) substitute this for the
+framework-default timeoutMs when the prop is set, producing the
+configured lockout staircase from the first failed attempt.
+
+Returns 0 (no override) when the prop is empty so the framework default
+applies unchanged.
+
+Closes lethe#141.
+
+--- a/core/java/com/android/internal/widget/LockPatternUtils.java
++++ b/core/java/com/android/internal/widget/LockPatternUtils.java
+@@ -33,6 +33,7 @@
+ import android.os.RemoteException;
+ import android.os.ServiceManager;
+ import android.os.SystemClock;
++import android.os.SystemProperties;
+ import android.os.UserHandle;
+ import android.os.UserManager;
+ import android.os.storage.IMountService;
+@@ -1307,6 +1308,26 @@
+     }
+
+     /**
++     * LETHE — compute the lockout timeout from the staircase prop
++     * persist.lethe.autowipe.failed_unlock.delays (csv minutes). Returns
++     * 0 (no override) when the prop is empty so the framework default
++     * applies. attempts is 1-indexed (first failed attempt = 1).
++     */
++    public long getLetheStaircaseTimeoutMs(int attempts) {
++        String csv = SystemProperties.get(
++                "persist.lethe.autowipe.failed_unlock.delays", "");
++        if (csv.isEmpty() || attempts <= 0) return 0L;
++        String[] parts = csv.split(",");
++        int idx = Math.min(attempts - 1, parts.length - 1);
++        try {
++            int minutes = Math.max(0, Integer.parseInt(parts[idx].trim()));
++            return minutes * 60_000L;
++        } catch (NumberFormatException e) {
++            return 0L;
++        }
++    }
++
++    /**
+      * @return The elapsed time in millis in the future when the user is allowed to
+      *   attempt to enter his/her lock pattern, or 0 if the user is welcome to
+      *   enter a pattern.
