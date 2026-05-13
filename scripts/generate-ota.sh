@@ -30,7 +30,7 @@ fi
 # Extract version from filename: Lethe-1.0.0-codename.zip
 BASENAME="$(basename "$ZIP" .zip)"
 VERSION="${BASENAME#Lethe-}"
-VERSION="${VERSION%-$CODENAME}"
+VERSION="${VERSION%-"$CODENAME"}"
 SHA256=$(cat "$ZIP.sha256")
 SIZE=$(stat -c%s "$ZIP" 2>/dev/null || stat -f%z "$ZIP")
 DATE=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
