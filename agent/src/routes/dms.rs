@@ -5,13 +5,24 @@
 //! escalation stage, and returns a JSON summary. The launcher and
 //! agent voice path use this so the user can ask "Is DMS armed?"
 
+use axum::extract::Query;
 use axum::response::IntoResponse;
 use axum::routing::get;
 use axum::Router;
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 use std::time::{SystemTime, UNIX_EPOCH};
 
 const HEARTBEAT_PATH: &str = "/persist/lethe/deadman/last_checkin";
+
+/// Query params for /api/dms/status. `duress_pin_enabled` is reported
+/// by the caller because the canonical state lives in the frontend
+/// JSON config (`letheConfig.duress_pin_hash`) — no system property
+/// or world-readable path carries it.
+#[derive(Debug, Default, Deserialize)]
+pub struct StatusParams {
+    #[serde(default)]
+    pub duress_pin_enabled: bool,
+}
 
 #[derive(Debug, Serialize)]
 pub struct DmsStatus {
@@ -64,7 +75,7 @@ fn now_unix() -> u64 {
         .unwrap_or(0)
 }
 
-async fn status() -> impl IntoResponse {
+async fn status(Query(params): Query<StatusParams>) -> impl IntoResponse {
     let enabled = getprop_bool("persist.lethe.deadman.enabled");
 
     if !enabled {
@@ -77,7 +88,7 @@ async fn status() -> impl IntoResponse {
             seconds_until_due: None,
             stage: "disabled",
             stage3_enabled: false,
-            duress_pin_enabled: false,
+            duress_pin_enabled: params.duress_pin_enabled,
         });
     }
 
@@ -121,8 +132,8 @@ async fn status() -> impl IntoResponse {
         next_checkin_due_unix: next_due,
         seconds_until_due: seconds_until,
         stage,
-        stage3_enabled: getprop_bool("persist.lethe.deadman.stage3.enabled"),
-        duress_pin_enabled: getprop_bool("persist.lethe.deadman.duress_pin.enabled"),
+        stage3_enabled: getprop_bool("persist.lethe.deadman.stage3"),
+        duress_pin_enabled: params.duress_pin_enabled,
     })
 }
 
