@@ -47,11 +47,13 @@ public class AutoWipeSettingsActivity extends Activity {
 
     // Legacy keys honored as read-only fallback so the toggle reflects a
     // pre-v1.2 user choice. The migration in AutoWipePolicy is one-shot;
-    // before it has run, these still drive isTriggerEnabled.
+    // before it has run, these still drive isTriggerEnabled. Only the
+    // legacy keys that physically fit PROP_NAME_MAX are listed — the
+    // other two historical fallbacks (burner.trigger.panic_button and
+    // deadman.duress_pin.enabled, both 40+ chars) were never settable
+    // on cm-14.1 so a fallback read against them is dead code.
     private static final String LK_DEADMAN = "persist.lethe.deadman.enabled";
     private static final String LK_BURNER  = "persist.lethe.burner.enabled";
-    private static final String LK_PANIC   = "persist.lethe.burner.trigger.panic_button";
-    private static final String LK_DURESS  = "persist.lethe.deadman.duress_pin.enabled";
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -89,10 +91,10 @@ public class AutoWipeSettingsActivity extends Activity {
         addToggle(root, "Wipe on every boot", K_ER, LK_BURNER);
 
         addSection(root, "Panic press");
-        addToggle(root, "5× power-button press wipes", K_PANIC, LK_PANIC);
+        addToggle(root, "5× power-button press wipes", K_PANIC, null);
 
         addSection(root, "Duress PIN");
-        addToggle(root, "Duress PIN entry wipes silently", K_DURESS, LK_DURESS);
+        addToggle(root, "Duress PIN entry wipes silently", K_DURESS, null);
 
         addSection(root, "USB signal");
         addToggle(root, "OSmosis remote USB trigger wipes", K_USB, null);

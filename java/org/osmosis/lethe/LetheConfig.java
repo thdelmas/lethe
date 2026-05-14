@@ -56,12 +56,19 @@ public final class LetheConfig {
         return "true".equals(get("persist.lethe.deadman.enabled", "false"));
     }
 
+    // Both helpers used to read 40-char legacy keys that overflow Android
+    // 7.1's PROP_NAME_MAX, so on cm-14.1 they always returned false —
+    // making duress-PIN wipes and panic-press wipes silently inert.
+    // Redirected to the unified persist.lethe.aw.* family written by
+    // AutoWipeSettingsActivity. PANIC defaults to true to match
+    // manifest.yaml auto_wipe_policy.triggers.panic_press.default=true;
+    // DURESS defaults to false (user opts in via the settings panel).
     public static boolean isDuressPinEnabled() {
-        return "true".equals(get("persist.lethe.deadman.duress_pin.enabled", "false"));
+        return "true".equals(get("persist.lethe.aw.duress.enabled", "false"));
     }
 
     public static boolean isPanicButtonEnabled() {
-        return "true".equals(get("persist.lethe.burner.trigger.panic_button", "false"));
+        return "true".equals(get("persist.lethe.aw.panic.enabled", "true"));
     }
 
     public static int getPanicPressCount() {

@@ -295,12 +295,15 @@ features:
     upgrade_migration:
       enabled: true                 # AutoWipePolicy.migrateLegacyProps at first post-upgrade boot
       mappings:
+        # Only the legacy keys that physically fit PROP_NAME_MAX are
+        # migrated. burner.trigger.panic_button (41 chars) and
+        # deadman.duress_pin.enabled (40 chars) were also listed here
+        # historically but were never settable on cm-14.1 (the only base
+        # with the 31-char limit) so no shipping build could have had a
+        # value to migrate. Dropped as dead config; tracked separately
+        # in the cm-14.1 PROP_NAME_MAX audit follow-up.
         - from: "persist.lethe.burner.enabled"
           to: "persist.lethe.aw.er.enabled"
-        - from: "persist.lethe.burner.trigger.panic_button"
-          to: "persist.lethe.aw.panic.enabled"
-        - from: "persist.lethe.deadman.duress_pin.enabled"
-          to: "persist.lethe.aw.duress.enabled"
         - from: "persist.lethe.deadman.enabled"
           to: "persist.lethe.aw.dms.enabled"
 

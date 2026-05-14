@@ -95,13 +95,17 @@ function renderAutoWipeSection(container) {
     _awToggleRow('aw-every-restart', 'Wipe on every boot',
                  _AW.every_restart_enabled, 'persist.lethe.burner.enabled') +
 
+    // Legacy fallback args removed for panic / duress rows: the
+    // burner.trigger.panic_button and deadman.duress_pin.enabled keys
+    // are >31 chars, so SystemProperties.get throws on cm-14.1 and the
+    // fallback can never return useful data anyway.
     '<div style="margin-top:12px;"><strong>Panic press</strong></div>' +
     _awToggleRow('aw-panic', '5× power-button press wipes',
-                 _AW.panic_enabled, 'persist.lethe.burner.trigger.panic_button') +
+                 _AW.panic_enabled) +
 
     '<div style="margin-top:12px;"><strong>Duress PIN</strong></div>' +
     _awToggleRow('aw-duress', 'Duress PIN entry wipes silently',
-                 _AW.duress_enabled, 'persist.lethe.deadman.duress_pin.enabled') +
+                 _AW.duress_enabled) +
 
     '<div style="margin-top:12px;"><strong>USB signal</strong></div>' +
     _awToggleRow('aw-usb', 'OSmosis remote USB trigger wipes',

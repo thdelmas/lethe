@@ -134,7 +134,7 @@ function renderDuressPinSection(container) {
         persistConfig();
         if (typeof NativeLauncher !== 'undefined' && NativeLauncher.setSystemProp) {
           NativeLauncher.setSystemProp(
-            'persist.lethe.deadman.duress_pin.enabled', 'true');
+            'persist.lethe.aw.duress.enabled', 'true');
         }
         // Clear the inputs so the plaintext doesn't sit in the DOM.
         if (newEl) newEl.value = '';
@@ -164,7 +164,7 @@ function renderDuressPinSection(container) {
       persistConfig();
       if (typeof NativeLauncher !== 'undefined' && NativeLauncher.setSystemProp) {
         NativeLauncher.setSystemProp(
-          'persist.lethe.deadman.duress_pin.enabled', 'false');
+          'persist.lethe.aw.duress.enabled', 'false');
       }
       curEl.value = '';
       showMsg('Duress PIN cleared.', 'ok');

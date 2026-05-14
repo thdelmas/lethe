@@ -82,12 +82,16 @@ public final class AutoWipePolicy {
 
         copyIfUnset("persist.lethe.burner.enabled",
                     "persist.lethe.aw.er.enabled");
-        copyIfUnset("persist.lethe.burner.trigger.panic_button",
-                    "persist.lethe.aw.panic.enabled");
-        copyIfUnset("persist.lethe.deadman.duress_pin.enabled",
-                    "persist.lethe.aw.duress.enabled");
         copyIfUnset("persist.lethe.deadman.enabled",
                     "persist.lethe.aw.dms.enabled");
+        // Two more legacy entries existed here — burner.trigger.panic_button
+        // and deadman.duress_pin.enabled — but both names exceed Android
+        // 7.1's PROP_NAME_MAX (32 bytes incl. null), so __system_property_set
+        // silently dropped writes and no shipping build could have populated
+        // them. Their copyIfUnset calls were dead code; removed to stop
+        // logcat from spamming IllegalArgumentException stack traces every
+        // time AutoWipePolicy reads policy state. Tracked separately as
+        // the cm-14.1 PROP_NAME_MAX audit (see follow-up issue).
 
         LetheConfig.set(MARK, "true");
         Log.i(TAG, "legacy property migration complete");
@@ -259,14 +263,15 @@ public final class AutoWipePolicy {
     public static boolean isTriggerEnabled(Trigger t) {
         switch (t) {
             case PANIC:
+                // Legacy fallback (burner.trigger.panic_button) removed:
+                // 41 chars, never settable on cm-14.1, dead code.
                 return "true".equals(LetheConfig.get(
-                    "persist.lethe.aw.panic.enabled",
-                    // Legacy fallback: panic was wired through burner.trigger.panic_button.
-                    LetheConfig.get("persist.lethe.burner.trigger.panic_button", "true")));
+                    "persist.lethe.aw.panic.enabled", "true"));
             case DURESS:
+                // Legacy fallback (deadman.duress_pin.enabled) removed:
+                // 40 chars, never settable on cm-14.1, dead code.
                 return "true".equals(LetheConfig.get(
-                    "persist.lethe.aw.duress.enabled",
-                    LetheConfig.get("persist.lethe.deadman.duress_pin.enabled", "false")));
+                    "persist.lethe.aw.duress.enabled", "false"));
             case DMS:
                 return "true".equals(LetheConfig.get(
                     "persist.lethe.aw.dms.enabled",
