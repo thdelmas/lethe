@@ -305,9 +305,14 @@ public class LetheActivity extends Activity {
                 case "persist.lethe.mesh.enabled":
                 case "persist.lethe.mesh.ble":
                 case "persist.lethe.p2p.enabled":
-                case "persist.lethe.deadman.duress_pin.enabled":
                 case "persist.lethe.bfu.enabled":
                 case "persist.lethe.bfu.timeout":
+                    // Whitelisted writes through the JS bridge. The legacy
+                    // entry persist.lethe.deadman.duress_pin.enabled (40
+                    // chars) was removed: it overflows PROP_NAME_MAX on
+                    // cm-14.1 so __system_property_set rejected it even
+                    // when allowed here. Tracked in the cm-14.1
+                    // PROP_NAME_MAX audit follow-up.
                     allowed = true;
                     break;
                 default:
