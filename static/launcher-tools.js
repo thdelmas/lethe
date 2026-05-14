@@ -226,7 +226,8 @@ function executeTool(name, input) {
     case 'get_system_info':
       return agentGet('/api/sysinfo');
     case 'get_dms_status':
-      return agentGet('/api/dms/status');
+      var dpe = !!(typeof letheConfig !== 'undefined' && letheConfig && letheConfig.duress_pin_hash);
+      return agentGet('/api/dms/status?duress_pin_enabled=' + dpe);
     case 'list_files':
       return agentPost('/api/files/list', input);
     case 'read_file':
