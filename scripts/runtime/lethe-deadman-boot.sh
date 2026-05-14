@@ -59,8 +59,13 @@ if [ $ELAPSED -gt $WIPE_DEADLINE ]; then
     rm -rf /data/misc/wifi /data/misc/bluedroid
     rm -rf /data/media/0/*
 
-    # Stage 3: Brick (3 hours past deadline, opt-in only)
-    STAGE3_ENABLED=$(getprop persist.lethe.deadman.stage3.enabled)
+    # Stage 3: Brick (3 hours past deadline, opt-in only).
+    # Prop name kept <=31 chars so it fits Android 7.1's PROP_NAME_MAX
+    # (32 bytes incl. null) — the prior persist.lethe.deadman.stage3.enabled
+    # was 36 chars, so __system_property_set silently dropped the overlay
+    # default and this read always returned "" → Stage 3 was effectively
+    # OFF on every cm-14.1 shipped build. See lethe#154.
+    STAGE3_ENABLED=$(getprop persist.lethe.deadman.stage3)
     BRICK_DEADLINE=$((WIPE_DEADLINE + 7200))
     if [ "$STAGE3_ENABLED" = "true" ] && [ $ELAPSED -gt $BRICK_DEADLINE ]; then
         log -t lethe-deadman "Stage 3: BRICKING"

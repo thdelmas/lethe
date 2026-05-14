@@ -395,7 +395,11 @@ features:
               action: "Brick — device becomes unbootable, OSmosis USB recovery only"
           toggles:
             - label: "Enable brick stage (irreversible without OSmosis)"
-              key: "persist.lethe.deadman.stage3.enabled"
+              # Name kept <=31 chars; prior persist.lethe.deadman.stage3.enabled
+              # was 36 chars and overflowed Android 7.1's PROP_NAME_MAX, so the
+              # overlay default + every UI write silently dropped on cm-14.1.
+              # See lethe#154.
+              key: "persist.lethe.deadman.stage3"
               default: false
 
         - screen: confirm
