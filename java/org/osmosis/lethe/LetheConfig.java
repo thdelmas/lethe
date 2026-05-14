@@ -71,10 +71,17 @@ public final class LetheConfig {
         return "true".equals(get("persist.lethe.aw.panic.enabled", "true"));
     }
 
+    // Three panic-press tunables — moved off the burner.trigger.* family
+    // into aw.panic.* alongside aw.panic.enabled. The prior names
+    // (persist.lethe.burner.trigger.panic_press_count and friends, 39-46
+    // chars) overflowed Android 7.1's PROP_NAME_MAX, so the overlay
+    // defaults in burner-mode.conf silently dropped and these reads
+    // always returned the hardcoded fallback. Result on cm-14.1: panic
+    // press count, cooloff, and mode could not be tuned. Tracked in
+    // lethe#154.
     public static int getPanicPressCount() {
         try {
-            return Integer.parseInt(
-                get("persist.lethe.burner.trigger.panic_press_count", "5"));
+            return Integer.parseInt(get("persist.lethe.aw.panic.count", "5"));
         } catch (NumberFormatException e) {
             return 5;
         }
@@ -84,8 +91,7 @@ public final class LetheConfig {
      *  0 = wipe immediately (legacy / high-risk opt-in). Default 5s. */
     public static int getPanicCooloffSeconds() {
         try {
-            int v = Integer.parseInt(
-                get("persist.lethe.burner.trigger.panic_cooloff_s", "5"));
+            int v = Integer.parseInt(get("persist.lethe.aw.panic.cool", "5"));
             return v < 0 ? 0 : v;
         } catch (NumberFormatException e) {
             return 5;
@@ -95,7 +101,7 @@ public final class LetheConfig {
     /** "safe" (default) shows a cancellable countdown notification before
      *  wiping; "instant" wipes immediately on detection. */
     public static String getPanicMode() {
-        String v = get("persist.lethe.burner.trigger.panic_mode", "safe");
+        String v = get("persist.lethe.aw.panic.mode", "safe");
         return ("instant".equals(v)) ? "instant" : "safe";
     }
 
