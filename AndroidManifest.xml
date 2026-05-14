@@ -129,6 +129,23 @@
             </intent-filter>
         </activity>
 
+        <!-- Auto-wipe policy settings — native UI, WebView-free.
+             The WebView-based LetheActivity is unreachable on user
+             builds (system UID + WebView ban since Android 7.0;
+             see lethe#151), so the auto-wipe panel ships as its own
+             native activity. -->
+        <activity
+            android:name="org.osmosis.lethe.AutoWipeSettingsActivity"
+            android:label="Auto-Wipe Policy"
+            android:theme="@android:style/Theme.DeviceDefault"
+            android:excludeFromRecents="true"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="lethe.intent.AUTOWIPE_SETTINGS" />
+                <category android:name="android.intent.category.DEFAULT" />
+            </intent-filter>
+        </activity>
+
         <!-- Panic press monitor (5x power = wipe) -->
         <service
             android:name="org.osmosis.lethe.PanicPressService"
