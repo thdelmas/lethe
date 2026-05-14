@@ -311,11 +311,13 @@ public class LetheActivity extends Activity {
                     allowed = true;
                     break;
                 default:
-                    // Auto-wipe policy keys live under persist.lethe.autowipe.*
+                    // Auto-wipe policy keys live under persist.lethe.aw.*
                     // and are toggled from settings-autowipe.js. Whitelist
                     // by prefix rather than per-key so adding a new trigger
-                    // doesn't require a Java edit.
-                    if (key.startsWith("persist.lethe.autowipe.")) {
+                    // doesn't require a Java edit. Prefix shortened from
+                    // persist.lethe.autowipe.* to fit Android 7.1's 31-char
+                    // PROP_NAME_MAX — see AutoWipePolicy header.
+                    if (key.startsWith("persist.lethe.aw.")) {
                         allowed = true;
                     }
                     break;
@@ -327,7 +329,7 @@ public class LetheActivity extends Activity {
             LetheConfig.set(key, value);
             // Push autowipe policy changes to DPM live so the keyguard
             // threshold updates without waiting for next boot.
-            if (key.startsWith("persist.lethe.autowipe.")) {
+            if (key.startsWith("persist.lethe.aw.")) {
                 AutoWipePolicy.applyPolicy(LetheActivity.this);
             }
             if ("persist.lethe.mesh.enabled".equals(key)) {
