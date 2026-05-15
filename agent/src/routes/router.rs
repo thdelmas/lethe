@@ -5,15 +5,23 @@
 //! task's priority array, which providers are configured, and which
 //! local models are on disk.
 //!
-//! Cloud keys are read from Android system properties via the
-//! `api_key_setting` field (e.g. `persist.lethe.provider.anthropic.key`),
-//! with an `$LETHE_<NAME>_KEY` env-var fallback for dev.
+//! Cloud-provider availability is reported by the frontend, not read
+//! from the system. `PlanRequest.configured_cloud` lists the provider
+//! names the frontend has keys for; `plan_handler` translates that into
+//! a set of `availability_token`s and wraps `SystemEnv` in `OverrideEnv`
+//! so resolution treats those providers as gated-open without ever
+//! calling `getprop`. The actual cloud keys live in the frontend's
+//! config and never reach the agent.
+//!
+//! `availability_token` values are opaque identifiers — they are
+//! join keys between provider entries here and the `key_overrides`
+//! set in `OverrideEnv`. They are not system property names.
 //!
 //! Execution (HTTP forwarding, streaming, fallback-on-error) lives in
-//! `llm.rs` (local) and the frontend (cloud, until keys migrate to
-//! getprop post-1.0). This file is pure-ish config + resolution so it
-//! can be unit tested without network, plus a single HTTP endpoint
-//! (`POST /v1/route/plan`) that returns an ordered candidate list.
+//! `llm.rs` (local) and the frontend (cloud). This file is pure-ish
+//! config + resolution so it can be unit tested without network, plus
+//! a single HTTP endpoint (`POST /v1/route/plan`) that returns an
+//! ordered candidate list.
 
 use axum::extract::State;
 use axum::routing::post;
@@ -46,8 +54,10 @@ pub struct Provider {
     pub endpoint: Option<String>,
     #[serde(default)]
     pub endpoint_setting: Option<String>,
+    /// Opaque identifier the frontend echoes back in `configured_cloud`
+    /// to mark this provider as available. Not a system property name.
     #[serde(default)]
-    pub api_key_setting: Option<String>,
+    pub availability_token: Option<String>,
     #[serde(default)]
     pub requires_api_key: bool,
     #[serde(default)]
@@ -190,8 +200,8 @@ impl RouterConfig {
         // Availability gate.
         match p.kind.as_str() {
             "cloud" => {
-                let Some(key_setting) = &p.api_key_setting else { return };
-                if env.getprop(key_setting).is_none() {
+                let Some(token) = &p.availability_token else { return };
+                if env.getprop(token).is_none() {
                     return;
                 }
             }
@@ -279,8 +289,8 @@ pub struct PlanResponse {
     pub fallback_message: Option<String>,
 }
 
-/// Env that wraps SystemEnv but treats a fixed set of api_key_setting
-/// keys as present. Used for plan requests where the frontend reports
+/// Env that wraps SystemEnv but treats a fixed set of availability
+/// tokens as present. Used for plan requests where the frontend reports
 /// which cloud providers it has keys for.
 struct OverrideEnv<'a> {
     inner: &'a SystemEnv,
@@ -309,8 +319,8 @@ async fn plan_handler(
     let mut key_overrides = HashSet::new();
     for name in &req.configured_cloud {
         if let Some(p) = state.config.providers.get(name) {
-            if let Some(k) = &p.api_key_setting {
-                key_overrides.insert(k.clone());
+            if let Some(t) = &p.availability_token {
+                key_overrides.insert(t.clone());
             }
         }
     }
@@ -387,7 +397,7 @@ providers:
     api_format: anthropic
     endpoint: https://api.anthropic.com
     requires_api_key: true
-    api_key_setting: persist.lethe.provider.anthropic.key
+    availability_token: anth
     models:
       - { id: claude-opus-4-6, tasks: [chat, code, reasoning, vision] }
   openrouter:
@@ -395,7 +405,7 @@ providers:
     api_format: openai
     endpoint: https://openrouter.ai/api/v1
     requires_api_key: true
-    api_key_setting: persist.lethe.provider.openrouter.key
+    availability_token: or
     models:
       - { id: google/gemini-2.5-pro, tasks: [chat, vision] }
 tasks:
@@ -443,8 +453,8 @@ tasks:
     fn cloud_expands_to_anthropic_then_openrouter() {
         let c = cfg();
         let mut e = FakeEnv::new();
-        e.props.insert("persist.lethe.provider.anthropic.key".into(), "sk-ant".into());
-        e.props.insert("persist.lethe.provider.openrouter.key".into(), "sk-or".into());
+        e.props.insert("anth".into(), "<configured>".into());
+        e.props.insert("or".into(), "<configured>".into());
         let r = c.resolve("chat", &e);
         let names: Vec<_> = r.iter().map(|c| c.provider.as_str()).collect();
         assert_eq!(names, vec!["anthropic", "openrouter"]);
@@ -455,7 +465,7 @@ tasks:
         let c = cfg();
         let mut e = FakeEnv::new();
         e.files.insert("qwen3-3b-q4_k_m.gguf".into());
-        e.props.insert("persist.lethe.provider.anthropic.key".into(), "sk".into());
+        e.props.insert("anth".into(), "<configured>".into());
         // code: [peer, cloud, local]. peer has no models → cloud first, then local.
         let r = c.resolve("code", &e);
         let names: Vec<_> = r.iter().map(|c| c.provider.as_str()).collect();
@@ -467,7 +477,7 @@ tasks:
         let c = cfg();
         let mut e = FakeEnv::new();
         e.files.insert("qwen3-0.6b-q4_k_m.gguf".into()); // 0.6b doesn't do reasoning
-        e.props.insert("persist.lethe.provider.anthropic.key".into(), "sk".into());
+        e.props.insert("anth".into(), "<configured>".into());
         // reasoning requires claude-opus-4-6 and local has no reasoning model anyway
         let r = c.resolve("reasoning", &e);
         assert_eq!(r.len(), 1);
@@ -489,5 +499,60 @@ tasks:
         let c = cfg();
         assert_eq!(c.fallback_message("reasoning"), Some("needs cloud"));
         assert_eq!(c.fallback_message("nonexistent"), None);
+    }
+
+    // ── plan_handler integration ────────────────────────────────────
+    // Exercises the OverrideEnv wiring end-to-end: no sysprop is set
+    // for the availability tokens (test host has no `getprop`), so the
+    // only reason a cloud provider can appear in the response is that
+    // `configured_cloud` was populated. SystemEnv's env-var fallback
+    // is keyed on `LETHE_<UPPER>`; the test tokens (`anth`, `or`) are
+    // unlikely to collide with anything in a dev shell.
+
+    fn router_state() -> Arc<RouterState> {
+        Arc::new(RouterState { config: cfg(), system_env: SystemEnv::new() })
+    }
+
+    #[tokio::test]
+    async fn plan_handler_treats_configured_cloud_as_available() {
+        let req = PlanRequest {
+            task: "chat".into(),
+            configured_cloud: vec!["anthropic".into()],
+        };
+        let Json(resp) = plan_handler(State(router_state()), Json(req)).await;
+
+        let names: Vec<&str> = resp.candidates.iter().map(|c| c.provider.as_str()).collect();
+        assert!(names.contains(&"anthropic"), "expected anthropic in {names:?}");
+        assert!(!names.contains(&"openrouter"), "openrouter not configured: {names:?}");
+
+        let anth = resp.candidates.iter().find(|c| c.provider == "anthropic").unwrap();
+        assert_eq!(anth.format, "anthropic");
+        assert_eq!(anth.endpoint, "https://api.anthropic.com");
+        assert_eq!(anth.model, "claude-opus-4-6");
+    }
+
+    #[tokio::test]
+    async fn plan_handler_omits_unconfigured_cloud() {
+        let req = PlanRequest { task: "chat".into(), configured_cloud: vec![] };
+        let Json(resp) = plan_handler(State(router_state()), Json(req)).await;
+
+        let names: Vec<&str> = resp.candidates.iter().map(|c| c.provider.as_str()).collect();
+        assert!(!names.contains(&"anthropic"), "anthropic shouldn't appear: {names:?}");
+        assert!(!names.contains(&"openrouter"), "openrouter shouldn't appear: {names:?}");
+        assert_eq!(resp.fallback_message.as_deref(), Some("nothing configured"));
+    }
+
+    #[tokio::test]
+    async fn plan_handler_unknown_provider_in_configured_cloud_is_ignored() {
+        // Frontend may send a name the agent doesn't know about (stale
+        // providers.yaml on either side). Don't 500 — just skip it.
+        let req = PlanRequest {
+            task: "chat".into(),
+            configured_cloud: vec!["bogus".into(), "anthropic".into()],
+        };
+        let Json(resp) = plan_handler(State(router_state()), Json(req)).await;
+
+        let names: Vec<&str> = resp.candidates.iter().map(|c| c.provider.as_str()).collect();
+        assert!(names.contains(&"anthropic"));
     }
 }
