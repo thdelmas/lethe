@@ -149,7 +149,7 @@ providers:
     endpoint: "https://api.anthropic.com"
     requires_internet: true
     requires_api_key: true
-    api_key_setting: "persist.lethe.provider.anthropic.key"
+    availability_token: "anth"
     models:
       - id: "claude-opus-4-6"
         tasks: ["chat", "code", "reasoning", "vision", "summarize"]
@@ -167,7 +167,7 @@ providers:
     endpoint: "https://openrouter.ai/api/v1"
     requires_internet: true
     requires_api_key: true
-    api_key_setting: "persist.lethe.provider.openrouter.key"
+    availability_token: "or"
     extra_headers:
       HTTP-Referer: "https://osmosis.dev"
       X-Title: "LETHE"
@@ -202,7 +202,7 @@ providers:
     endpoint_setting: "persist.lethe.provider.custom.endpoint"
     requires_internet: true
     requires_api_key: false
-    api_key_setting: "persist.lethe.provider.custom.key"
+    availability_token: "custom"
     models: []
 
 # ── Task types ──
