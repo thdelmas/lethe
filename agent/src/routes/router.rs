@@ -57,8 +57,6 @@ pub struct Provider {
     #[serde(default)]
     pub availability_token: Option<String>,
     #[serde(default)]
-    pub requires_api_key: bool,
-    #[serde(default)]
     pub extra_headers: BTreeMap<String, String>,
     #[serde(default)]
     pub models: Vec<Model>,
@@ -394,7 +392,6 @@ providers:
     type: cloud
     api_format: anthropic
     endpoint: https://api.anthropic.com
-    requires_api_key: true
     availability_token: anth
     models:
       - { id: claude-opus-4-6, tasks: [chat, code, reasoning, vision] }
@@ -402,7 +399,6 @@ providers:
     type: cloud
     api_format: openai
     endpoint: https://openrouter.ai/api/v1
-    requires_api_key: true
     availability_token: or
     models:
       - { id: google/gemini-2.5-pro, tasks: [chat, vision] }

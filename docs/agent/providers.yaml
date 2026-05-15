@@ -16,7 +16,6 @@ providers:
     engine: "llama.cpp"
     endpoint: "http://127.0.0.1:8080"
     requires_internet: false
-    requires_api_key: false
     models_dir: "/data/lethe/models"
     models:
       # ── Chat / Reasoning ──
@@ -135,7 +134,6 @@ providers:
     engine: "libp2p"
     endpoint: "http://127.0.0.1:8080"
     requires_internet: false
-    requires_api_key: false
     notes: >
       Peer inference via libp2p. Discovers other LETHE devices on the
       local network via mDNS, queries their available models, and
@@ -148,7 +146,6 @@ providers:
     api_format: "anthropic"
     endpoint: "https://api.anthropic.com"
     requires_internet: true
-    requires_api_key: true
     availability_token: "anth"
     models:
       - id: "claude-opus-4-6"
@@ -166,7 +163,6 @@ providers:
     api_format: "openai"
     endpoint: "https://openrouter.ai/api/v1"
     requires_internet: true
-    requires_api_key: true
     availability_token: "or"
     extra_headers:
       HTTP-Referer: "https://osmosis.dev"
@@ -204,7 +200,6 @@ providers:
     # via system properties. Nothing reads an endpoint sysprop, so there
     # is no field here for one.
     requires_internet: true
-    requires_api_key: false
     availability_token: "custom"
     models: []
 
