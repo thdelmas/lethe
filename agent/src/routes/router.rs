@@ -52,8 +52,6 @@ pub struct Provider {
     pub api_format: Option<String>, // "anthropic" | "openai"
     #[serde(default)]
     pub endpoint: Option<String>,
-    #[serde(default)]
-    pub endpoint_setting: Option<String>,
     /// Opaque identifier the frontend echoes back in `configured_cloud`
     /// to mark this provider as available. Not a system property name.
     #[serde(default)]

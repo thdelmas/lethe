@@ -199,7 +199,10 @@ providers:
   custom:
     type: "cloud"
     api_format: "openai"
-    endpoint_setting: "persist.lethe.provider.custom.endpoint"
+    # The custom-provider endpoint is configured per-device through the
+    # settings UI (static/settings.js → LetheConfig persisted JSON), not
+    # via system properties. Nothing reads an endpoint sysprop, so there
+    # is no field here for one.
     requires_internet: true
     requires_api_key: false
     availability_token: "custom"
