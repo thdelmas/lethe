@@ -223,6 +223,27 @@
             </intent-filter>
         </receiver>
 
+        <!-- Native pair-payload entry UI. Shows up in Trebuchet's app
+             drawer as "LETHE Pair" so users can paste the JSON an
+             OSmosis partner encodes into a QR — the in-WebView QR
+             scanner is unreachable on user builds (lethe#159). Same
+             write path as PairReceiver. -->
+        <activity
+            android:name="org.osmosis.lethe.PairEntryActivity"
+            android:label="LETHE Pair"
+            android:theme="@android:style/Theme.DeviceDefault"
+            android:excludeFromRecents="true"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+            <intent-filter>
+                <action android:name="lethe.intent.PAIR_ENTRY" />
+                <category android:name="android.intent.category.DEFAULT" />
+            </intent-filter>
+        </activity>
+
         <!-- Device Admin (promoted to Device Owner at first boot).
              Unlocks DPM.wipeData() — the working wipe path — and the
              stock setMaximumFailedPasswordsForWipe API. -->

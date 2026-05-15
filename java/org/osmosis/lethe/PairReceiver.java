@@ -98,4 +98,39 @@ public class PairReceiver extends BroadcastReceiver {
         cfg.put("active_provider", provider);
         return cfg.toString();
     }
+
+    /**
+     * Applies a QR-style pair payload to the persisted config. Same
+     * write path as the broadcast handler, just unpacks the
+     * {@code {"lethe_pair":true,"provider":...,"key":...,"model":...}}
+     * shape that OSmosis encodes into the QR (and that PairEntryActivity
+     * takes by paste). Returns the resolved provider name on success.
+     *
+     * @throws JSONException on malformed JSON, missing {@code lethe_pair}
+     *         flag, missing {@code provider}/{@code key}, or
+     *         {@link LetheConfig#savePersistedConfig} write failure.
+     */
+    public static String applyPayloadJson(Context ctx, String payload)
+            throws JSONException {
+        JSONObject p = new JSONObject(payload);
+        if (!p.optBoolean("lethe_pair", false)) {
+            throw new JSONException("not a LETHE pair payload (missing lethe_pair flag)");
+        }
+        String provider = p.optString("provider", "");
+        String key = p.optString("key", "");
+        String model = p.optString("model", "");
+        if (provider.isEmpty() || key.isEmpty()) {
+            throw new JSONException("payload missing provider or key");
+        }
+
+        LetheConfig.initConfigDir(ctx);
+        String merged = merge(LetheConfig.loadPersistedConfig(),
+            provider, key, model.isEmpty() ? null : model);
+        String result = LetheConfig.savePersistedConfig(merged);
+        if (!"ok".equals(result)) {
+            throw new JSONException("save failed: " + result);
+        }
+        Log.i(TAG, "Paired provider=" + provider + " (via payload)");
+        return provider;
+    }
 }
