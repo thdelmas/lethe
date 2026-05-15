@@ -32,6 +32,32 @@ listens; the peer pushes commands. Reasons over alternatives:
 | Tor v3 onion | Self-issued keypair, no upstream identity, .onion address can be reissued every boot. **Chosen.** |
 | Yggdrasil + signed UDP | Good for mesh-only scenarios but won't traverse hostile carrier-grade NAT. Keep as fallback layer. |
 
+### Architecture
+
+Two services, both already in the system image:
+
+* **Rust agent** ([`agent/`](../../../agent/)) hosts the responder on
+  `127.0.0.1:<remote_dms_port>`. Signature verification, nonce/timestamp
+  checks, heartbeat-state assembly, and pair-state storage all live in
+  the agent. Reuses the existing axum router.
+* **System app** ([`java/org/osmosis/lethe/`](../../../java/org/osmosis/lethe/))
+  executes destructive verbs. For `LOCK_NOW`, `WIPE_NOW`, the agent
+  forwards a serialized signed-command intent to a new system-app
+  receiver (`RemoteCommandReceiver`), which **re-verifies the signature
+  itself** against the stored pairing pubkey before calling
+  `AutoWipePolicy.executeWipe` / DPM lock. A malicious local app can't
+  spoof the agent because the receiver doesn't trust the broadcaster —
+  it trusts the signature.
+
+Non-destructive verbs (`STATUS_PING`, `DMS_RESET`, `DMS_PAUSE_24H`)
+never leave the agent process.
+
+The single existing Tor instance ([`initrc/init.lethe-tor.rc`](../../../initrc/init.lethe-tor.rc))
+hosts the hidden service via an additive torrc fragment gated by
+`persist.lethe.remote_dms.enabled`. When the prop is unset the
+directives are absent and Tor behaves exactly as today
+(transparent-proxy only). No second `tor` process.
+
 ### Pairing
 
 First-boot wizard (or Settings → Trust → Add remote command peer) generates
@@ -39,6 +65,14 @@ a fresh Ed25519 keypair on each side and exchanges public keys via QR code
 + short authentication string (similar to Briar / Signal safety numbers).
 Stored under the *persistent* class key (per-session-keys design),
 explicitly opted-in.
+
+**Post-wipe behavior.** `WIPE_NOW` is terminal: the persistent class key
+and the pairing material it wraps both disappear with /data. The
+editor's stored onion+pubkey points at a dead onion. **The next pairing
+is full-fresh** — no migration path, no "transfer my editor relationship
+to a new device" flow in v1. Documented up front so the editor's
+expectation matches the threat-model contract: once the wipe lands, the
+editor knows the relationship is gone and waits for the user to re-pair.
 
 ### Wire format
 
@@ -50,7 +84,12 @@ where sig = Ed25519(peer_priv, hash(nonce || timestamp || verb || device_pub))
 * `nonce` — random; phone keeps a sliding window of ~512 recent nonces in
   RAM, drops duplicates.
 * `timestamp` — phone rejects skew >120 s in either direction. (Tor only,
-  so timestamp drift is the device's NTP, not the carrier's.)
+  so timestamp drift is the device's NTP, not the carrier's.) **Post-boot
+  tightening:** for the first 60 s after `sys.boot_completed=1`, the
+  accepted skew narrows to ±10 s. Closes the replay window that would
+  otherwise open between the captured command's original timestamp and
+  the empty in-RAM nonce table on a freshly-rebooted device. Documented
+  degradation, no on-disk nonce state needed.
 * `verb` — one of `STATUS_PING`, `LOCK_NOW`, `WIPE_NOW`, `DMS_RESET`,
   `DMS_PAUSE_24H`.
 * `sig` includes the device public key, so a captured command for one
@@ -111,6 +150,31 @@ phrase.
 5. Phone displays a printable recovery sheet: peer onion, pubkey, pairing
    nonce. (For when the journalist is offline and needs to verify with
    the editor over a different channel.)
+
+## v1 ship cut — phased plan
+
+The full design above spans five phases. **v1 ships phases 1 and 4 only.**
+Each later phase threads into a separate journalist-audit milestone.
+
+| Phase | Scope | Depends on | Ships in |
+|---|---|---|---|
+| 1 | Rust agent endpoints (`/cmd`, `/heartbeat`, `/pubkey`) + Ed25519 verify + nonce/timestamp + post-boot tightening + Tor torrc fragment. Manual pairing via JSON dropped on the device's persist dir for test devices. Enabled verbs: `STATUS_PING`, `DMS_RESET`, `DMS_PAUSE_24H`. | None — uses existing Tor instance. | **v1** |
+| 2 | `RemoteCommandReceiver` in the system app + signed-command bridge intent. Enables `LOCK_NOW` and `WIPE_NOW`. | [#101](https://github.com/thdelmas/lethe/issues/101) (persistent class key for pairing storage that survives reboot but is destroyed by wipe). | v1.x after #101 lands |
+| 3 | First-boot wizard pairing flow. Native UI (QR + SAS + recovery sheet). | [#159](https://github.com/thdelmas/lethe/issues/159) — needs a native UI surface; `LetheActivity` WebView is still unreachable on user builds. Pattern follows `AutoWipeSettingsActivity` / `PairEntryActivity`. | v1.x after #159 sub-cases resolve |
+| 4 | `lethe-remote` CLI client shipped via the OSmosis docs repo. | None. Can ship alongside phase 1. | **v1** |
+| 5 | Optional Android partner app for non-CLI editors. | Phase 4 settled the wire interop. | v1.y |
+
+**v1 = phase 1 + phase 4** gives a functional channel the user can demo
+end-to-end (status pings, DMS pause-and-extend) from a real CLI, without
+depending on any of the open blockers. Destructive verbs (LOCK / WIPE)
+intentionally stay disabled in v1 — the responder rejects them with a
+documented error code. This is honest: the wipe path needs #101's
+persistent-class-key storage to be threat-model-sound, so wiring it
+before then would ship a worse-than-nothing security claim.
+
+The wire format (verb numbering, nonce window, timestamp envelope, sig
+binding) is locked across all phases — phase 2 doesn't change the
+on-the-wire protocol, just enables more verbs.
 
 ## Acceptance mapping
 
