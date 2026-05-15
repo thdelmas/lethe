@@ -1,7 +1,6 @@
 package org.osmosis.lethe;
 
 import android.app.Activity;
-import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
 import android.content.pm.PackageManager;
@@ -48,7 +47,6 @@ public class LetheActivity extends Activity {
     private WebView webView;
     private LinearLayout inputBar;
     private EditText inputField;
-    private BroadcastReceiver pairReceiver;
     private LethePhone phone;
 
     @Override
@@ -129,50 +127,11 @@ public class LetheActivity extends Activity {
 
         setContentView(root);
 
-        // Listen for pairing broadcasts from OSmosis over USB
-        pairReceiver = new BroadcastReceiver() {
-            @Override
-            public void onReceive(Context ctx, Intent intent) {
-                String prov = intent.getStringExtra("provider");
-                String key = intent.getStringExtra("key");
-                String model = intent.getStringExtra("model");
-                if (prov == null || key == null) return;
-                Log.i(TAG, "Pair received: " + prov);
-                // Merge into /persist config
-                try {
-                    org.json.JSONObject cfg = new org.json.JSONObject(
-                        LetheConfig.loadPersistedConfig());
-                    org.json.JSONObject provs =
-                        cfg.getJSONObject("providers");
-                    org.json.JSONObject pc = provs.optJSONObject(prov);
-                    if (pc == null) pc = new org.json.JSONObject();
-                    pc.put("key", key);
-                    if (model != null && !model.isEmpty())
-                        pc.put("model", model);
-                    provs.put(prov, pc);
-                    cfg.put("active_provider", prov);
-                    LetheConfig.savePersistedConfig(cfg.toString());
-                } catch (Exception e) {
-                    Log.e(TAG, "Pair config merge failed", e);
-                }
-                // Reload config in JS
-                webView.evaluateJavascript(
-                    "if(typeof reloadConfig==='function')reloadConfig();"
-                    + "if(typeof addMessage==='function')"
-                    + "addMessage('Paired with " + prov
-                    + ". Ready to talk.','lethe');", null);
-            }
-        };
-        registerReceiver(pairReceiver,
-            new android.content.IntentFilter("lethe.intent.PAIR"));
+        // Pair handoff (`lethe.intent.PAIR`) is now handled by the
+        // manifest-declared PairReceiver — runs on user builds where
+        // this activity crashes from WebView-in-system-uid (lethe#159).
 
         Log.i(TAG, "Void Launcher started");
-    }
-
-    @Override
-    protected void onDestroy() {
-        if (pairReceiver != null) unregisterReceiver(pairReceiver);
-        super.onDestroy();
     }
 
     private void sendFromNative() {
