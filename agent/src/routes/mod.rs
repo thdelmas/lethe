@@ -9,6 +9,7 @@ pub mod mesh;
 pub mod network;
 pub mod packages;
 pub mod peer;
+pub mod remote_dms;
 pub mod router;
 pub mod shell;
 pub mod state;
