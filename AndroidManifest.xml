@@ -211,6 +211,18 @@
             </intent-filter>
         </receiver>
 
+        <!-- Provider-pair handoff from a partner OSmosis device.
+             Manifest-declared (not registered in LetheActivity) so the
+             pair flow works on user builds where the WebView-host
+             activity crashes; see lethe#159. -->
+        <receiver
+            android:name="org.osmosis.lethe.PairReceiver"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="lethe.intent.PAIR" />
+            </intent-filter>
+        </receiver>
+
         <!-- Device Admin (promoted to Device Owner at first boot).
              Unlocks DPM.wipeData() — the working wipe path — and the
              stock setMaximumFailedPasswordsForWipe API. -->
