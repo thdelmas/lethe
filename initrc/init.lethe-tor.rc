@@ -33,6 +33,15 @@ service lethe_tor_pt /system/bin/lethe-tor-pt-select.sh
     group root
     oneshot
 
+# Remote-DMS hidden service selector (lethe#103). Reads
+# persist.lethe.remote_dms.enabled and writes
+# /data/lethe/tor/torrc.remote_dms before tor starts.
+service lethe_tor_rdms /system/bin/lethe-tor-remote-dms.sh
+    class main
+    user root
+    group root
+    oneshot
+
 on post-fs-data
     mkdir /data/lethe 0700 root root
     mkdir /data/lethe/tor 0700 root root
@@ -49,6 +58,10 @@ on post-fs-data
     write /data/lethe/tor/torrc.bridges ""
     chown root root /data/lethe/tor/torrc.bridges
     chmod 0600 /data/lethe/tor/torrc.bridges
+    # Same shape for the remote-DMS hidden-service fragment (lethe#103).
+    write /data/lethe/tor/torrc.remote_dms ""
+    chown root root /data/lethe/tor/torrc.remote_dms
+    chmod 0600 /data/lethe/tor/torrc.remote_dms
     # State file: delete on every boot. Tor refuses to bootstrap if the
     # state file's timestamp is in the future relative to the current
     # clock (CLOCK_SKEW check). On a device with no RTC battery and no
@@ -59,6 +72,7 @@ on post-fs-data
     rm /data/lethe/tor/state
     rm /data/lethe/tor/lock
     start lethe_tor_pt
+    start lethe_tor_rdms
 
 on property:sys.boot_completed=1
     start lethe_tor
