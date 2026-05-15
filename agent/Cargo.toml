@@ -19,6 +19,14 @@ tower-http = { version = "0.6", features = ["cors"] }
 hyper = { version = "1", features = ["full"] }
 reqwest = { version = "0.12", default-features = false, features = ["json", "rustls-tls", "multipart", "stream"] }
 serde_yaml = "0.9"
+# Remote-DMS responder (#103 phase 1).
+ed25519-dalek = "2"
+base64 = "0.22"
+
+[dev-dependencies]
+# OsRng for ed25519 key generation in tests; not pulled into the
+# release binary — pair keys arrive via the pair file at runtime.
+rand_core = { version = "0.6", features = ["std", "getrandom"] }
 
 [profile.release]
 opt-level = "s"
