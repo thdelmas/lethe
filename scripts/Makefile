@@ -28,7 +28,7 @@ endef
         sideload resign sideload-noassert screencap pull-kmsg reboot-system \
         reboot-recovery boot-status wait-boot persist-set persist-clear \
         persist-list fresh-boot-test \
-        _adb-up _need-recovery _need-sideload _need-system
+        _adb-up _need-recovery _need-system
 
 help: ## Show this list
 	@printf 'scripts/Makefile — Lethe ADB protocol\n\nTargets:\n'
@@ -70,10 +70,6 @@ _need-recovery: _adb-up
 	@MODE=$(call detect_mode)
 	if [ "$$MODE" != "recovery" ]; then echo "need TWRP recovery (current: '$$MODE')" >&2; exit 2; fi
 
-_need-sideload: _adb-up
-	@MODE=$(call detect_mode)
-	if [ "$$MODE" != "sideload" ]; then echo "need TWRP > Advanced > ADB Sideload (current: '$$MODE')" >&2; exit 2; fi
-
 _need-system: _adb-up
 	@MODE=$(call detect_mode)
 	if [ "$$MODE" != "device" ]; then echo "need booted system (current: '$$MODE')" >&2; exit 2; fi
@@ -94,23 +90,34 @@ enter-sideload: _need-recovery ## Switch TWRP into ADB sideload mode (no UI tap)
 	@MODE=$(call detect_mode)
 	@echo "mode: $$MODE"
 
-sideload: _need-sideload ## adb sideload ZIP=path (no resign)
+# sideload + sideload-noassert: push + twrp install, not adb sideload.
+# adb sideload fails deterministically at 0% on TWRP 3.7.0-n7100 / t0lte
+# ("adb: failed to read command: Success"). Push + twrp install runs the
+# same OTA update-binary and is reliable across the TWRP versions tested
+# (lethe#139). Pre-emptive `twrp unmount system` clears the "Failed
+# unmounting System" install error if /system was mounted earlier for
+# diagnostics.
+sideload: _need-recovery ## push + twrp install ZIP=path (no resign)
 	@[ -f "$(ZIP)" ] || { echo "ZIP unset or missing: '$(ZIP)'" >&2; exit 1; }
 	@echo "=> $(notdir $(ZIP)) ($$(stat -c %s '$(ZIP)') bytes)"
-	@$(ADB) sideload "$(ZIP)"
+	@$(ADB) shell twrp unmount system >/dev/null 2>&1 || true
+	@$(ADB) push "$(ZIP)" /sdcard/lethe.zip
+	@$(ADB) shell "twrp install /sdcard/lethe.zip"
 
 resign: ## Strip codename assert + re-sign: ZIP=in OUT=out
 	@[ -f "$(ZIP)" ] || { echo "ZIP unset or missing: '$(ZIP)'" >&2; exit 1; }
 	@[ -n "$(OUT)" ] || { echo "OUT unset" >&2; exit 1; }
 	@bash $(SCRIPT_DIR)/lethe-resign.sh "$(ZIP)" "$(OUT)"
 
-sideload-noassert: _need-sideload ## resign + sideload ZIP=... (t03g/t0lte mismatch fix)
+sideload-noassert: _need-recovery ## resign + push + install ZIP=... (t03g/t0lte mismatch fix)
 	@[ -f "$(ZIP)" ] || { echo "ZIP unset or missing: '$(ZIP)'" >&2; exit 1; }
 	@mkdir -p $(RESIGN_TMP)
 	OUT=$(RESIGN_TMP)/$(notdir $(basename $(ZIP)))-noassert.zip
 	bash $(SCRIPT_DIR)/lethe-resign.sh "$(ZIP)" "$$OUT"
-	echo "=> sideload $$OUT"
-	$(ADB) sideload "$$OUT"
+	echo "=> install $$OUT"
+	$(ADB) shell twrp unmount system >/dev/null 2>&1 || true
+	$(ADB) push "$$OUT" /sdcard/lethe.zip
+	$(ADB) shell "twrp install /sdcard/lethe.zip"
 
 screencap: _need-system ## Screenshot to OUT=path.png (booted system only)
 	@[ -n "$(OUT)" ] || { echo "OUT unset" >&2; exit 1; }
@@ -202,18 +209,20 @@ persist-list: _need-recovery ## List existing /data/property/* overrides
 	@$(ADB) shell 'twrp mount data' >/dev/null 2>&1 || true
 	@$(ADB) shell 'ls -la /data/property/ 2>/dev/null; for f in /data/property/persist.*; do [ -e "$$f" ] && printf "  %-50s %s\n" "$$(basename "$$f")" "$$(cat "$$f")"; done' | tr -d '\r'
 
-# Full clean-room boot test: wipe /data, resign+sideload ZIP, optionally seed a
+# Full clean-room boot test: wipe /data, resign+install ZIP, optionally seed a
 # persist override on the freshly-formatted /data, reboot, wait-boot. Each
 # phase prints UTC HH:MMZ so a long-running test stays readable when scrolling
-# back. Time budget on Note II t0lte is ~50 min: ~5 min sideload + dexopt-then-
+# back. Time budget on Note II t0lte is ~50 min: ~5 min install + dexopt-then-
 # framework window. Worst-case is wait-boot's TIMEOUT_SEC (default 2700s).
-fresh-boot-test: _need-recovery ## Wipe + sideload ZIP=... [WIPE_SYSTEM=1] [WIPE_CACHE=1] [PERSIST_KEY=,PERSIST_VAL=] + wait-boot
+# Install path is push + twrp install (not adb sideload) — see sideload
+# target header above and lethe#139 for rationale.
+fresh-boot-test: _need-recovery ## Wipe + install ZIP=... [WIPE_SYSTEM=1] [WIPE_CACHE=1] [PERSIST_KEY=,PERSIST_VAL=] + wait-boot
 	@[ -f "$(ZIP)" ] || { echo "ZIP unset or missing: '$(ZIP)'" >&2; exit 1; }
 	@TIMEOUT=$${TIMEOUT_SEC:-2700}
 	START=$$(date +%s)
 	ETA_TIMEOUT=$$(date -u -d "@$$((START+TIMEOUT+300))" +%H:%MZ)
 	echo "[fresh-boot-test] $$(date -u +%H:%MZ) start  worst-case=$$ETA_TIMEOUT  zip=$(notdir $(ZIP))"
-	echo "[1/5] $$(date -u +%H:%MZ) twrp wipe data$(if $(WIPE_SYSTEM), + system)$(if $(WIPE_CACHE), + cache)"
+	echo "[1/4] $$(date -u +%H:%MZ) twrp wipe data$(if $(WIPE_SYSTEM), + system)$(if $(WIPE_CACHE), + cache)"
 	$(ADB) shell twrp wipe data
 	if [ -n "$(WIPE_SYSTEM)" ]; then $(ADB) shell twrp wipe system; fi
 	if [ -n "$(WIPE_CACHE)" ];  then $(ADB) shell twrp wipe cache;  fi
@@ -224,36 +233,23 @@ fresh-boot-test: _need-recovery ## Wipe + sideload ZIP=... [WIPE_SYSTEM=1] [WIPE
 	    [ "$$MODE" = "recovery" ] && break
 	done
 	if [ "$$MODE" != "recovery" ]; then echo "adbd did not return as 'recovery' after wipe (mode: '$$MODE')" >&2; exit 2; fi
-	echo "[2/5] $$(date -u +%H:%MZ) enter sideload"
-	$(ADB) shell twrp sideload
-	for i in $$(seq 1 15); do
-	    sleep 2
-	    MODE=$(call detect_mode)
-	    [ "$$MODE" = "sideload" ] && break
-	done
-	if [ "$$MODE" != "sideload" ]; then echo "device did not enter sideload (mode: '$$MODE')" >&2; exit 2; fi
-	echo "[3/5] $$(date -u +%H:%MZ) resign + sideload $(notdir $(ZIP))"
+	echo "[2/4] $$(date -u +%H:%MZ) resign + push + install $(notdir $(ZIP))"
 	mkdir -p $(RESIGN_TMP)
 	OUT=$(RESIGN_TMP)/$(notdir $(basename $(ZIP)))-noassert.zip
 	bash $(SCRIPT_DIR)/lethe-resign.sh "$(ZIP)" "$$OUT"
-	$(ADB) sideload "$$OUT"
-	# After sideload, TWRP returns to its main page; wait up to 30s for
-	# the device to re-enumerate as 'recovery' before doing further work.
-	for i in 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15; do
-	    sleep 2
-	    MODE=$(call detect_mode)
-	    [ "$$MODE" = "recovery" ] && break
-	done
-	if [ "$$MODE" != "recovery" ]; then echo "device did not return to recovery after sideload (mode: '$$MODE')" >&2; exit 2; fi
+	$(ADB) shell twrp unmount system >/dev/null 2>&1 || true
+	$(ADB) push "$$OUT" /sdcard/lethe.zip
+	$(ADB) shell "twrp install /sdcard/lethe.zip"
+	# `twrp install` keeps us in recovery — no mode-flip to wait out.
 	if [ -n "$(PERSIST_KEY)" ] && [ -n "$(PERSIST_VAL)" ]; then
-	    echo "[4/5] $$(date -u +%H:%MZ) persist override persist.$(PERSIST_KEY)=$(PERSIST_VAL)"
+	    echo "[3/4] $$(date -u +%H:%MZ) persist override persist.$(PERSIST_KEY)=$(PERSIST_VAL)"
 	    $(ADB) shell 'twrp mount data' >/dev/null 2>&1 || true
 	    $(ADB) shell "mkdir -p /data/property && printf '%s' '$(PERSIST_VAL)' > /data/property/persist.$(PERSIST_KEY) && chmod 600 /data/property/persist.$(PERSIST_KEY) && chown 0:0 /data/property/persist.$(PERSIST_KEY)"
 	else
-	    echo "[4/5] $$(date -u +%H:%MZ) (no persist override; pass PERSIST_KEY=... PERSIST_VAL=... to seed one)"
+	    echo "[3/4] $$(date -u +%H:%MZ) (no persist override; pass PERSIST_KEY=... PERSIST_VAL=... to seed one)"
 	fi
 	BOOT_ETA=$$(date -u -d "@$$(($$(date +%s)+TIMEOUT))" +%H:%MZ)
-	echo "[5/5] $$(date -u +%H:%MZ) reboot + wait-boot (timeout $$TIMEOUT s, ETA $$BOOT_ETA)"
+	echo "[4/4] $$(date -u +%H:%MZ) reboot + wait-boot (timeout $$TIMEOUT s, ETA $$BOOT_ETA)"
 	$(ADB) reboot
 	if ! timeout $$TIMEOUT $(ADB) wait-for-device 2>/dev/null; then
 	    echo "TIMEOUT waiting for adbd at $$(date -u +%H:%MZ)" >&2; exit 3
