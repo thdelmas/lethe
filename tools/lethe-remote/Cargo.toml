@@ -1,0 +1,32 @@
+[package]
+name = "lethe-remote"
+version = "0.1.0"
+edition = "2021"
+description = "Editor-side CLI for the LETHE remote-DMS channel (issue #103, phase 4)"
+license = "GPL-3.0-only"
+
+[[bin]]
+name = "lethe-remote"
+path = "src/main.rs"
+
+# Wire-format crates are pinned to the same major versions as `agent/`
+# so byte-level interop is locked. If you bump one side, bump the other.
+[dependencies]
+ed25519-dalek = { version = "2", features = ["rand_core"] }
+base64 = "0.22"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+clap = { version = "4", features = ["derive"] }
+anyhow = "1"
+thiserror = "2"
+getrandom = "0.2"
+reqwest = { version = "0.12", default-features = false, features = ["json", "rustls-tls", "socks"] }
+tokio = { version = "1", features = ["rt-multi-thread", "macros"] }
+directories = "5"
+
+[profile.release]
+opt-level = "s"
+lto = true
+strip = true
+codegen-units = 1
+panic = "abort"
