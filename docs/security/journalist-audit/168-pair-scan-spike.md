@@ -106,3 +106,77 @@ The whole spike stays opt-in via env var. Default builds are unchanged.
 - [x] Probe class `org.osmosis.lethe.spike.PairScanProbe` compiles and links.
 - [x] Default builds (`LETHE_BUILD_PAIR_SCAN_SPIKE` unset) are unchanged
       — the staging script is never invoked.
+
+## Testing the scan path on hardware
+
+The pair flow expects a QR from a partner OSmosis device. In dev there
+is no OSmosis, so any QR generator that renders a valid pair payload
+stands in.
+
+### Payload shape
+
+`PairReceiver.applyPayloadJson` requires:
+
+- `lethe_pair: true` — gate, throws on anything else
+- `provider: <name>` — non-empty string
+- `key: <string>` — non-empty string, opaque to the parser
+- `model: <string>` — optional
+
+For decode-loop testing the `key` contents are irrelevant. Use a dummy:
+
+```json
+{"lethe_pair":true,"provider":"test","key":"DUMMY","model":"test-model"}
+```
+
+### Generate the QR
+
+`qrencode` is the simplest path:
+
+```sh
+sudo apt-get install -y qrencode
+qrencode -s 8 -o /tmp/pair-test.png \
+  '{"lethe_pair":true,"provider":"test","key":"DUMMY","model":"test-model"}'
+xdg-open /tmp/pair-test.png
+```
+
+Alternatives: any phone-side QR-generator app on a second device,
+or a desktop tool that renders the JSON in a QR.
+
+### Exercise the flow
+
+1. Build + flash a Lethe build that includes `PairScanActivity` to a
+   cm-14.1 device. Either replace `/system/priv-app/Lethe/Lethe.apk`
+   in recovery, or sideload a full OTA — see the spike build docker
+   recipe above; `mka Lethe otapackage` runs ~15 min cold, ~3 min if
+   only `PairScanActivity.java` changed.
+2. Open the launcher app drawer, tap **LETHE Pair**.
+3. In the entry activity, tap **Scan QR**.
+4. Point the camera at the QR PNG on the monitor / second phone.
+5. Expected:
+   - Toast: `Paired with test.`
+   - Activity finishes back to the launcher.
+   - `adb shell logcat -d | grep lethe` shows
+     `PairReceiver: Paired provider=test (via payload)`.
+
+Cancel paths to exercise:
+
+- Tap **Cancel** in the scanner → PairEntry comes back unchanged.
+- Deny CAMERA at the runtime prompt (when not auto-granted) → toast
+  `Camera permission denied — use Paste instead.`, return to PairEntry.
+
+### Hardware quirks
+
+- t0lte runs the `exynos_camera` HAL1 driver (sensor: `S5C73M3` rear,
+  `S5K6A3` front). `PairScanActivity` uses the **Camera1** API for
+  this reason; Camera2's legacy-shim path crashes inside
+  `LegacyCameraDevice.produceFrame` →
+  `SurfaceTextureRenderer.drawIntoSurfaces` when asked to render both
+  a preview surface and an `ImageReader` target
+  (`lethe-pair-scan: Camera error: 4`). When the activity ports to
+  LOS 22.1+ (HAL3-class hardware), a Camera2 implementation comes
+  back as separate work.
+- Autofocus hint is `FOCUS_MODE_CONTINUOUS_PICTURE` where supported;
+  older sensors fall back to `FOCUS_MODE_AUTO`. Decode usually lands
+  in 1–2 frames at the 640×480 preview size.
+- CAMERA is `SYSTEM_FIXED GRANTED_BY_DEFAULT` for the system-uid Lethe
+  app, so the runtime prompt does not appear on shipping builds.
