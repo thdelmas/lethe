@@ -9,71 +9,91 @@ inside `LetheActivity` (WebView-in-system-uid, crashes on shipping ROMs).
 
 ## What the spike validates
 
-The unknown blocking #168 is build-glue. The cm-14.1 system-app template
-at [apply-overlays.sh:399](../../../apply-overlays.sh#L399) doesn't pull
-any third-party JARs today. Before writing the ~200 LOC of Camera2 +
-scanner UI, we need to confirm:
+The unknown blocking #168 was build-glue. Before writing the ~200 LOC of
+Camera2 + scanner UI, we needed to confirm that the Lethe APK could link
+a barcode-decoder library through the cm-14.1 system-app pipeline at
+[apply-overlays.sh](../../../apply-overlays.sh), which had never pulled in
+a third-party JAR.
 
-1. A sibling Android.mk at `packages/apps/LethePrebuilts/` declaring
-   `zxing-core` as a `BUILD_PREBUILT` JAVA_LIBRARIES module is picked up
-   by the LineageOS top-level build.
-2. `LOCAL_STATIC_JAVA_LIBRARIES := zxing-core` on the Lethe APK
-   correctly links the JAR into Lethe.apk, with classes reachable from
-   the system-uid process.
+## Finding — validated on t0lte, 2026-05-17
 
-A no-op probe ([spike/168-pair-scan/PairScanProbe.java](../../../spike/168-pair-scan/PairScanProbe.java))
-references `com.google.zxing.Result` so any link failure surfaces at
-compile time, not as a runtime ClassNotFoundException.
+**The cm-14.1 source tree already ships `zxing-core` 2.3.1.** It is
+declared at [`packages/apps/Snap/Android.mk`](https://github.com/LineageOS/android_packages_apps_Snap/blob/cm-14.1/Android.mk)
+as a `LOCAL_PREBUILT_STATIC_JAVA_LIBRARIES` pointing at
+`quickReader/libs/zxing-core-g-2.3.1.jar`.
+
+Adding `LOCAL_STATIC_JAVA_LIBRARIES := zxing-core` to the Lethe Android.mk
+is the entire build-glue. No vendored JAR. No sibling `LethePrebuilts`
+module. Attempting to vendor a second copy under a duplicate module name
+fails at config-evaluation time:
+
+```
+build/core/base_rules.mk:183: *** packages/apps/Snap:
+MODULE.TARGET.JAVA_LIBRARIES.zxing-core already defined by
+packages/apps/LethePrebuilts.
+```
+
+Once the duplicate prebuilt is removed, `mka Lethe` succeeds in 1:51
+(t0lte, warm ccache). `Lethe.apk`'s `classes.dex` (635 KB, up from
+~500 KB pre-spike) contains `com.google.zxing.BarcodeFormat`,
+`com.google.zxing.qrcode.decoder.*`, the full ResultParser tree, and
+the probe's own `org.osmosis.lethe.spike.PairScanProbe` (which imports
+`com.google.zxing.Result` to force the link).
 
 ## How to run the spike
 
-The whole spike is opt-in via env var. Default builds are unchanged.
+The whole spike stays opt-in via env var. Default builds are unchanged.
 
-1. Fetch the ZXing core JAR (not committed — build-glue PR only):
+1. Stage:
    ```sh
-   cd prebuilts/zxing
-   curl -fLo core-3.3.3.jar \
-     https://repo1.maven.org/maven2/com/google/zxing/core/3.3.3/core-3.3.3.jar
-   sha256sum core-3.3.3.jar > core-3.3.3.jar.sha256
+   LETHE_BUILD_PAIR_SCAN_SPIKE=1 ./apply-overlays.sh t0lte
    ```
-2. Stage and build:
+   (in the cm-14.1 source tree root — typically `~/android/lineage-v1.0.1`).
+2. Build the module inside `lethe-cm14-build:latest`:
    ```sh
-   LETHE_BUILD_PAIR_SCAN_SPIKE=1 ./apply-overlays.sh tissot
-   cd "$LINEAGE_TREE" && mka lethe-image
+   docker run --rm \
+     -e LC_ALL=C -e LANG=C -e USE_CCACHE=1 -e CCACHE_DIR=/ccache \
+     -e USER=root -e HOME=/root \
+     -e GIT_CONFIG_COUNT=1 -e GIT_CONFIG_KEY_0=safe.directory -e GIT_CONFIG_VALUE_0='*' \
+     -v ~/android/lineage-v1.0.1:/lineage \
+     -v ~/Lethe:/lethe \
+     -v ~/.ccache:/ccache \
+     lethe-cm14-build:latest \
+     bash -c "cd /lineage && source build/envsetup.sh && lunch lineage_t0lte-user && mka Lethe"
    ```
-3. Confirm Lethe.apk contains `Result.class`:
+3. Confirm the dex link:
    ```sh
-   unzip -l out/target/product/tissot/system/priv-app/Lethe/Lethe.apk \
-     | grep 'com/google/zxing/Result\.class'
+   unzip -p ~/android/lineage-v1.0.1/out/target/product/t0lte/system/priv-app/Lethe/Lethe.apk \
+     classes.dex | strings | grep 'com/google/zxing'
    ```
-
-3.3.3 chosen because it is the last ZXing release fully compatible
-with the Java 7 source/target the cm-14.1 system-app pipeline uses.
+   Expect ZXing class names (`SwitchMap$com$google$zxing$BarcodeFormat`, parser source files, etc.).
 
 ## Non-goals
 
 - No `PairScanActivity` UI in the spike PR.
 - No manifest entry, no `PairReceiver` wiring.
-- No JAR committed — that's a follow-up after the build path is
-  confirmed and the SHA-256 has been recorded.
-- No Camera2 plumbing or barcode decode loop.
+- No Camera2 plumbing or barcode-decode loop.
 
-## Open questions deferred to the follow-up PR
+## What this means for the PairScanActivity follow-up
 
-- Whether to vendor `zxing-core` under `prebuilts/zxing/` or under a
-  build-system-wide `external/zxing/` path more consistent with other
-  LineageOS modules.
-- Whether `LOCAL_STATIC_JAVA_LIBRARIES` is the right linkage vs.
-  `LOCAL_JAVA_LIBRARIES` (compile-time only). The cm-14.1 system path
-  has no runtime ZXing, so static is the only practical option — but
-  the spike build will confirm dex-size is acceptable.
-- Lifecycle of `PairScanProbe.java`: delete it the moment
-  `PairScanActivity` ships and supplies its own ZXing reference.
+- Implementation can assume `com.google.zxing.*` is reachable. The
+  Camera2 preview can feed `MultiFormatReader.decode` against
+  `RGBLuminanceSource` (or `PlanarYUVLuminanceSource` for raw preview
+  frames) without any further build-system work.
+- 2.3.1 is from 2014. It works fine for the QR-pair use case (~70-byte
+  payload, controlled lighting, partner OSmosis device on-screen). If a
+  future feature ever needs a newer decoder (high-density / damaged-code
+  recovery), revisit the vendor question — that would mean **renaming**
+  to `lethe-zxing-core` to dodge the Snap collision.
+- For LOS 22.1+ trees the layout is different (no `packages/apps/Snap`).
+  PairScanActivity is currently cm-14.1-only because #159 is — when it
+  ports forward, the vendoring question comes back as a separate spike.
 
 ## Acceptance
 
-- `LETHE_BUILD_PAIR_SCAN_SPIKE=1 ./apply-overlays.sh <codename>` succeeds.
-- `mka lethe-image` succeeds with no link errors against `zxing-core`.
-- `Lethe.apk` contains `com/google/zxing/Result.class`.
-- Default builds (`LETHE_BUILD_PAIR_SCAN_SPIKE` unset) are byte-identical
-  to pre-spike output.
+- [x] `LETHE_BUILD_PAIR_SCAN_SPIKE=1 ./apply-overlays.sh t0lte` succeeds.
+- [x] `mka Lethe` in `lethe-cm14-build:latest` docker succeeds (1:51 warm).
+- [x] `Lethe.apk` contains `com.google.zxing.*` classes in `classes.dex`.
+- [x] Probe class `org.osmosis.lethe.spike.PairScanProbe` compiles and links.
+- [x] Default builds (`LETHE_BUILD_PAIR_SCAN_SPIKE` unset) are unchanged
+      — the staging script is never invoked.
