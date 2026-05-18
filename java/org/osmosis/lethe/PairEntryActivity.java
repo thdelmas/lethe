@@ -1,6 +1,7 @@
 package org.osmosis.lethe;
 
 import android.app.Activity;
+import android.content.Intent;
 import android.graphics.Color;
 import android.graphics.Typeface;
 import android.os.Bundle;
@@ -48,6 +49,7 @@ import org.json.JSONException;
 public class PairEntryActivity extends Activity {
 
     private static final String TAG = "lethe-pair-entry";
+    private static final int REQUEST_SCAN = 0x70A2;
 
     private EditText payloadField;
 
@@ -97,12 +99,23 @@ public class PairEntryActivity extends Activity {
         buttonRow.setPadding(0, dp(16), 0, 0);
         buttonRow.setGravity(Gravity.END);
 
+        Button scan = new Button(this);
+        scan.setText("Scan QR");
+        scan.setOnClickListener(new View.OnClickListener() {
+            @Override public void onClick(View v) { launchScanner(); }
+        });
+        buttonRow.addView(scan);
+
         Button cancel = new Button(this);
         cancel.setText("Cancel");
         cancel.setOnClickListener(new View.OnClickListener() {
             @Override public void onClick(View v) { finish(); }
         });
-        buttonRow.addView(cancel);
+        LinearLayout.LayoutParams cancelParams = new LinearLayout.LayoutParams(
+            ViewGroup.LayoutParams.WRAP_CONTENT,
+            ViewGroup.LayoutParams.WRAP_CONTENT);
+        cancelParams.setMargins(dp(8), 0, 0, 0);
+        buttonRow.addView(cancel, cancelParams);
 
         Button apply = new Button(this);
         apply.setText("Apply");
@@ -116,6 +129,23 @@ public class PairEntryActivity extends Activity {
         buttonRow.addView(apply, applyParams);
 
         root.addView(buttonRow);
+    }
+
+    private void launchScanner() {
+        Intent i = new Intent(this, PairScanActivity.class);
+        startActivityForResult(i, REQUEST_SCAN);
+    }
+
+    @Override
+    protected void onActivityResult(int requestCode, int resultCode, Intent data) {
+        super.onActivityResult(requestCode, resultCode, data);
+        if (requestCode != REQUEST_SCAN || resultCode != RESULT_OK || data == null) {
+            return;
+        }
+        String payload = data.getStringExtra(PairScanActivity.EXTRA_PAYLOAD);
+        if (payload == null || payload.isEmpty()) return;
+        payloadField.setText(payload);
+        onApply();
     }
 
     private void onApply() {

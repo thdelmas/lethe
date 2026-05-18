@@ -244,6 +244,19 @@
             </intent-filter>
         </activity>
 
+        <!-- Native camera-based QR scanner for the pair flow (lethe#168).
+             Launched from PairEntryActivity via startActivityForResult;
+             returns the decoded payload string in EXTRA_PAYLOAD on
+             RESULT_OK. Not a drawer launcher — the paste activity is
+             the entry surface. -->
+        <activity
+            android:name="org.osmosis.lethe.PairScanActivity"
+            android:label="Scan pair QR"
+            android:theme="@android:style/Theme.DeviceDefault.NoActionBar.Fullscreen"
+            android:screenOrientation="portrait"
+            android:excludeFromRecents="true"
+            android:exported="false" />
+
         <!-- Device Admin (promoted to Device Owner at first boot).
              Unlocks DPM.wipeData() — the working wipe path — and the
              stock setMaximumFailedPasswordsForWipe API. -->

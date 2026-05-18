@@ -411,6 +411,8 @@ LOCAL_MANIFEST_FILE := AndroidManifest.xml
 # telephony-common: SmsManager (LethePhone.sendSms) lives here on cm-14.1.
 # Harmless on modern AOSP where the class moved back into framework.jar.
 LOCAL_JAVA_LIBRARIES := telephony-common
+# zxing-core: see docs/security/journalist-audit/168-pair-scan-spike.md.
+LOCAL_STATIC_JAVA_LIBRARIES := zxing-core
 LOCAL_PROGUARD_ENABLED := disabled
 LOCAL_DEX_PREOPT := false
 include $(BUILD_PACKAGE)
@@ -422,8 +424,6 @@ if [ -n "$PROPS_TARGET" ] && ! grep -qF "$LETHE_PACKAGE_LINE" "$PROPS_TARGET" 2>
         "$LETHE_PACKAGE_LINE" >> "$PROPS_TARGET"
 fi
 echo "  -> System app staged at $LETHE_APP_DEST."
-# Opt-in spike for #168 — see scripts/stage-pair-scan-spike.sh.
-[ "${LETHE_BUILD_PAIR_SCAN_SPIKE:-0}" = "1" ] && bash "$SCRIPT_DIR/scripts/stage-pair-scan-spike.sh" "$SCRIPT_DIR" "$LETHE_APP_DEST"
 chmod 755 "$SCRIPT_DIR/scripts/runtime/lethe-agent-start.sh"
 add_to_system "$SCRIPT_DIR/scripts/runtime/lethe-agent-start.sh" "system/bin/lethe-agent-start.sh"
 install_initrc init.lethe-agent.rc agent
