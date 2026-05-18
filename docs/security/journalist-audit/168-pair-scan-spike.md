@@ -1,5 +1,14 @@
 # #168 — pair-scan decoder build-glue spike
 
+> **Status (2026-05-18):** spike closed. `PairScanActivity` is in
+> mainline. The `LETHE_BUILD_PAIR_SCAN_SPIKE` env var, the
+> `scripts/stage-pair-scan-spike.sh` stager, and the
+> `org.osmosis.lethe.spike.PairScanProbe` class are gone — the
+> `LOCAL_STATIC_JAVA_LIBRARIES := zxing-core` line is in the inline
+> `Lethe/Android.mk` heredoc in `apply-overlays.sh` directly, and the
+> Camera2 scanner activity replaces the probe. This doc remains as the
+> hardware-validation record for the build-glue decision.
+
 Sub-case of [#159](https://github.com/thdelmas/lethe/issues/159). Tracked at
 [#168](https://github.com/thdelmas/lethe/issues/168). After [#165](https://github.com/thdelmas/lethe/pull/165)
 and [#167](https://github.com/thdelmas/lethe/pull/167) shipped the broadcast
