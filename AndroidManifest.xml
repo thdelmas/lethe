@@ -150,6 +150,27 @@
             </intent-filter>
         </activity>
 
+        <!-- Native chat surface for the local agent core (lethe#188,
+             Route 3). Shows up in Trebuchet's app drawer as "LETHE Chat"
+             so the conversation panel is reachable on user builds where
+             the WebView-host activity crashes. -->
+        <activity
+            android:name="org.osmosis.lethe.ChatActivity"
+            android:label="LETHE Chat"
+            android:theme="@android:style/Theme.DeviceDefault.NoActionBar"
+            android:windowSoftInputMode="adjustResize"
+            android:launchMode="singleTask"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+            <intent-filter>
+                <action android:name="lethe.intent.CHAT" />
+                <category android:name="android.intent.category.DEFAULT" />
+            </intent-filter>
+        </activity>
+
         <!-- Theme settings — native UI, WebView-free (lethe#191,
              Route 3 per docs/design/launcher-architecture-routes.md).
              Writes the PROP_NAME_MAX-safe persist.lethe.th.* family
