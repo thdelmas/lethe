@@ -166,6 +166,25 @@
             </intent-filter>
         </activity>
 
+        <!-- Native mascot presentation (lethe#189 phase 1, Route 3).
+             Canvas-drawn guardian per docs/design/mascot-layers.md —
+             first time the mascot renders on user builds. Tap opens
+             chat. -->
+        <activity
+            android:name="org.osmosis.lethe.MascotActivity"
+            android:label="LETHE Guardian"
+            android:theme="@android:style/Theme.DeviceDefault.NoActionBar.Fullscreen"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+            <intent-filter>
+                <action android:name="lethe.intent.MASCOT" />
+                <category android:name="android.intent.category.DEFAULT" />
+            </intent-filter>
+        </activity>
+
         <!-- Native chat surface for the local agent core (lethe#188,
              Route 3). Shows up in Trebuchet's app drawer as "LETHE Chat"
              so the conversation panel is reachable on user builds where
