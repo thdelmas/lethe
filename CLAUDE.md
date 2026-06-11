@@ -66,5 +66,5 @@ docs/                   Internal docs (see docs/README.md for full index)
 - Burner mode ON by default. User disables it, not enables it.
 - Dead man's switch OFF by default. First-boot wizard asks explicitly.
 - LETHE is both the OS and the agent — no separate AI app. Package: org.osmosis.lethe.agent. System service on localhost:8080.
-- The agent backend source lives in the bender/ submodule (legacy repo name) but is installed as LETHE. Use AGENT_DIR or LETHE_DIR to locate it.
+- The agent backend source lives in-repo at agent/ (Rust, axum). Previously the bender/ submodule (legacy repo name); thdelmas/bender still exists upstream but agent/ is what ships.
 - ADB secure by default (ro.adb.secure=1) — see docs/SECURITY-ROADMAP.md P0.
