@@ -150,6 +150,22 @@
             </intent-filter>
         </activity>
 
+        <!-- Native voice surface (lethe#190, Route 3). Records on-device,
+             transcribes through the local STT endpoint, hands the
+             transcript to ChatActivity. Assist gestures land here via
+             LetheAssistActivity. -->
+        <activity
+            android:name="org.osmosis.lethe.VoiceActivity"
+            android:label="LETHE Voice"
+            android:theme="@android:style/Theme.DeviceDefault.NoActionBar"
+            android:excludeFromRecents="true"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="lethe.intent.VOICE" />
+                <category android:name="android.intent.category.DEFAULT" />
+            </intent-filter>
+        </activity>
+
         <!-- Native chat surface for the local agent core (lethe#188,
              Route 3). Shows up in Trebuchet's app drawer as "LETHE Chat"
              so the conversation panel is reachable on user builds where

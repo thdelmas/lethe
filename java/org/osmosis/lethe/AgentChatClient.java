@@ -59,6 +59,11 @@ final class AgentChatClient {
             body.put("messages", messages);
             body.put("max_tokens", MAX_TOKENS);
             body.put("stream", true);
+            // The backend auto-starts llama-server only when the request
+            // names a model (agent/src/routes/llm.rs) — same conditional
+            // the WebView chat applies from config.js.
+            String model = localModel();
+            if (!model.isEmpty()) body.put("model", model);
 
             conn = open("/v1/chat/completions");
             conn.setRequestMethod("POST");
@@ -171,6 +176,17 @@ final class AgentChatClient {
             return false;
         } finally {
             if (conn != null) conn.disconnect();
+        }
+    }
+
+    /** providers.local.model from the persisted config, "" when unset. */
+    private static String localModel() {
+        try {
+            JSONObject local = new JSONObject(LetheConfig.loadPersistedConfig())
+                .getJSONObject("providers").getJSONObject("local");
+            return local.isNull("model") ? "" : local.optString("model", "");
+        } catch (Exception e) {
+            return "";
         }
     }
 
