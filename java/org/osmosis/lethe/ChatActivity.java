@@ -34,6 +34,10 @@ import java.util.List;
  */
 public class ChatActivity extends Activity implements AgentChatClient.Listener {
 
+    /** String extra: a query to send immediately on open — used by
+     *  VoiceActivity to hand a transcript off to the streaming UI. */
+    static final String EXTRA_QUERY = "lethe.extra.QUERY";
+
     /* Verbatim from static/launcher-chat.js so local-core behavior is
      * identical whichever surface the user reaches. */
     static final String SYSTEM_PROMPT_BASE =
@@ -96,6 +100,23 @@ public class ChatActivity extends Activity implements AgentChatClient.Listener {
             sHistory.add(systemMessage());
         }
         greet();
+        handleQuery(getIntent());
+    }
+
+    @Override
+    protected void onNewIntent(android.content.Intent intent) {
+        super.onNewIntent(intent);
+        setIntent(intent);
+        handleQuery(intent);
+    }
+
+    private void handleQuery(android.content.Intent intent) {
+        if (intent == null) return;
+        String query = intent.getStringExtra(EXTRA_QUERY);
+        intent.removeExtra(EXTRA_QUERY);
+        if (query != null && !query.trim().isEmpty()) {
+            sendText(query.trim());
+        }
     }
 
     private void buildUi() {
@@ -187,9 +208,14 @@ public class ChatActivity extends Activity implements AgentChatClient.Listener {
     }
 
     private void onSend() {
-        final String text = input.getText().toString().trim();
-        if (text.isEmpty() || streamingRow != null) return;
+        String text = input.getText().toString().trim();
+        if (text.isEmpty()) return;
         input.setText("");
+        sendText(text);
+    }
+
+    private void sendText(final String text) {
+        if (text.isEmpty() || streamingRow != null) return;
 
         sTurnCount++;
         if (sTurnCount >= CONV_HARD_LIMIT) {
