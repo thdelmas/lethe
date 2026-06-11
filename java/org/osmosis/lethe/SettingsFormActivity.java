@@ -7,6 +7,7 @@ import android.os.Bundle;
 import android.util.TypedValue;
 import android.view.View;
 import android.view.ViewGroup;
+import android.view.inputmethod.EditorInfo;
 import android.widget.CheckBox;
 import android.widget.CompoundButton;
 import android.widget.EditText;
@@ -14,6 +15,9 @@ import android.widget.LinearLayout;
 import android.widget.ScrollView;
 import android.widget.TextView;
 import android.widget.Toast;
+
+import java.util.ArrayList;
+import java.util.List;
 
 /**
  * Shared scaffolding for LETHE's native settings forms (lethe#186 Route 3).
@@ -26,6 +30,9 @@ import android.widget.Toast;
 abstract class SettingsFormActivity extends Activity {
 
     protected LinearLayout root;
+
+    /** Every text field, so we can flush uncommitted edits on pause. */
+    private final List<EditText> textFields = new ArrayList<>();
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -40,6 +47,22 @@ abstract class SettingsFormActivity extends Activity {
             ViewGroup.LayoutParams.WRAP_CONTENT));
         setContentView(scroll);
         buildForm();
+    }
+
+    /**
+     * Flush every field on pause. Commit-on-focus-loss alone is not enough:
+     * a field with no focusable-in-touch-mode sibling (e.g. the only text
+     * field on the form) never loses focus to a tap on a checkbox or radio,
+     * so its edit would silently never save. Leaving the activity is the
+     * backstop. Verified on t0lte where the lockscreen owner-info field was
+     * otherwise uncommittable.
+     */
+    @Override
+    protected void onPause() {
+        super.onPause();
+        for (EditText et : textFields) {
+            if (et.hasFocus()) et.clearFocus();  // fires the focus-loss commit
+        }
     }
 
     /** Append the form's widgets to {@link #root}. */
@@ -89,9 +112,11 @@ abstract class SettingsFormActivity extends Activity {
     }
 
     /**
-     * Labeled free-text field that commits on focus loss, matching the
-     * AutoWipeSettingsActivity behavior: an invalid value (committer
-     * returns false) turns the field red and is not saved.
+     * Labeled free-text field. Commits on focus loss, on the IME action
+     * (Done/Next), and on activity pause via {@link #onPause} — so the
+     * value saves whether or not there is another focusable field to tab
+     * to. An invalid value (committer returns false) turns the field red
+     * and is not saved.
      */
     protected EditText addTextField(String label, String value, String hint,
                                     int inputType, final TextCommitter committer) {
@@ -100,20 +125,35 @@ abstract class SettingsFormActivity extends Activity {
         et.setInputType(inputType);
         et.setHint(hint);
         et.setText(value);
+        et.setImeOptions(EditorInfo.IME_ACTION_DONE);
         et.setOnFocusChangeListener(new View.OnFocusChangeListener() {
             @Override
             public void onFocusChange(View v, boolean hasFocus) {
-                if (hasFocus) return;
-                if (committer.commit(et.getText().toString().trim())) {
-                    et.setBackgroundColor(Color.TRANSPARENT);
-                } else {
-                    et.setBackgroundColor(0x33FF6961);
-                    toast("Invalid value — not saved");
-                }
+                if (!hasFocus) commitField(et, committer);
             }
         });
+        et.setOnEditorActionListener(new TextView.OnEditorActionListener() {
+            @Override
+            public boolean onEditorAction(TextView v, int actionId, android.view.KeyEvent e) {
+                if (actionId == EditorInfo.IME_ACTION_DONE
+                        || actionId == EditorInfo.IME_ACTION_NEXT) {
+                    commitField(et, committer);
+                }
+                return false;  // let the IME dismiss/advance as usual
+            }
+        });
+        textFields.add(et);
         root.addView(et);
         return et;
+    }
+
+    private void commitField(EditText et, TextCommitter committer) {
+        if (committer.commit(et.getText().toString().trim())) {
+            et.setBackgroundColor(Color.TRANSPARENT);
+        } else {
+            et.setBackgroundColor(0x33FF6961);
+            toast("Invalid value — not saved");
+        }
     }
 
     protected void toast(String msg) {
