@@ -13,6 +13,10 @@
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
     <uses-permission android:name="android.permission.REBOOT" />
     <uses-permission android:name="android.permission.VIBRATE" />
+    <!-- Settings.Global/Secure writes from the native settings forms
+         (animation scale, lockscreen notification visibility) — signature
+         permission, granted via the platform key. -->
+    <uses-permission android:name="android.permission.WRITE_SECURE_SETTINGS" />
 
     <!-- Mesh signaling (BLE heartbeat) -->
     <uses-permission android:name="android.permission.BLUETOOTH" />
@@ -142,6 +146,38 @@
             android:exported="true">
             <intent-filter>
                 <action android:name="lethe.intent.AUTOWIPE_SETTINGS" />
+                <category android:name="android.intent.category.DEFAULT" />
+            </intent-filter>
+        </activity>
+
+        <!-- Theme settings — native UI, WebView-free (lethe#191,
+             Route 3 per docs/design/launcher-architecture-routes.md).
+             Writes the PROP_NAME_MAX-safe persist.lethe.th.* family
+             consumed by the native launcher surfaces. -->
+        <activity
+            android:name="org.osmosis.lethe.ThemeSettingsActivity"
+            android:label="Theme"
+            android:theme="@android:style/Theme.DeviceDefault"
+            android:excludeFromRecents="true"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="lethe.intent.THEME_SETTINGS" />
+                <category android:name="android.intent.category.DEFAULT" />
+            </intent-filter>
+        </activity>
+
+        <!-- Lockscreen settings — native UI, WebView-free (lethe#191).
+             Drives the real enforcement surfaces: DPM keyguard features
+             + owner info (Device Owner) and the Settings.Secure
+             notification-visibility keys. -->
+        <activity
+            android:name="org.osmosis.lethe.LockscreenSettingsActivity"
+            android:label="Lockscreen"
+            android:theme="@android:style/Theme.DeviceDefault"
+            android:excludeFromRecents="true"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="lethe.intent.LOCKSCREEN_SETTINGS" />
                 <category android:name="android.intent.category.DEFAULT" />
             </intent-filter>
         </activity>
