@@ -237,17 +237,54 @@ runtime tax.
    acceptable mascot? Body + idle blink (1 week) vs full parallax +
    gaze + glow (3–4 weeks) is a 4x cost difference.
 
-## Decision artifact (when a route is picked)
+## ADR — Route 3: native rewrite (decided 2026-06-11)
 
-1. Add a short ADR section to this file recording the choice, the
-   reasoning, and the alternatives explicitly rejected.
-2. File per-surface follow-up issues against #186:
-   - Route 2: APK split, IPC contract, signing approach, per-surface
-     migration.
-   - Route 3: ChatActivity, MascotSurface, VoiceActivity,
-     ThemeActivity, LockscreenSettingsActivity.
-   - Hybrid: Route-3 issues for the easy surfaces, plus a single
-     mascot-split issue for Route 2.
-3. Update memory note
-   [`project_launcher_webview_blocker.md`](https://github.com/thdelmas/lethe)
-   so future sessions don't re-litigate.
+**Decision:** Route 3. Every remaining launcher surface becomes a
+native activity in the single system-UID LETHE package. The WebView is
+removed from the package entirely once the native surfaces ship.
+
+**Deciding axis:** long-term cleanliness, weighed deliberately above
+preserving the existing mascot CSS work.
+
+**Reasoning:**
+
+- cm-14.1 ships a frozen 2016-era Chromium that will never be patched.
+  Any WebView-based route keeps that engine in a security-focused OS
+  forever — Route 2 and the hybrid relocate the WebView attack
+  surface; only Route 3 removes it.
+- Single OTA artifact, single signing key, no IPC contract — no
+  permanent version-skew commitment between packages.
+- Native UI in system UID is platform convention (AOSP Settings runs
+  as `android.uid.system`); what Android forbids is the WebView there,
+  which is the original bug. Route 3 matches the per-screen native
+  pattern already shipped four times.
+- The launcher UI surface is intentionally minimal, so Route 2's
+  cheap-HTML-iteration advantage buys iteration we don't plan to do.
+
+**Rejected:**
+
+- *Route 2 (split-app)* — preserves UI work verbatim but pays a
+  permanent IPC/auth/version-skew tax and keeps an unpatchable
+  Chromium in the product, merely demoted to normal UID.
+- *Hybrid (native + mascot-only WebView package)* — the strongest
+  value-preserving option, but the least clean end-state: two UI
+  paradigms, two rendering stacks, and an IPC seam maintained
+  indefinitely to protect ~1500 LOC of CSS.
+
+**Mascot fidelity (open question 5):** ship the reduced floor first
+(body + idle blink + agent states, ~1 week), then iterate toward
+parallax/gaze/glow parity. The CSS files stay in-repo as the visual
+reference spec until parity.
+
+**Follow-up issues:**
+
+- [#188](https://github.com/thdelmas/lethe/issues/188) ChatActivity —
+  native conversation panel
+- [#189](https://github.com/thdelmas/lethe/issues/189) MascotSurface —
+  native mascot view, reduced fidelity first
+- [#190](https://github.com/thdelmas/lethe/issues/190) VoiceActivity —
+  agent voice streaming on the `LetheAssistActivity` scaffold
+- [#191](https://github.com/thdelmas/lethe/issues/191) ThemeActivity +
+  LockscreenSettingsActivity — native settings forms
+- [#192](https://github.com/thdelmas/lethe/issues/192) remove
+  `LetheActivity` + `static/launcher.*`, drop WebView from the package
