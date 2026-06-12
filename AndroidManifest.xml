@@ -35,18 +35,12 @@
         android:theme="@android:style/Theme.NoTitleBar.Fullscreen"
         android:persistent="true">
 
-        <!-- Main activity — WebView wrapper -->
-        <activity
-            android:name="org.osmosis.lethe.LetheActivity"
-            android:label="LETHE"
-            android:launchMode="singleTask"
-            android:screenOrientation="portrait"
-            android:exported="true">
-            <intent-filter>
-                <action android:name="android.intent.action.MAIN" />
-                <category android:name="android.intent.category.LAUNCHER" />
-            </intent-filter>
-        </activity>
+        <!-- LetheActivity (the WebView host) was removed in #192: WebView is
+             banned in system-UID processes (Android 7.0+), so it crash-looped
+             on user builds. Every surface it hosted now ships as its own native
+             activity — MascotActivity (home), ChatActivity, VoiceActivity, and
+             the Theme/Lockscreen/Auto-Wipe settings forms — each with its own
+             LAUNCHER or intent entry below. -->
 
         <!-- Voice assist handler — long-press home triggers LETHE -->
         <activity

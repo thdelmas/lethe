@@ -13,11 +13,12 @@ import org.json.JSONObject;
  * USB and merges the handed-off provider key into the persisted LETHE
  * config.
  *
- * Pre-#159 this receiver was registered at runtime inside
- * {@link LetheActivity#onCreate} — but that activity is unreachable on
- * user builds (WebView banned in privileged processes since Android
- * 7.0; the app holds {@code sharedUserId="android.uid.system"}). So on
- * shipping cm-14.1 ROMs the activity crashes, the receiver never
+ * Pre-#159 this receiver was registered at runtime inside the former
+ * WebView host LetheActivity.onCreate (removed in lethe#192) — but that
+ * activity was unreachable on user builds (WebView banned in privileged
+ * processes since Android 7.0; the app holds
+ * {@code sharedUserId="android.uid.system"}). So on shipping cm-14.1 ROMs
+ * the activity crashed, the receiver never
  * registers, and a paired OSmosis device cannot configure cloud
  * providers. Declared in the manifest, this receiver runs without an
  * activity attached and the pair flow works on user builds.
