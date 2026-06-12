@@ -228,6 +228,29 @@ def main(argv: list[str]) -> int:
 
     settings_js = static_dir / "settings.js"
     launcher_html = static_dir / "launcher.html"
+
+    # The WebView UI these targeted was removed in #192 (the native Route 3
+    # surfaces replaced it). When absent, there is nothing here to strip —
+    # skip rather than fail so field builds still complete.
+    #
+    # WARNING: this does NOT mean a field build is cloud-clean. The cloud
+    # provider names/endpoints now live in the SHIPPED APK at
+    # java/org/osmosis/lethe/LetheConfig.java (DEFAULT_CONFIG) and in the
+    # native ChatActivity routing — neither of which this script touches.
+    # static/ was never packaged into the image anyway, so this strip only
+    # ever protected un-shipped files. A real field-build cloud-strip must
+    # target the native path; tracked with #95 / #196.
+    if not settings_js.exists() and not launcher_html.exists():
+        print(
+            "  -> Field build: WebView UI absent (removed in #192); nothing to "
+            "strip here.\n"
+            "     WARNING: native cloud-strip (LetheConfig.DEFAULT_CONFIG + "
+            "ChatActivity) is NOT yet implemented — see #95/#196.",
+            file=sys.stderr,
+        )
+        return 0
+
+    # Partial state (one present, one missing) is unexpected — fail loudly.
     for p in (settings_js, launcher_html):
         if not p.exists():
             print(f"missing: {p}", file=sys.stderr)

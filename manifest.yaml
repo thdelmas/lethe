@@ -121,7 +121,11 @@ features:
         position: "below_clock"
         size: "64dp"
         tap_action: "open_lethe_agent"
-        webview: "static/launcher.html"     # Unified: clock + mascot + chat
+        # Native since #192: MascotActivity (Canvas) renders the mascot and
+        # ChatActivity hosts the conversation. The old unified WebView
+        # (static/launcher.html) was removed — WebView is banned in
+        # system-UID processes. Mascot CSS/JS stays in static/ as the
+        # phase-2 fidelity reference (#189).
         opacity: 0.85
         glow: true
         idle_animations: true
