@@ -16,19 +16,45 @@ if [ -z "$SEPOLICY_DIR" ] || [ ! -d "$SEPOLICY_DIR" ]; then
     exit 0
 fi
 
+# file_contexts and property_contexts are SHARED files — the device tree
+# (e.g. device/samsung/t0lte/selinux/file_contexts) already labels the
+# Samsung modem daemons there: /system/bin/qcks -> qcks_exec, qmuxd, ks,
+# efsks, plus /dev/mdm and the EFS block devices. A plain `cp` overwrites
+# that, dropping those labels; under enforcing SELinux init can then no
+# longer execute_no_trans the modem daemons, the external modem fails to
+# power up, and the kernel (oops=panic) panics into a reboot loop. So we
+# MERGE our entries inside a managed marker block instead of overwriting,
+# replacing any prior block in place so rebuilds stay idempotent. This
+# also retires the manual file_contexts-strip workaround the v1.0 build
+# notes relied on.
+LETHE_BEGIN="# LETHE-SEPOLICY-MANAGED-BEGIN"
+LETHE_END="# LETHE-SEPOLICY-MANAGED-END"
+
+merge_contexts() {
+    local src="$1" dst="$2"
+    [ -f "$src" ] || return 0
+    if [ -f "$dst" ]; then
+        # Drop a previous managed block so we don't accumulate duplicates.
+        sed -i "/^${LETHE_BEGIN}\$/,/^${LETHE_END}\$/d" "$dst"
+    fi
+    {
+        printf '\n%s\n' "$LETHE_BEGIN"
+        cat "$src"
+        printf '%s\n' "$LETHE_END"
+    } >> "$dst"
+}
+
 copy_policy() {
     local target="$1"
     # Stale lethe.te from a previous run is dropped here: this file is
     # fully ours, so removing it before copy is safe and prevents a
     # disabled-upstream policy from sneaking into a rebuild (#122).
-    # We do NOT touch file_contexts because it's a shared file — the
-    # LineageOS device tree may already populate it with non-LETHE
-    # entries. v1.0 strip removes LETHE's *file_contexts* on the build
-    # machine manually, per docs/release/v1.0.0-flash-investigation.md.
+    # The *.te files are uniquely named (lethe.te, tor.te) so they never
+    # collide with device .te files — a straight copy is correct.
     rm -f "$target/lethe.te"
     cp "$SEPOLICY_DIR"/*.te "$target/" 2>/dev/null || true
-    cp "$SEPOLICY_DIR/file_contexts" "$target/" 2>/dev/null || true
-    cp "$SEPOLICY_DIR/property_contexts" "$target/" 2>/dev/null || true
+    merge_contexts "$SEPOLICY_DIR/file_contexts" "$target/file_contexts"
+    merge_contexts "$SEPOLICY_DIR/property_contexts" "$target/property_contexts"
 }
 
 # cm-14.1 device trees have no device/lineage/sepolicy/ overlay. The
