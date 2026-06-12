@@ -28,9 +28,10 @@ import org.json.JSONException;
  * persisted config. Same write path as
  * {@link PairReceiver#applyPayloadJson}.
  *
- * On user builds the in-WebView QR scanner is unreachable because
- * {@link LetheActivity} crashes (WebView banned in system-uid
- * processes; lethe#159). This activity gives users a way to pair
+ * On user builds the in-WebView QR scanner is unreachable because the
+ * former WebView host (LetheActivity, removed in lethe#192) crashed —
+ * WebView is banned in system-uid processes; lethe#159. This activity
+ * gives users a way to pair
  * providers without the WebView, until a native camera-based QR scanner
  * lands (tracked separately).
  *

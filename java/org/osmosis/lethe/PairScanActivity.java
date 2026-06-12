@@ -57,10 +57,11 @@ import java.util.concurrent.atomic.AtomicBoolean;
  * to LOS 22.1+ with modern HAL3 hardware, the Camera2 path will need
  * to come back as a separate piece of work.
  *
- * Why native (not WebView): {@link LetheActivity} hosts the in-browser
- * jsQR scanner but crashes on user builds because WebView is banned in
- * privileged processes since Android 7.0 (sharedUserId=android.uid.system
- * — see lethe#159). This activity is the camera path that ships off
+ * Why native (not WebView): the former WebView host (LetheActivity,
+ * removed in lethe#192) carried the in-browser jsQR scanner but crashed on
+ * user builds because WebView is banned in privileged processes since
+ * Android 7.0 (sharedUserId=android.uid.system — see lethe#159). This
+ * activity is the camera path that ships off
  * user builds.
  */
 public class PairScanActivity extends Activity
