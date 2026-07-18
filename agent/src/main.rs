@@ -14,6 +14,7 @@
 //!   state etc. must not be exposed to a remote peer). Only spawns
 //!   when the pair file is present.
 
+mod organs;
 mod routes;
 
 use axum::Router;
@@ -35,6 +36,11 @@ async fn main() {
     let llm = Arc::new(LlmState::new());
     let agent = Arc::new(AgentState::new());
     let router_state = RouterState::load_or_empty();
+
+    // Organ loop (consciousness-loop port): self-firing wake→sense→
+    // decide→sleep cycle. Broadcasts guardian alerts on the same SSE
+    // stream the mascot watches.
+    organs::spawn(agent.clone());
 
     // Remote-DMS responder (#103). Pair file is the gate: if it's
     // missing or unparseable, the bind doesn't spawn. Test devices
