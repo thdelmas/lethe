@@ -15,6 +15,12 @@ package: "org.osmosis.lethe.agent"
 # Per-task model requirements with graceful fallback messages.
 providers_config: "docs/providers.yaml"
 
+# ── Organ Suite ──
+# Self-firing guardian loop + wake-sense sweep, ported from the
+# agent-nervous-system suite. Port ledger + per-organ gate verdicts in
+# docs/agent/organs.yaml; native halves in agent/src/organs/.
+organs_config: "docs/agent/organs.yaml"
+
 # ── Philosophy ──
 # LETHE *is* the OS. Named after the River Lethe — the river of forgetting.
 # Soul: LETHE — authentic voice, dry humor, Godfellas principle.

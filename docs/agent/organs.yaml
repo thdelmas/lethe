@@ -1,0 +1,94 @@
+# LETHE Agent — organ suite port
+# Referenced from docs/agent/agent.yaml (organs_config).
+#
+# LETHE is the second consuming host of the agent-nervous-system organ
+# suite (github.com/thdelmas/agent-nervous-system). The organs there are
+# LLM-harness skills: a prompt protocol plus helper scripts. Inside an OS
+# daemon each organ splits in two:
+#   - deterministic half -> native Rust in agent/src/organs/ (sweeps,
+#     diffs, timers, redaction — runs with no LLM, costs no tokens)
+#   - judgment half      -> per-task prompt fragments routed through
+#     docs/agent/providers.yaml (later slice; must degrade gracefully to
+#     the local llama.cpp provider — boundaries.yaml no_phone_home means
+#     an organ that only works with a cloud key is broken by design)
+#
+# Anti-proliferation gate (inherited from the suite, 2026-06-23): an organ
+# is ported only on observed operational pain + a real consuming surface
+# in THIS host. A metaphor vacancy is not a need. Rejections are recorded
+# below because they are as much data as the adoptions.
+
+suite:
+  source: "github.com/thdelmas/agent-nervous-system"
+  host: "org.osmosis.lethe.agent"
+  ported_at: "2026-07-18"
+  ledger_note: >
+    This file is the host-side port ledger. The suite's public
+    lineage.jsonl records the same event sanitized (this repo is private
+    and is not named there).
+
+organs:
+  consciousness-loop:
+    verdict: ported          # slice 1, agent/src/organs/mod.rs
+    pain: >
+      The daemon was purely reactive — HTTP routes only. A guardian that
+      only answers requests cannot guard: nothing noticed Tor dying or
+      DNS drift unless a client happened to ask.
+    consuming_surface: "the daemon itself; mascot SSE stream (alerts)"
+    translation:
+      - "wake->sense->integrate->decide->act/defer->set-frequency->sleep, one tokio task"
+      - "arousal bands alert/drowsy/deep as persist.lethe.organs.tick.* (300/1800/7200s defaults)"
+      - "quiet-tick decay (2 ticks per band); standing violations pin Alert"
+      - "runaway guard translated: per-tick 30s sense time-box + decay, not a total-tick cap (daemon runs for device lifetime)"
+      - "cache dead-zone rule dropped for deterministic ticks — no LLM call per tick in slice 1; re-applies when judgment fragments land"
+      - "legible cadence: every tick logs arousal, interval, reason"
+
+  exteroception:
+    verdict: ported          # slice 1, agent/src/organs/exteroception.rs
+    pain: >
+      Guardian promises (Tor transparent proxy, hardened DNS) had no
+      watcher — a breach surfaced only if the user looked.
+    consuming_surface: "organ loop sense step"
+    translation:
+      - "watched surfaces slice 1 = network/anonymity: init.svc.lethe_tor, wifi association, airplane mode, bluetooth, private DNS"
+      - "baseline persists at /data/lethe/organs/exteroception.json across restarts"
+      - "diff-not-dump; probe failure keeps baseline and is never a value change (an unreadable surface must not read as a changed one)"
+      - "absence-of-expected-event: tor != running is a standing violation, reported every sweep until cleared"
+      - "read-only: sweeps never mutate; the brief recommends, the loop decides"
+    next_surfaces: "package-set changes, permission grants, tracker-hosts integrity"
+
+  immune-check:
+    verdict: already-native  # formalize under organs/ in a later slice
+    note: >
+      Born inside LETHE independently before the port: the PII redaction
+      on cloud-provider routing (#196) is this organ's function,
+      demand-pulled by real pain. Formalizing it as the outbound-boundary
+      organ (any payload leaving the device) is planned, not urgent.
+
+  rem-sleep:
+    verdict: deferred
+    gate: >
+      No experience to consolidate until the loop has run on-device.
+      Tension with the OS thesis is real and resolvable: LETHE forgets
+      the user's traces and remembers only distilled protective baselines
+      — consolidation as the mechanism of forgetting-safely. Revisit when
+      exteroception baselines start drifting.
+
+  proprioception:
+    verdict: deferred
+    gate: "Needs a track record of loop decisions to grade. Revisit after slice 2."
+
+  contemplation:
+    verdict: rejected
+    gate: "No operational pain in-host; a phone guardian has no ends-examination surface. Metaphor-pull."
+
+  playtime:
+    verdict: rejected
+    gate: "Safe-to-fail exploration has no consuming surface in a system daemon guarding one device."
+
+  sunset:
+    verdict: rejected
+    gate: "The host retires nothing; project-grief is a maintainer concern, not a guardian one."
+
+  open-source-octopus-investigation:
+    verdict: rejected
+    gate: "Far-field discovery contradicts boundaries.yaml scope (single device, no phone home)."
