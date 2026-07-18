@@ -84,7 +84,13 @@ fn next_arousal(current: Arousal, outcome: &SweepOutcome, quiet_ticks: u32) -> (
 }
 
 pub fn spawn(agent: Arc<AgentState>) {
-    tokio::spawn(run(agent, Path::new(exteroception::SNAPSHOT_PATH).to_path_buf()));
+    // LETHE_ORGANS_SNAPSHOT overrides the baseline path so the daemon is
+    // testable as an unprivileged user (adb shell on a stock device,
+    // dev host) where /data/lethe/ is not writable.
+    let path = std::env::var("LETHE_ORGANS_SNAPSHOT")
+        .map(std::path::PathBuf::from)
+        .unwrap_or_else(|_| Path::new(exteroception::SNAPSHOT_PATH).to_path_buf());
+    tokio::spawn(run(agent, path));
 }
 
 async fn run(agent: Arc<AgentState>, snapshot_path: std::path::PathBuf) {
@@ -117,27 +123,38 @@ async fn run(agent: Arc<AgentState>, snapshot_path: std::path::PathBuf) {
         };
 
         // Integrate + decide + act/defer. One tick, one thing: the act is
-        // the brief — surface the top finding to the UI stream; everything
-        // else waits in the log for the next consumer.
-        let reason = if outcome.first_run {
-            "baseline established".to_string()
-        } else if let Some(v) = outcome.violations.first() {
+        // the brief — surface the findings to the UI stream; everything
+        // else waits in the log for the next consumer. Violations and
+        // deltas compose rather than shadow: a standing breach (Tor down)
+        // is exactly when other news (DNS drift) matters most — first
+        // field run on a stock device caught the violation masking the
+        // deltas entirely.
+        let mut parts: Vec<String> = Vec::new();
+        if outcome.first_run {
+            parts.push("baseline established".into());
+        }
+        if let Some(v) = outcome.violations.first() {
+            parts.push(format!("violation: {v}"));
+        }
+        if let Some(d) = outcome.deltas.first() {
+            parts.push(format!("{} delta(s), top: {}", outcome.deltas.len(), d.brief()));
+        }
+        let alerting = !outcome.violations.is_empty()
+            || outcome
+                .deltas
+                .first() // diff() ranks alerts first
+                .is_some_and(|d| d.severity == Severity::Alert);
+        let reason = if parts.is_empty() {
+            "quiet".to_string()
+        } else {
+            parts.join("; ")
+        };
+        if alerting {
             agent.broadcast(AgentEvent {
                 state: "alert".into(),
-                status: v.clone(),
+                status: reason.clone(),
             });
-            format!("violation: {v}")
-        } else if let Some(d) = outcome.deltas.first() {
-            if d.severity == Severity::Alert {
-                agent.broadcast(AgentEvent {
-                    state: "alert".into(),
-                    status: d.brief(),
-                });
-            }
-            format!("{} deltas, top: {}", outcome.deltas.len(), d.brief())
-        } else {
-            "quiet".to_string()
-        };
+        }
 
         // Set the next frequency and sleep. Sleeping is the loop working.
         let (next, quiet) = next_arousal(arousal, &outcome, quiet_ticks);
