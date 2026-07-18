@@ -179,14 +179,15 @@ public class ChatActivity extends Activity implements AgentChatClient.Listener {
 
     // --- conversation flow ----------------------------------------------------
 
-    /** Welcome parity with openChat() in static/launcher.js, plus a notice
-     *  when a cloud provider is configured: native chat is local-only until
-     *  the lethe#96 redaction layer is ported (see AgentChatClient). */
+    /** Welcome parity with openChat() in static/launcher.js. When a cloud
+     *  provider is active, note that outgoing messages are PII-redacted
+     *  (lethe#96) before they leave the device. */
     private void greet() {
         if (!rows.isEmpty()) return;
         new Thread(new Runnable() {
             @Override public void run() {
-                final boolean up = client.isAgentAvailable();
+                final boolean up = client.isChatAvailable();
+                final String provider = activeProvider();
                 runOnUiThread(new Runnable() {
                     @Override public void run() {
                         if (up) {
@@ -194,12 +195,12 @@ public class ChatActivity extends Activity implements AgentChatClient.Listener {
                         } else {
                             addRow(false, "I need a thinking core to talk.");
                         }
-                        String provider = activeProvider();
-                        if (provider != null && !"local".equals(provider)) {
-                            addRow(false, "A cloud provider is configured, but "
-                                + "this surface speaks to the local core only "
-                                + "for now — cloud calls without redaction "
-                                + "would leak.");
+                        if (provider != null && !"local".equals(provider)
+                                && !"peer".equals(provider)) {
+                            addRow(false, "Routing to " + provider
+                                + ". Phone numbers, emails, coordinates and the "
+                                + "like are redacted before anything leaves the "
+                                + "device.");
                         }
                     }
                 });
@@ -222,6 +223,9 @@ public class ChatActivity extends Activity implements AgentChatClient.Listener {
             sHistory.clear();
             sHistory.add(systemMessage());
             sTurnCount = 0;
+            // Fresh thread → fresh redaction placeholders, so a new session's
+            // [PHONE_1] doesn't alias a value from the old one.
+            client.resetRedactStore();
             addRow(false, "This thread ran long. Starting fresh — "
                 + "clean slate is a feature.");
             return;
@@ -285,6 +289,14 @@ public class ChatActivity extends Activity implements AgentChatClient.Listener {
         }
         streamingRow = null;
         send.setEnabled(true);
+    }
+
+    /** Transient status from the client — e.g. "redacted 3" before a cloud
+     *  send. A toast keeps it visible without polluting the transcript. */
+    @Override
+    public void onStatus(String message) {
+        android.widget.Toast.makeText(this, message,
+            android.widget.Toast.LENGTH_SHORT).show();
     }
 
     // --- helpers ---------------------------------------------------------------
