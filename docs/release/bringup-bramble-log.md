@@ -175,3 +175,57 @@ device is on an older A14 (or A13) build, that is the mismatch. Update it:
 ### Device left in: bootlooping/parked (attempt 2 end). Mía to force-off
 ### (hold Power ~10s) or Power+VolDown to bootloader. Bootloader still
 ### unlocked; nothing further wiped. Pick up at attempt 3.
+
+## Attempt 3 — 2026-07-19 (H1 refuted; adb-keys diagnostic build)
+
+Plan was "update stock firmware first" — killed by evidence before any
+Google download:
+
+1. **H1 (firmware mismatch) REFUTED.** The vendor blobs the build was made
+   from match the device exactly: `abl.img` string
+   `OEM_IMAGE_VERSION_STRING=b5-0.1-10489838` vs device bootloader
+   `b5-0.6-10489838` (same build 10489838), and vendor MCFG
+   `MCFG-g7250-00264-230619-B-10346159-B5R3` == device baseband
+   `g7250-00264-230619-B-10346159`. Additionally
+   `META/ab_partitions.txt` shows the OTA payload ships ALL firmware
+   partitions (abl aop devcfg featenabler hyp keymaster modem qupfw tz
+   uefisecapp xbl xbl_config) — attempt 2's sideload already wrote
+   matching firmware to its slot. **No Google factory image needed; the
+   no-Google line holds at zero cost.** (`android-info.txt` is useless
+   here — it only says `require board=bramble`.)
+2. **Runbook correction:** `fastboot oem reboot-recovery` is now ALSO
+   refused by the bootloader ("Invalid oem command") — contradicts
+   attempt 1 step 11. Neither `reboot recovery` nor `oem reboot-recovery`
+   works from the hw bootloader. Working remote path: **flash a BCB to
+   `misc`** (2048 B: `command[32]="boot-recovery"`,
+   `recovery[768]@64="recovery\n"`) + `fastboot reboot` → recovery. ✅
+3. Recovery adbd needs the on-screen Allow tap every recovery boot: the
+   attempt-2 "seeded adb_keys" is GONE — `/data` cannot be mounted from
+   recovery at all (`mount: Invalid argument`, expected under metadata
+   encryption). That seed never landed anywhere durable.
+4. Our recovery supports `--sideload` / `--sideload_auto_reboot` boot args
+   (recovery.cpp:733-734) → BCB `recovery\n--sideload_auto_reboot\n`
+   enters sideload (unauthenticated protocol) with no tap. Not yet used;
+   noted for fully-remote reflash.
+5. Clean-boot test of slot B (attempt-2's complete OTA install, firmware
+   included): `set_active b` (retry-count back to 3) + reboot →
+   **offline for 265 s (≈3 boot tries), never any adbd window, fell back
+   to fastboot.** So a fully self-consistent fresh install with matching
+   firmware fails identically. H2 (overlay breaks userspace boot) now
+   leads. Stale-/data (H3/H4) weakened: attempt-1's `fastboot -w` had
+   already blanked userdata+metadata and boots still failed.
+6. **Diagnostic build started:** `PRODUCT_ADB_KEYS := ~/.android/adbkey.pub`
+   added to `device/google/bramble/lineage_bramble.mk` (LOCAL EDIT in the
+   build tree, not committed — bakes the host pubkey at
+   `/product/etc/security/adb_keys`, symlinked as `/adb_keys`, read by
+   adbd_auth → no auth dialog on userdebug). Verified chain:
+   `build/make/target/product/security/Android.mk`,
+   `system/core/rootdir/create_root_structure.mk:37`,
+   `frameworks/native/libs/adbd_auth/adbd_auth.cpp:394`.
+   Build: `lunch lineage_bramble-ap4a-userdebug && mka bacon` under
+   `systemd-run --user --unit=lethe-adbkeys-build`, log
+   `build-adbkeys.log`.
+7. Next once built: BCB → sideload_auto_reboot → `adb sideload` new zip →
+   auto-reboot → adbd auto-authorizes → **camp logcat through the crash
+   window**. That logcat finally discriminates overlay-service crash vs
+   vold//data failure vs anything else.
