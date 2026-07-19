@@ -76,7 +76,8 @@ PRODUCT_ARTIFACT_PATH_REQUIREMENT_ALLOWED_LIST += \
     system/media/bootanimation.zip \
     system/media/lockscreen.png \
     system/media/wallpaper.png \
-    system/priv-app/Lethe/%
+    system/priv-app/Lethe/% \
+    system/etc/permissions/privapp-permissions-org.osmosis.lethe.agent.xml
 LETHE_APR
         echo "  -> LETHE artifact-path allowlist appended."
     fi
@@ -168,6 +169,17 @@ android_app {
     dex_preopt: {
         enabled: false,
     },
+    // Privileged-permission allowlist. Without it, ro.control_privapp_
+    // permissions=enforce makes PackageManagerService abort boot (the app
+    // requests REBOOT + WRITE_SECURE_SETTINGS, both signature|privileged),
+    // which crash-loops system_server on every boot.
+    required: ["privapp-permissions-org.osmosis.lethe.agent.xml"],
+}
+
+prebuilt_etc {
+    name: "privapp-permissions-org.osmosis.lethe.agent.xml",
+    src: "privapp-permissions-org.osmosis.lethe.agent.xml",
+    sub_dir: "permissions",
 }
 LETHE_BP
             echo "  -> Android.bp generated (Soong / modern LOS target)."

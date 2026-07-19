@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  LETHE — privileged-permission allowlist for the system app.
+
+  org.osmosis.lethe.agent is built `privileged: true` (installs to
+  /system/priv-app). With ro.control_privapp_permissions=enforce (the modern
+  default), a priv-app requesting a signature|privileged permission that is
+  NOT allowlisted here makes PackageManagerService abort boot → system_server
+  crash-loop. Only the two `privileged`-level permissions the manifest
+  requests need listing; dangerous/runtime perms (location, mic, camera, BT
+  scan/connect) are granted at runtime and are NOT subject to this allowlist.
+
+  cm-14.1 (Android 7.1) predates privapp-permission enforcement, so the
+  overlay installs this only on modern (Soong) targets — see
+  scripts/overlay-helpers.sh:lethe_generate_app_buildfile.
+-->
+<permissions>
+    <privapp-permissions package="org.osmosis.lethe.agent">
+        <permission name="android.permission.REBOOT"/>
+        <permission name="android.permission.WRITE_SECURE_SETTINGS"/>
+    </privapp-permissions>
+</permissions>

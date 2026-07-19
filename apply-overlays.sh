@@ -356,6 +356,10 @@ rm -rf "$LETHE_APP_DEST"
 mkdir -p "$LETHE_APP_DEST/java/org/osmosis/lethe" "$LETHE_APP_DEST/res/xml"
 cp "$LETHE_APP_SRC/org/osmosis/lethe"/*.java "$LETHE_APP_DEST/java/org/osmosis/lethe/"
 cp "$SCRIPT_DIR/AndroidManifest.xml"                       "$LETHE_APP_DEST/AndroidManifest.xml"
+# Privileged-permission allowlist (modern targets consume it via the
+# generated Android.bp prebuilt_etc; harmless-but-unused on cm-14.1).
+cp "$SCRIPT_DIR/privapp-permissions-org.osmosis.lethe.agent.xml" \
+   "$LETHE_APP_DEST/privapp-permissions-org.osmosis.lethe.agent.xml"
 cp "$LETHE_APP_SRC/org/osmosis/lethe/res/xml/device_admin.xml" "$LETHE_APP_DEST/res/xml/device_admin.xml"
 
 # Strip API-29+/31+ manifest attrs on cm-14.1 (API 25 AAPT rejects unknowns):

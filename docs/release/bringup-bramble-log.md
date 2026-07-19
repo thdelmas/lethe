@@ -290,3 +290,57 @@ Android-15 audit regardless.
 ### Device state (attempt 3 end): crash-looping every ~8 s on slot A
 ### (booted OTA, burner default-ON). Left for the burner-fix reflash;
 ### bootloader still unlocked. If interrupting, Power+VolDown to bootloader.
+
+## Attempt 4 — 2026-07-19 (burner was a red herring; REAL cause = missing privapp allowlist)
+
+The burner-default-OFF build was flashed (BCB→sideload_auto_reboot→
+`adb sideload`, installed to the inactive slot and booted it) and
+**crash-looped identically** — same ~8 s MTP re-enumeration. So burner
+mode was NOT the cause. Correction to attempt 3: the every-boot burner
+wipe is real and undesirable for a device meant to persist, but it is not
+what blocks boot.
+
+**Actual root cause (static, high-confidence, matches every symptom):**
+the LETHE system app is a **privileged app with no privapp-permissions
+allowlist**.
+
+- `packages/apps/Lethe` builds `privileged: true` → installs to
+  `/system/priv-app/Lethe` (generated Android.bp, see
+  `overlay-helpers.sh:lethe_generate_app_buildfile`).
+- `AndroidManifest.xml` (pkg `org.osmosis.lethe.agent`, `persistent=true`,
+  `sharedUserId=android.uid.system`) requests two **signature|privileged**
+  permissions: `android.permission.REBOOT` and
+  `android.permission.WRITE_SECURE_SETTINGS` (verified against
+  `frameworks/base/core/res/AndroidManifest.xml`).
+- The built image sets `ro.control_privapp_permissions=enforce`
+  (system + vendor build.prop).
+- **No `privapp-permissions*.xml` for the package exists anywhere in the
+  tree.** Under `enforce`, PackageManagerService throws on a priv-app
+  requesting a non-allowlisted privileged permission during the boot scan
+  → `system_server` aborts → runtime restart → the deterministic ~8 s
+  crash-loop. Reaches MTP (init brings the gadget up) then dies as PMS
+  scans priv-apps; adb never joins the composite because the crashing
+  process is the one that would enable it — which is why no live logcat
+  was ever obtainable. Firmware (H1) was already dead; this is H2, and it
+  is independent of burner (hence the burner fix did nothing).
+
+**Fix (real, committed to source — not a bring-up hack):** ship the
+allowlist.
+- New `privapp-permissions-org.osmosis.lethe.agent.xml` (grants only the
+  two privileged perms; dangerous/runtime perms are NOT allowlist-subject).
+- `overlay-helpers.sh` modern-branch Android.bp now emits a `prebuilt_etc`
+  (→ `/system/etc/permissions/`) + `required:` on the Lethe app, and
+  allowlists the artifact path.
+- `apply-overlays.sh` copies the XML into the staged app dir.
+- cm-14.1 (Android 7.1) predates privapp enforcement → modern targets only.
+- Same change mirrored directly into the build tree for the current
+  rebuild (`build-privapp.log`).
+
+**On-device boot validation: PENDING** — privapp-fix rebuild in progress;
+reflash + first-boot check queued. `ro.build.display.id` verification
+rides on that boot. Bring-up build also carries burner default-OFF
+(incidental, keeps a test device from self-wiping; NOT the fix).
+
+### Device state (attempt 4): crash-looping on the burner-off build,
+### awaiting the privapp-fix reflash. Bootloader unlocked; Power+VolDown
+### to reach it.
