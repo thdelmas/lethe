@@ -119,5 +119,59 @@ prior is firmware.
 4. If it STILL fails to boot with matching firmware → H2 (overlay). Then
    pull `adb logcat` from the failed boot and audit our init rc / sepolicy.
 
-### Device left in: LETHE recovery (stable). Safe to power off or reboot
-### to bootloader. Nothing further wiped.
+## Attempt 2 — 2026-07-19 (native OTA sideload, no firmware change)
+
+Reasoning: attempt 1 installed via manual fastbootd partition flash, which
+can miss AVB/slot/super subtleties. Reinstall via the blessed LineageOS
+path instead — cheaper than the firmware detour and needs no Google image.
+
+1. Device already in LETHE recovery. `adb reboot sideload` → sideload mode
+   directly (no menu navigation needed). ✅
+2. `adb sideload lineage-...-bramble.zip` → transfer completed (rc 0);
+   recovery showed "to install additional packages you need to reboot to
+   recovery first" = **successful install** (that message is the LOS
+   post-sideload success prompt, not an error).
+3. `adb reboot` to system → **got FURTHER than attempt 1**: adbd came up
+   (adb `unauthorized` for ~40s) before failing back — i.e. Android
+   userspace booted substantially (adbd is past early init) then
+   crash-looped, landing in recovery.
+4. pstore + pmsg both EMPTY again (userspace crash, no kernel oops).
+5. Pre-authorized adb by writing `~/.android/adbkey.pub` to
+   `/data/misc/adb/adb_keys` from recovery (to auto-auth and catch logcat
+   next boot without the dialog).
+6. Re-boot attempts to capture logcat: **boot behaviour was
+   nondeterministic** — one attempt fell to fastboot at ~76s with no adbd
+   window; the next showed no USB at all. Could not catch a logcat.
+
+### Refined verdict: firmware mismatch (H1), confidence raised
+
+The **nondeterminism** is the key new evidence: a deterministic software
+bug (our init/sepolicy overlay) would fail the *same way every boot*.
+Boot-to-different-states (adbd/recovery/fastboot/black) across identical
+attempts is characteristic of **firmware/hardware-level incompatibility**,
+not a code bug. Combined with: recovery always boots (kernel fine), Android
+userspace reaches adbd then crash-loops, no kernel panic, device on A14
+bootloader `b5-0.6-10489838`. H2 (overlay) is now unlikely — it got past
+early init to adbd, and the failure isn't reproducible-identical.
+
+### Required next step (attempt 3): update firmware first
+
+bramble's newest *official* Android is 14, so there is no A15 stock — but
+lineage-22.1 is built against the **latest A14 bramble firmware**. If this
+device is on an older A14 (or A13) build, that is the mismatch. Update it:
+
+1. Get the **latest** bramble stock factory image (Google-hosted only —
+   the standing no-Google caveat applies; `bramble-*` factory zip).
+2. Flash firmware only (both slots), NOT the stock system:
+   `fastboot flash bootloader bootloader-bramble-*.img; fastboot reboot bootloader`
+   `fastboot flash radio radio-bramble-*.img; fastboot reboot bootloader`
+   (Or run the factory `flash-all.sh` to get a known-good A14 stock base +
+   confirm the hardware boots, then flash LETHE over it — this also
+   definitively separates H1 from H2: if stock A14 boots but LETHE doesn't,
+   it's H2 after all.)
+3. Re-flash LETHE (either fastbootd images + `set_active a`, or preferably
+   `adb sideload` the OTA in recovery), then `fastboot -w reboot`.
+
+### Device left in: bootlooping/parked (attempt 2 end). Mía to force-off
+### (hold Power ~10s) or Power+VolDown to bootloader. Bootloader still
+### unlocked; nothing further wiped. Pick up at attempt 3.
