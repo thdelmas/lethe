@@ -17,40 +17,61 @@ redbull-family / modern Pixel target.
 - `platform-tools` on PATH (`adb`, `fastboot`). USB cable, no hub if
   fastboot is flaky.
 
+## Device specifics (confirmed from the built tree + LOS wiki data)
+
+- `install_method: fastboot_nexus`, `recovery_partition_name: vendor_boot`.
+- **No standalone `recovery.img`** — recovery lives in `vendor_boot.img`
+  (`BOARD_MOVE_RECOVERY_RESOURCES_TO_VENDOR_BOOT := true`). An earlier
+  draft's `fastboot boot recovery.img` step was wrong for this device.
+- Images are in `out/target/product/bramble/`: `boot.img`, `vendor_boot.img`,
+  `dtbo.img`, `vbmeta.img` + logical `system/vendor/product/system_ext.img`.
+- **Never flash the Qualcomm firmware images** (`modem/tz/abl/aop/xbl/...`).
+  LineageOS runs on the stock firmware; flashing these can hard-brick.
+
 ## Steps
 
-Unlocking **wipes the device**. It is a test unit, so this is fine — but
-it needs a human at the screen for the volume/power confirmation.
+Unlocking **wipes the device**. Test unit, so fine — but needs a human at
+the screen for the volume/power confirmation. All commands run against the
+built tree (`cd out/target/product/bramble` first). **Verify live before
+executing** — this is brick-risk; confirm slot/partitions with
+`fastboot getvar current-slot` and `fastboot getvar all` once connected.
 
 ```sh
-# 1. Reboot to the bootloader.
+# 1. Reboot to the bootloader, confirm fastboot sees it.
 adb reboot bootloader
+fastboot devices                 # -> 0B201JECB13875  fastboot
 
-# 2. Confirm fastboot sees it.
-fastboot devices          # -> 0B201JECB13875  fastboot
-
-# 3. Unlock. Phone shows a warning screen — Mía: Volume to select
-#    "Unlock the bootloader", Power to confirm. WIPES USERDATA.
+# 2. Unlock (Mía: Volume to select "Unlock the bootloader", Power to
+#    confirm). WIPES USERDATA. Device returns to bootloader.
 fastboot flashing unlock
 
-# 4. Device wipes and returns to bootloader. Confirm still connected.
-fastboot devices
+# 3. Flash the LineageOS boot chain (recovery is inside vendor_boot).
+fastboot flash boot boot.img
+fastboot flash dtbo dtbo.img
+fastboot flash vendor_boot vendor_boot.img
+#    vbmeta with verity/verification disabled — an unsigned custom build
+#    fails Verified Boot otherwise.
+fastboot flash vbmeta --disable-verity --disable-verification vbmeta.img
 
-# 5. Temporarily BOOT the LineageOS recovery (do not flash yet).
-fastboot boot out/target/product/bramble/recovery.img
+# 4. Boot into the just-flashed LineageOS recovery.
+fastboot reboot recovery
 
-# 6. In LineageOS recovery: Factory reset -> Format data/factory reset
-#    (mandatory once after unlock — userdata is encrypted with the old
-#    key and must be wiped before the new system boots).
+# 5. In recovery: Factory reset -> Format data/factory reset (mandatory
+#    once after unlock — old userdata is encrypted with the old key).
 
-# 7. Apply update -> Apply from ADB, then sideload the OTA. For an A/B
-#    device this writes the inactive slot and flips the active slot on
-#    success; dynamic partitions are resized automatically.
-adb sideload out/target/product/bramble/lineage-*-bramble.zip
+# 6. Apply update -> Apply from ADB, then sideload the OTA. For an A/B
+#    device this writes the inactive slot and flips it on success;
+#    dynamic (super) partitions are resized automatically.
+adb sideload lineage-22.1-20260719-UNOFFICIAL-bramble.zip
 
-# 8. Reboot to system. First boot is slow (dexopt) — allow up to ~10 min
+# 7. Reboot to system. First boot is slow (dexopt) — allow ~5-10 min
 #    before suspecting a bootloop. Subsequent boots are ~30-60s.
 ```
+
+Fallback if sideload misbehaves: flash images directly instead of steps
+4-6 — `fastboot reboot fastboot` (into fastbootd), then `fastboot flash
+system system.img`, `vendor`, `product`, `system_ext`, then `fastboot -w
+reboot`. Prefer sideload; it handles super sizing automatically.
 
 Leave the bootloader **unlocked** — a degoogled ROM cannot pass Verified
 Boot with the stock key, and re-locking on a custom image can hard-brick.
