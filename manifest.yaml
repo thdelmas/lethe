@@ -39,6 +39,7 @@ devices:
       - encryption
 
   # Google Pixel
+  - bramble       # Pixel 4a (5G) — first physical test device (2026-07)
   - panther       # Pixel 7
   - cheetah       # Pixel 7 Pro
   - lynx          # Pixel 7a

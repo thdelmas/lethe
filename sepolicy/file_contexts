@@ -27,3 +27,8 @@
 # lethe_exec label the init service fail-loops on { entrypoint } AVC denials
 # because init.lethe-agent.rc puts the service in the lethe domain.
 /system/bin/lethe-agent-start\.sh       u:object_r:lethe_exec:s0
+
+# ── Agent backend (native, bundled on arm64 builds) ──
+# The start script execs this in-domain; it needs the lethe_exec label so
+# the { execute_no_trans } from the lethe domain is allowed under enforcing.
+/system/extras/lethe/agent/lethe-agent  u:object_r:lethe_exec:s0

@@ -57,42 +57,11 @@ else
     PROPS_TARGET=""
 fi
 
-# Stage a file under lethe-staging/<dest> in the LOS tree and append a
-# PRODUCT_COPY_FILES entry to common.mk so the build packages it into the
-# system image. Without this, files dropped into source-tree paths like
-# system/bin/ are silently ignored and the OTA ships without them.
-# Args: <src absolute path> <dest relative to system root, e.g. system/bin/tor>
-add_to_system() {
-    local src="$1"
-    local dest="$2"
-    if [ -z "$PROPS_TARGET" ]; then
-        echo "     WARNING: no props target — cannot register $dest, skipping."
-        return 0
-    fi
-    if [ ! -f "$src" ]; then
-        echo "     WARNING: source missing for $dest at $src, skipping."
-        return 0
-    fi
-    local stage="lethe-staging/$dest"
-    mkdir -p "$(dirname "$stage")"
-    cp "$src" "$stage"
-    chmod --reference="$src" "$stage" 2>/dev/null || true
-    # Idempotent: only append if not already present (re-runs of
-    # apply-overlays.sh shouldn't accumulate duplicate entries).
-    local entry="PRODUCT_COPY_FILES += $stage:$dest"
-    grep -qF -- "$entry" "$PROPS_TARGET" 2>/dev/null || echo "$entry" >> "$PROPS_TARGET"
-}
-
-# Install a LETHE init.rc into /system/etc/init/ (loaded by Android init
-# after /system mounts). Uses add_to_system so the file actually ships.
-# Args: <rc filename> [<label for log>]
-install_initrc() {
-    local rc="$1"
-    local label="${2:-${rc#init.lethe-}}"
-    label="${label%.rc}"
-    add_to_system "$INITRC_DIR/$rc" "system/etc/init/$rc"
-    echo "  -> $label init service registered for /system/etc/init/$rc."
-}
+# Helper functions (add_to_system, install_initrc, modern-tree guards, app
+# build-file generation) live in a sourced module to keep this script under
+# the 500-line limit. They read $PROPS_TARGET / $INITRC_DIR at call time.
+# shellcheck source=scripts/overlay-helpers.sh
+. "$SCRIPT_DIR/scripts/overlay-helpers.sh"
 
 # ── 1. System properties (privacy defaults) ──
 if [ -f "$OVERLAY_DIR/privacy-defaults.conf" ]; then
@@ -237,17 +206,43 @@ echo "[6/18] Applying debloat list..."
 DEBLOAT_PACKAGES=(
     "packages/apps/GoogleContactsSyncAdapter"
     "packages/apps/GoogleCalendarSyncAdapter"
-    "vendor/google"
     "vendor/gms"
-    "packages/apps/Browser2"
+    "vendor/partner_gms"
 )
+# vendor/google + Browser2 are only safe to delete on cm-14.1. On modern
+# trees vendor/google is the Pixel's proprietary blobs, and Browser2 is a
+# repo-managed project whose deletion breaks build-manifest generation
+# (git rev-parse on the now-missing project) as well as PRODUCT_PACKAGES
+# validation. So on modern trees debloat is config-based only (the guards
+# below strip the PRODUCT_PACKAGES entries) and NO source dir is removed.
+case "$PROPS_TARGET" in
+    *vendor/cm/*) DEBLOAT_PACKAGES+=("vendor/google" "packages/apps/Browser2") ;;
+esac
 
-for pkg in "${DEBLOAT_PACKAGES[@]}"; do
-    if [ -d "$pkg" ]; then
-        echo "  -> Removing: $pkg"
-        rm -rf "$pkg"
-    fi
-done
+# Modern-tree guards: strip product-config app entries (can't delete their
+# sources) + register the artifact-path allowlist. No-op on cm-14.1.
+lethe_modern_debloat_guards "$PROPS_TARGET"
+
+# Modern-tree board fixups: allow ELF prebuilts (tor, lethe-agent) via
+# PRODUCT_COPY_FILES. No-op on cm-14.1.
+lethe_modern_board_fixups "$PROPS_TARGET" "$CODENAME"
+
+# Source-dir deletion is the cm-14.1 debloat mechanism only — on modern
+# trees it breaks the build (repo-manifest + package validation), so debloat
+# there is config-based and removes nothing from the source tree.
+case "$PROPS_TARGET" in
+    *vendor/cm/*)
+        for pkg in "${DEBLOAT_PACKAGES[@]}"; do
+            if [ -d "$pkg" ]; then
+                echo "  -> Removing: $pkg"
+                rm -rf "$pkg"
+            fi
+        done
+        ;;
+    *)
+        echo "  -> Source-dir debloat skipped (modern tree; config-based)."
+        ;;
+esac
 
 # WebView workaround. Two-part fix because the chromium-webview prebuilts
 # (the apk + libwebviewchromium.so) aren't synced — LFS blobs missing — but
@@ -393,30 +388,9 @@ for d in "$LETHE_ICON_SRC"/mipmap-*; do
     cp "$d/ic_lethe.png" "$LETHE_APP_DEST/res/$(basename "$d")/ic_lethe.png"
 done
 
-# LOCAL_PRIVATE_PLATFORM_APIS: silently ignored on cm-14.1 / Android 7.1
-# (omitting LOCAL_SDK_VERSION is enough); required on Android 9+ to keep
-# DPM hidden methods + sharedUserId=android.uid.system reachable.
-cat > "$LETHE_APP_DEST/Android.mk" <<'LETHE_MK'
-LOCAL_PATH := $(call my-dir)
-include $(CLEAR_VARS)
-LOCAL_MODULE_TAGS := optional
-LOCAL_PACKAGE_NAME := Lethe
-LOCAL_CERTIFICATE := platform
-LOCAL_PRIVILEGED_MODULE := true
-LOCAL_PRIVATE_PLATFORM_APIS := true
-LOCAL_SRC_FILES := $(call all-java-files-under, java)
-LOCAL_RESOURCE_DIR := $(LOCAL_PATH)/res
-LOCAL_MANIFEST_FILE := AndroidManifest.xml
-
-# telephony-common: SmsManager (LethePhone.sendSms) lives here on cm-14.1.
-# Harmless on modern AOSP where the class moved back into framework.jar.
-LOCAL_JAVA_LIBRARIES := telephony-common
-# zxing-core: see docs/security/journalist-audit/168-pair-scan-spike.md.
-LOCAL_STATIC_JAVA_LIBRARIES := zxing-core
-LOCAL_PROGUARD_ENABLED := disabled
-LOCAL_DEX_PREOPT := false
-include $(BUILD_PACKAGE)
-LETHE_MK
+# Generate the app build file (Android.mk on cm-14.1, Android.bp on modern
+# trees — see the helper for why the split is mandatory on Android 15).
+lethe_generate_app_buildfile "$PROPS_TARGET" "$LETHE_APP_DEST"
 
 LETHE_PACKAGE_LINE="PRODUCT_PACKAGES += Lethe"
 if [ -n "$PROPS_TARGET" ] && ! grep -qF "$LETHE_PACKAGE_LINE" "$PROPS_TARGET" 2>/dev/null; then
@@ -427,6 +401,19 @@ echo "  -> System app staged at $LETHE_APP_DEST."
 chmod 755 "$SCRIPT_DIR/scripts/runtime/lethe-agent-start.sh"
 add_to_system "$SCRIPT_DIR/scripts/runtime/lethe-agent-start.sh" "system/bin/lethe-agent-start.sh"
 install_initrc init.lethe-agent.rc agent
+
+# Bundle the native agent backend when a matching-arch build exists.
+# The start script looks for it at /system/extras/lethe/agent/lethe-agent
+# and idles when absent (armv7 devices, or agent not built). Only the
+# arm64 binary is bundled — cm-14.1 armv7 devices never get a mismatched
+# binary (the ENOEXEC lesson from the tor prebuilt).
+AGENT_BIN="$SCRIPT_DIR/agent/target/aarch64-linux-android/release/lethe-agent"
+if [ "$PREBUILT_ARCH" = "arm64-v8a" ] && [ -f "$AGENT_BIN" ]; then
+    add_to_system "$AGENT_BIN" "system/extras/lethe/agent/lethe-agent"
+    echo "  -> LETHE agent backend bundled (arm64-v8a)."
+else
+    echo "  -> LETHE agent backend not bundled ($PREBUILT_ARCH / no build); start script will idle."
+fi
 echo "  -> LETHE agent packaging complete."
 
 # ── 12. SELinux policy ──
