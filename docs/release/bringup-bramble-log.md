@@ -229,3 +229,64 @@ Google download:
    auto-reboot → adbd auto-authorizes → **camp logcat through the crash
    window**. That logcat finally discriminates overlay-service crash vs
    vold//data failure vs anything else.
+
+### Attempt 3 result — ROOT CAUSE FOUND: burner-mode default-ON (H2)
+
+The adb-keys build revealed a snapshot-in-progress state; `fastboot
+snapshot-update cancel` cleared it, then BCB→sideload_auto_reboot +
+`adb sideload` the fresh OTA to slot A. Boot went **much further than any
+prior attempt** — the device enumerated as **MTP (18d1:4ee1) = fully
+booted Android userspace**, held ~6 s, then the whole device
+disconnected and re-enumerated on a **deterministic ~8 s period** (USB
+device numbers 123→124→125→126…, 5 enum/40 s, never settling). adb never
+joined the composite (stayed MTP-only 4ee1), so a live USB logcat was
+impossible — because the crashing component is `system_server` itself,
+which is what would bring adb up.
+
+**Key inference:** boots-to-MTP-then-loops at a fixed ~8 s cadence = a
+`system_server` crash-loop (each crash → zygote/runtime restart →
+re-inits the USB gadget → the 8 s re-enumeration). Deterministic, not the
+nondeterministic firmware signature of attempts 1–2. **H1 (firmware) is
+now conclusively DEAD** — the device reaches full userspace every cycle.
+
+**Static audit of what the overlay injects into the modern tree** (no
+device needed — framework Java patches don't apply to the lineage-22.1
+base, `PATCHES_BASE` empty; sepolicy only grants; settings writes are
+gated) pointed at the one destructive every-boot action:
+
+- `initrc/init.lethe-burner.rc`: `on post-fs-data → start lethe_burnwipe`
+  (unconditional).
+- default prop `persist.lethe.burner.enabled=true`
+  (`overlays/burner-mode.conf` + `overlays/privacy-defaults.conf`, baked
+  into `vendor/lineage/config/common.mk:304`).
+- `lethe-burner-wipe.sh` then recursively wipes `/data/data/*`,
+  `/data/user/0/*`, `/data/user_de/0/*`, `/data/system_ce/0/*`, settings
+  DBs, accounts.db, etc. **on every boot**, inside `post-fs-data` — i.e.
+  exactly as `system_server`/PMS/installd initialize. The script's OWN
+  comments document that mis-wiping `/data` crash-loops
+  `system_server`/zygote/PMS; its safeguards were written for the cm-14.1
+  layout and do **not** cover the Android-15 storage layout (new
+  `system_ce`/`user_de`/sdk-sandbox dirs). Result: system_server
+  crash-loop on every boot. Burner working as designed = fatal to a
+  device meant to actually boot, and default-ON is a chicken-and-egg
+  (can't disable it from Settings because it never finishes booting).
+
+**Fix for bring-up (local build-tree override, not committed to Lethe —
+mirrors the PRODUCT_ADB_KEYS approach):** flipped
+`vendor/lineage/config/common.mk:304` to
+`persist.lethe.burner.enabled=false`, rebuilt (`build-burnerfix.log`),
+re-sideloading. This should yield the first clean boot → then organ
+verification + `build.prop` display.id check in the running system.
+
+**Open product decision for Mía (NOT silently changed in the repo):**
+should LETHE ship burner default-ON? A consumer phone that wipes `/data`
+every boot can never complete setup on first flash. Recommended real fix
+(repo-level, his call): either default burner OFF, or add a first-boot
+guard to `lethe-burner-wipe.sh` (skip the wipe on the very first boot
+after flash via a `/persist` marker) so the device boots once to let the
+user reach Settings → Burner Mode. Also: the wipe's dir list needs an
+Android-15 audit regardless.
+
+### Device state (attempt 3 end): crash-looping every ~8 s on slot A
+### (booted OTA, burner default-ON). Left for the burner-fix reflash;
+### bootloader still unlocked. If interrupting, Power+VolDown to bootloader.
