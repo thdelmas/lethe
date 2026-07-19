@@ -69,9 +69,55 @@ Sequence run and outcomes:
   confirmed if a *vanilla* lineage-22.1 bramble build boots but ours does
   not. Distinguish via the boot log (pstore / last_kmsg from recovery).
 
-### Next diagnostic
+### Diagnostic results (attempt 1, continued)
 
-Pull the crash log to decide H1 vs H2: boot LineageOS recovery (in
-vendor_boot) and read `/sys/fs/pstore/console-ramoops*` and
-`/proc/last_kmsg`, or `adb logcat` if it reaches Android. A kernel/vendor
-panic → H1; an init/zygote/sepolicy crash-loop → H2.
+11. `fastboot oem reboot-recovery` **worked** — booted LETHE recovery
+    (adb state `recovery`, `/sbin/recovery` present). Confirmed genuine
+    LETHE build: `ro.build.display.id = LETHE-1.0.0-20260719-3134e9b`
+    (the fingerprint override DID land — earlier "stock id" read was the
+    wrong build.prop). Needed on-screen "Allow USB debugging" tap.
+12. **Recovery boots fine ⇒ kernel + vendor_boot are good.** The failure
+    is specifically the **Android system boot**, in **userspace** — no
+    kernel panic: `/sys/fs/pstore/` is EMPTY (a kernel oops would leave
+    console-ramoops). A userspace init/HAL crash-loop reboots without a
+    ramoops. Boot reason: `reboot,recovery`.
+13. Device firmware: bootloader `b5-0.6-10489838` (Android-14 era),
+    `verifiedbootstate: orange` (unlocked, expected).
+
+### Verdict: firmware mismatch (H1) is the leading cause
+
+Recovery-boots + userspace-fail + no-panic + device on A14 firmware while
+the build is A15 = the textbook LineageOS-Pixel requirement: **you must be
+on current stock firmware before flashing.** The QC firmware partitions we
+(correctly) never flashed — bootloader, radio, modem, abl, tz, etc. — are
+A14; lineage-22.1 vendor/HALs expect A15. The system boot fails when the
+A15 vendor HALs hit A14 firmware.
+
+Not fully excluded: an overlay boot-break (H2). But recovery booting and
+no kernel panic make a kernel/sepolicy-load failure unlikely; the strong
+prior is firmware.
+
+### Fix for next attempt (do this first)
+
+1. Get the bramble **stock factory image** for a build matching
+   lineage-22.1 (Android 15 / AP4A.*). NOTE: Pixel firmware is
+   **Google-hosted only** — no self-owned source exists for it; this is an
+   unavoidable Google dependency for flashing a Pixel. Decide if that's
+   acceptable before proceeding.
+2. From the factory zip, flash ONLY the firmware, not the stock system:
+   `fastboot flash bootloader bootloader-bramble-*.img` (both slots),
+   `fastboot reboot bootloader`,
+   `fastboot flash radio radio-bramble-*.img` (both slots),
+   `fastboot reboot bootloader`.
+   (Or run the factory `flash-all.sh` with `-w` removed and stop before it
+   flashes the stock images — simplest is to flash bootloader + radio
+   only, then our LETHE partitions.)
+3. Re-flash LETHE: boot, dtbo, vendor_boot, vbmeta (+vbmeta_system) with
+   `--disable-verity --disable-verification`, then fastbootd
+   system/vendor/product/system_ext, then `fastboot set_active a`,
+   `fastboot -w reboot`.
+4. If it STILL fails to boot with matching firmware → H2 (overlay). Then
+   pull `adb logcat` from the failed boot and audit our init rc / sepolicy.
+
+### Device left in: LETHE recovery (stable). Safe to power off or reboot
+### to bootloader. Nothing further wiped.
