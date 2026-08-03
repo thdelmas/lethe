@@ -50,11 +50,12 @@ organs:
     consuming_surface: "organ loop sense step"
     translation:
       - "watched surfaces slice 1 = network/anonymity: init.svc.lethe_tor, wifi association, airplane mode, bluetooth, private DNS"
-      - "baseline persists at /data/lethe/organs/exteroception.json across restarts"
+      - "watched surfaces slice 2 = install: third-party package set (one compact Info delta, elides past 6 names — deterministic half can't tell an Aurora install from stalkerware, judgment half escalates) + tracker-hosts sha256 (baked into the read-only system image, drift = Alert)"
+      - "baseline persists at /data/lethe/organs/exteroception.json across restarts (slice-1 baselines load forward; new surfaces adopt silently on first sweep)"
       - "diff-not-dump; probe failure keeps baseline and is never a value change (an unreadable surface must not read as a changed one)"
       - "absence-of-expected-event: tor != running is a standing violation, reported every sweep until cleared"
       - "read-only: sweeps never mutate; the brief recommends, the loop decides"
-    next_surfaces: "package-set changes, permission grants, tracker-hosts integrity"
+    next_surfaces: "permission grants"
 
   immune-check:
     verdict: already-native  # formalize under organs/ in a later slice
