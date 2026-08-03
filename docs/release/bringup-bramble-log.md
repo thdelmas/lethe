@@ -344,3 +344,84 @@ rides on that boot. Bring-up build also carries burner default-OFF
 ### Device state (attempt 4): crash-looping on the burner-off build,
 ### awaiting the privapp-fix reflash. Bootloader unlocked; Power+VolDown
 ### to reach it.
+
+## Attempt 5 — 2026-08-03 (FIRST FULL BOOT — vcap diagnostic build, slot B)
+
+Context recovered by archaeology: attempts continued past this log's
+attempt-4 entry on 19-07 — build tree shows `build-noapp` (app removed),
+`build-permissive` (androidboot.selinux=permissive), `build-cap2`/
+`build-vcap` (lethe_bootlog: full boot logcat → /mnt/vendor/persist,
+device/google/bramble/lethe-diag/) — but the final vcap zip was never
+flashed; device sat crash-looping (USB mostly down, occasional MIDI
+enum) on a pre-permissive build (verified: recovery /proc/cmdline had no
+selinux=permissive).
+
+Flash path (all remote except Power+VolDown and per-recovery-boot adb
+Allow taps):
+
+1. BCB `boot-recovery`/`recovery\n` → recovery. **Sideload attempt 1
+   FAILED (status 1)** in <1 s of apply: snapshot.cpp "Merged with
+   state = 5 — an update is already in progress" + "cannot cancel after
+   merging". Stale Virtual A/B state from the July slot-B sideload:
+   merge completed but cleanup never ran (cleanup happens on first
+   successful boot, which never happened). `fastboot snapshot-update
+   cancel` reports/leaves `none` — it does NOT clear this; the state
+   lives in `/metadata/ota/{state,snapshots/*}`.
+2. Fix: in recovery, mount /dev/block/by-name/metadata and move the
+   stale state aside → `/metadata/ota-stale-20260803/`. CAUTION: keep
+   `/metadata/ota/snapshots/` itself existing (empty) — **sideload
+   attempt 2 FAILED** because the dir was moved wholesale
+   ("Unable to write SnapshotStatus ... No such file or directory").
+   Also: recovery mountpoints are tmpfs — re-mkdir the mountpoint after
+   every recovery reboot or `mount` silently writes to ramdisk.
+3. **Sideload attempt 3 SUCCEEDED** → slot B active. Note retry-count
+   was 1; `fastboot set_active b` topped it back to 3 pre-boot.
+4. **BOOT: adb gadget at 12 s (diag rc works), adbd auto-authorized at
+   15 s (baked keys work), sys.boot_completed=1, zygote stable, uptime
+   80 s+.** First complete LETHE boot on bramble.
+
+### Findings on the running system (permissive, no app, webview stub)
+
+- **lethe_tor RUNNING** — transparent proxy alive on first boot.
+- **lethe-agent restart-loops:** `init: cannot setexeccon('u:r:lethe:s0')
+  ... Invalid argument` — init.lethe-agent.rc declares `seclabel
+  u:r:lethe:s0` but no `lethe` domain exists in the built sepolicy
+  (start-script header even says shell_exec; rc and policy disagree).
+  FIX NEEDED: ship a lethe.te domain (+ file_contexts) or align seclabel.
+- **Second independent break:** `/system/extras/lethe/agent/lethe-agent`
+  ships mode **0644** (PRODUCT_COPY_FILES default) — not executable even
+  if the seclabel were right. FIX NEEDED: install with exec bit
+  (cc_prebuilt_binary or post-copy chmod in the image build).
+- **Manual validation:** binary copied to /data/local/tmp, run as shell
+  with `LETHE_ORGANS_SNAPSHOT`/`LETHE_ORGANS_ENABLED` overrides —
+  daemon healthy: HTTP on 127.0.0.1:8080, `organs: tick #1
+  arousal=Drowsy next_wake=1800s reason=baseline established`, baseline
+  JSON written with all 5 slice-1 surfaces (tor_svc=running). providers
+  .yaml not packaged → empty router config (non-fatal by design).
+  Slice-2 probes (PR #208) field-checked manually: `cmd package list
+  packages -3` rc=0 (empty set on fresh build — legitimate edge),
+  `sha256sum /system/etc/hosts` stable across reads (69-line seed
+  blocklist — NOTE: manifest promises full StevenBlack fetch at build
+  time; only the seed ships).
+- **AVC harvest (what enforcing would kill):** heavy denial cluster from
+  `u:r:init:s0` doing tcp_socket/rawip_socket/fwmark/bpf — that is tor
+  running UNLABELED in init's domain (init.lethe-tor.rc has no
+  seclabel). Under enforcing this strangles tor even when boot works.
+  Same fix family as lethe-agent: real domains for lethe services.
+- **App-crash noise:** com.google.euiccpixel FATAL (no GSF on degoogled
+  build) — vendor eSIM app; debloat candidate, not a blocker.
+
+### Open question (bisection incomplete)
+
+This build removed the app AND added the webview classloader stub AND
+went permissive — boot success does not yet discriminate the July
+blocker. Counter-test when compute allows: enforcing build + app +
+privapp allowlist (7ff6626) + webview stub + service sepolicy fixes; if
+it boots, ship that; if it loops, the bootlog-to-persist rc is already
+in the tree to catch it.
+
+### Device state (attempt 5 end): slot B booted and stable (diagnostic
+### build: permissive + bootlog + adb-keys + no app). Manual agent left
+### stopped; init's lethe-agent still restart-throttled (harmless).
+### Stale VAB state parked in /metadata/ota-stale-20260803. Slot A
+### still has the July pre-permissive build.
