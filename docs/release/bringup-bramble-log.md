@@ -425,3 +425,25 @@ in the tree to catch it.
 ### stopped; init's lethe-agent still restart-throttled (harmless).
 ### Stale VAB state parked in /metadata/ota-stale-20260803. Slot A
 ### still has the July pre-permissive build.
+
+### Attempt 5 addendum — memory-recovered rulings + revised prime hypothesis
+
+Post-session recall surfaced 19-07 findings that never reached this log
+(they lived in agent memory only): the **no-app build was flashed and
+still looped**, the **permissive build was flashed and still looped**,
+and WebView was ruled out (real 262MB apk present). The vcap build's
+image-side delta over build-permissive is essentially just the bootlog
+service relocation — yet it booted. The variable that actually changed
+on 03-08 was the **/metadata Virtual A/B state cleanup** done to unblock
+sideloading.
+
+**Revised prime hypothesis for the July blocker: stale/corrupt VAB
+snapshot state** (attempt-1's `fastboot -w` erased /metadata mid-update
+lifecycle; merge state 5 with inconsistent files), crashing userspace
+boot identically regardless of image content — which is exactly the
+observed "every variant loops the same" signature. Cheap definitive
+counter-test, not yet run: boot slot A (July pre-permissive build) now
+that /metadata is clean. If slot A boots too, the whole July bisection
+was chasing an image bug that never existed, and enforcing + app +
+allowlist can likely ship as-is after the lethe-service sepolicy and
+exec-bit fixes.
