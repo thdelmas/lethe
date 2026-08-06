@@ -77,9 +77,31 @@ mascot-idle-green.frame-ms.txt   # contains e.g. "116"
 ```
 
 Integer milliseconds per frame, clamped 16–1000, read at strip load.
-Current values: idle = 116 (149 frames spanning the ~17.3s authored idle
-clip). Tune live: `adb push` a new value, then cycle the strip (tap →
-one-shot → back to idle reloads it).
+The correct value for a dark-generation sheet is authored clip duration ÷
+frame count (validated: the eye-tuned idle 116 ms equals 17.29 s / 149
+exactly; inter-frame diffs confirm uniform sampling, no dup/dropped
+frames). The dark sheets were captured at wildly different native rates,
+so every dark state sheet ships a sidecar (2026-08-06, fixes
+thinking/speaking playing up to 4× too fast at the 66 ms default):
+
+| sheet | frames | authored | frame-ms |
+|---|---|---|---|
+| idle | 149 | 17.29s (97-clip GLB idx 24) | 116 |
+| listening | 89 | 3.58s | 40 |
+| thinking | 59 | 15.38s | 261 |
+| speaking | 59 | 6.00s | 102 |
+| alert | 37 | 2.17s | 59 |
+| sleep | 74 | 3.88s | 52 |
+| nod | 37 | 2.58s | 70 |
+
+wave/walk/run are 15 fps native (bright-pipeline / 06-08 dark rerecords)
+— the 66 ms default is correct, no sidecars. Thinking is only ~3.8 fps
+native (59 frames over 15.4 s): correct duration now, but visibly choppy
+— candidate for re-record via `record-taproot-det.html` at 15 fps.
+Tune live: `adb push` a new value, then cycle the strip (tap →
+one-shot → back to idle reloads it — or `am force-stop` + relaunch;
+a top-most resumed activity ignores the start intent and keeps its
+resident strip).
 
 ## Lock-screen mascot (KeyguardMascotService)
 
