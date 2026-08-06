@@ -1,7 +1,10 @@
 package org.osmosis.lethe;
 
 import android.animation.ValueAnimator;
+import android.content.BroadcastReceiver;
 import android.content.Context;
+import android.content.Intent;
+import android.content.IntentFilter;
 import android.graphics.Bitmap;
 import android.graphics.BlurMaskFilter;
 import android.graphics.Canvas;
@@ -11,8 +14,15 @@ import android.graphics.Path;
 import android.graphics.RadialGradient;
 import android.graphics.RectF;
 import android.graphics.Shader;
+import android.hardware.Sensor;
+import android.hardware.SensorEvent;
+import android.hardware.SensorEventListener;
+import android.hardware.SensorManager;
+import android.os.BatteryManager;
 import android.os.Handler;
+import android.provider.Settings;
 import android.util.AttributeSet;
+import android.view.MotionEvent;
 import android.view.View;
 
 import java.util.Random;
@@ -23,9 +33,13 @@ import java.util.Random;
  * Draws the layered composition from docs/design/mascot-layers.md with
  * Canvas: stone body, moss, bioluminescent cracks, chest orb, eyes,
  * antennae — back to front, in the 540x960 logical space the SVG spec
- * uses. Phase 1 scope: breathing + sway, idle blink, and the six
- * conversation states. Gyro parallax, gaze tracking, and battery-driven
- * glow are phase 2 (see the issue).
+ * uses. Phase 1: breathing + sway, idle blink, and the six conversation
+ * states. Phase 2 (this file too): tilt parallax, eye-gaze tracking,
+ * touch flinch, and ambient battery awareness — the native mirror of
+ * mascot-interact.js. Depth parallax fakes the CSS translateZ stack by
+ * shifting the far layer (cached bitmap) less than the orb and eyes.
+ * All of it collapses when the system animator scale is 0 — the native
+ * equivalent of prefers-reduced-motion.
  *
  * Static layers (body, moss, cracks with their BlurMaskFilter glow,
  * antennae) are pre-rendered into a bitmap on size change — the blur
@@ -78,6 +92,62 @@ public class MascotView extends View {
     private float blink;              // 0 open .. 1 closed
     private float glow = 1f;          // overall luminescence multiplier
 
+    // --- phase 2: interactive awareness ---
+    private boolean reducedMotion;
+    private float batteryGlow = 1f;   // 0.4 at empty .. 1 at full (spec)
+    private boolean concerned;        // ≤10% and not charging
+    private float tiltX, tiltY;       // low-passed gravity tilt, ±1
+    private float gazeX, gazeY;       // eye offset in viewBox px
+    private float flinch;             // 1 at touch-down, decays to 0
+    private float nod;                // charger-plug nod, 0..1..0
+    private SensorManager sensorManager;
+    private boolean batteryReceiverRegistered;
+
+    private final SensorEventListener tiltListener = new SensorEventListener() {
+        @Override public void onSensorChanged(SensorEvent e) {
+            // Gravity direction = device tilt, same signal the web spec
+            // reads from DeviceOrientationEvent beta/gamma. Low-pass so
+            // hand tremor doesn't jitter the parallax.
+            float nx = clamp(e.values[0] / 4f, -1f, 1f);
+            float ny = clamp(e.values[1] / 4f, -1f, 1f);
+            float px = tiltX + 0.12f * (-nx - tiltX);
+            float py = tiltY + 0.12f * (ny - tiltY);
+            if (Math.abs(px - tiltX) < 0.004f
+                    && Math.abs(py - tiltY) < 0.004f) return;
+            tiltX = px;
+            tiltY = py;
+            if (!STATE_SLEEP.equals(state)) invalidate();
+        }
+        @Override public void onAccuracyChanged(Sensor s, int accuracy) { }
+    };
+
+    private final BroadcastReceiver batteryReceiver = new BroadcastReceiver() {
+        @Override public void onReceive(Context context, Intent intent) {
+            if (Intent.ACTION_POWER_CONNECTED.equals(intent.getAction())) {
+                startNod();  // spec: LETHE nods when the charger lands
+                return;
+            }
+            int level = intent.getIntExtra(BatteryManager.EXTRA_LEVEL, -1);
+            int max = intent.getIntExtra(BatteryManager.EXTRA_SCALE, 100);
+            int status = intent.getIntExtra(BatteryManager.EXTRA_STATUS, 0);
+            if (level < 0 || max <= 0) return;
+            float pct = level / (float) max;
+            boolean charging = status == BatteryManager.BATTERY_STATUS_CHARGING
+                || status == BatteryManager.BATTERY_STATUS_FULL;
+            // Vein brightness: 40% glow at empty, 100% at full.
+            float newGlow = 0.4f + 0.6f * pct;
+            boolean newConcerned = pct <= 0.10f && !charging;
+            // BATTERY_CHANGED fires on every tick of every battery stat;
+            // the cracks bitmap only re-renders on a visible change.
+            if (Math.abs(newGlow - batteryGlow) < 0.03f
+                    && newConcerned == concerned) return;
+            batteryGlow = newGlow;
+            concerned = newConcerned;
+            rebuildStaticLayer();
+            invalidate();
+        }
+    };
+
     private final Runnable blinkRunnable = new Runnable() {
         @Override public void run() {
             if (!STATE_SLEEP.equals(state)) startBlink();
@@ -125,6 +195,24 @@ public class MascotView extends View {
     @Override
     protected void onAttachedToWindow() {
         super.onAttachedToWindow();
+        reducedMotion = Settings.Global.getFloat(getContext().getContentResolver(),
+            Settings.Global.ANIMATOR_DURATION_SCALE, 1f) == 0f;
+        if (!reducedMotion) {
+            sensorManager = (SensorManager)
+                getContext().getSystemService(Context.SENSOR_SERVICE);
+            Sensor gravity = sensorManager.getDefaultSensor(Sensor.TYPE_GRAVITY);
+            if (gravity == null) {
+                gravity = sensorManager.getDefaultSensor(Sensor.TYPE_ACCELEROMETER);
+            }
+            if (gravity != null) {
+                sensorManager.registerListener(tiltListener, gravity,
+                    SensorManager.SENSOR_DELAY_GAME);
+            }
+        }
+        IntentFilter battery = new IntentFilter(Intent.ACTION_BATTERY_CHANGED);
+        battery.addAction(Intent.ACTION_POWER_CONNECTED);
+        getContext().registerReceiver(batteryReceiver, battery);
+        batteryReceiverRegistered = true;
         breathAnimator = ValueAnimator.ofFloat(0f, 1f);
         breathAnimator.setDuration(4000);
         breathAnimator.setRepeatCount(ValueAnimator.INFINITE);
@@ -143,7 +231,69 @@ public class MascotView extends View {
     protected void onDetachedFromWindow() {
         if (breathAnimator != null) breathAnimator.cancel();
         handler.removeCallbacks(blinkRunnable);
+        if (sensorManager != null) sensorManager.unregisterListener(tiltListener);
+        if (batteryReceiverRegistered) {
+            getContext().unregisterReceiver(batteryReceiver);
+            batteryReceiverRegistered = false;
+        }
         super.onDetachedFromWindow();
+    }
+
+    // --- phase 2: touch — gaze tracking + flinch ---------------------------------
+
+    @Override
+    public boolean onTouchEvent(MotionEvent event) {
+        if (reducedMotion || STATE_SLEEP.equals(state)) {
+            return super.onTouchEvent(event);
+        }
+        float scale = scale();
+        float cx = getWidth() / 2f, cy = getHeight() / 2f;
+        switch (event.getActionMasked()) {
+            case MotionEvent.ACTION_DOWN:
+                // Flinch is suppressed during alert and thinking (spec).
+                if (!STATE_ALERT.equals(state) && !STATE_THINKING.equals(state)) {
+                    startFlinch();
+                }
+                // fall through — the eyes snap to the finger immediately
+            case MotionEvent.ACTION_MOVE:
+                // Spec caps gaze at 6px x / 4px y in viewBox space.
+                gazeX = clamp((event.getX() - cx) / (scale * 45f), -1f, 1f) * 6f;
+                gazeY = clamp((event.getY() - cy) / (scale * 80f), -1f, 1f) * 4f;
+                invalidate();
+                break;
+            case MotionEvent.ACTION_UP:
+            case MotionEvent.ACTION_CANCEL:
+                gazeX = 0f;
+                gazeY = 0f;
+                invalidate();
+                break;
+        }
+        return super.onTouchEvent(event);
+    }
+
+    private void startFlinch() {
+        ValueAnimator a = ValueAnimator.ofFloat(1f, 0f);
+        a.setDuration(350);
+        a.addUpdateListener(new ValueAnimator.AnimatorUpdateListener() {
+            @Override public void onAnimationUpdate(ValueAnimator anim) {
+                flinch = (Float) anim.getAnimatedValue();
+                invalidate();
+            }
+        });
+        a.start();
+    }
+
+    private void startNod() {
+        if (reducedMotion) return;
+        ValueAnimator a = ValueAnimator.ofFloat(0f, 1f, 0f);
+        a.setDuration(700);
+        a.addUpdateListener(new ValueAnimator.AnimatorUpdateListener() {
+            @Override public void onAnimationUpdate(ValueAnimator anim) {
+                nod = (Float) anim.getAnimatedValue();
+                invalidate();
+            }
+        });
+        a.start();
     }
 
     @Override
@@ -166,10 +316,25 @@ public class MascotView extends View {
         canvas.scale(scale, scale);
         applyStateTransform(canvas);
 
+        // Depth parallax: the CSS version separates layers with
+        // translateZ(0/12/16px); here the far layer shifts least and
+        // the eyes most, which reads the same under tilt.
+        boolean still = reducedMotion || STATE_SLEEP.equals(state);
+        float px = still ? 0f : tiltX;
+        float py = still ? 0f : tiltY;
+        canvas.save();
+        canvas.translate(px * 3f, py * 2f);
         canvas.drawBitmap(staticLayer, null,
             new RectF(0, 0, VIEW_W, VIEW_H), bitmapPaint);
+        canvas.restore();
+        canvas.save();
+        canvas.translate(px * 8f, py * 5f);
         drawOrb(canvas);
+        canvas.restore();
+        canvas.save();
+        canvas.translate(px * 11f, py * 7f);
         drawEyes(canvas);
+        canvas.restore();
         canvas.restore();
     }
 
@@ -193,17 +358,31 @@ public class MascotView extends View {
             canvas.rotate(2.5f, cx, cy);             // braces back
             canvas.translate(0, -4);
         }
+        if (flinch > 0f) {
+            // Touch-down startle: a quick shrink-back that eases out.
+            float f = flinch * flinch;
+            canvas.scale(1f - 0.03f * f, 1f - 0.03f * f, cx, cy);
+            canvas.rotate(-1.5f * f, cx, cy);
+        }
+        if (nod > 0f) {
+            canvas.rotate(3f * nod, cx, VIEW_H * 0.25f);  // charger nod
+        }
+        if (concerned) {
+            canvas.rotate(-1.5f, cx, cy);            // lean in, worried
+            canvas.translate(0, 4);
+        }
     }
 
     private void drawOrb(Canvas canvas) {
         float cx = 270, cy = 470;
+        float g = effectiveGlow();
         // The orb is the emotional center — it pulses with the breath.
         float pulse = 1f + 0.05f * (float) Math.sin(breathPhase * 2 * Math.PI);
         float r = 65 * pulse;
-        orbFill.setAlpha((int) (230 * glow));
+        orbFill.setAlpha((int) (230 * g));
         canvas.drawCircle(cx, cy, r, orbFill);
         for (int i = 1; i <= 3; i++) {
-            orbRing.setAlpha((int) ((140 - i * 30) * glow));
+            orbRing.setAlpha((int) ((140 - i * 30) * g));
             canvas.drawCircle(cx, cy, r * i / 3.5f, orbRing);
         }
     }
@@ -211,20 +390,23 @@ public class MascotView extends View {
     private void drawEyes(Canvas canvas) {
         // Thinking looks down — matches the state table in the spec.
         float dy = STATE_THINKING.equals(state) ? 6 : 0;
-        drawEye(canvas, 225, 245 + dy);
-        drawEye(canvas, 315, 245 + dy);
+        drawEye(canvas, 225 + gazeX, 245 + dy + gazeY);
+        drawEye(canvas, 315 + gazeX, 245 + dy + gazeY);
     }
 
     private void drawEye(Canvas canvas, float cx, float cy) {
+        float g = effectiveGlow();
+        // Surprise micro-expression: the eyes widen with the flinch.
+        float ry = 14 + 3 * flinch;
         canvas.save();
         canvas.translate(cx, cy);   // the glow gradient is origin-centered
-        eyeGlow.setAlpha((int) (160 * glow));
+        eyeGlow.setAlpha((int) (160 * g));
         canvas.drawCircle(0, 0, 30, eyeGlow);
-        eyeFill.setAlpha((int) (255 * glow));
-        canvas.drawOval(new RectF(-18, -14, 18, 14), eyeFill);
+        eyeFill.setAlpha((int) (255 * g));
+        canvas.drawOval(new RectF(-18, -ry, 18, ry), eyeFill);
         if (blink > 0f) {
-            float lid = 14 * blink;
-            canvas.drawRect(-20, -15, 20, -15 + lid * 2, lidFill);
+            float lid = ry * blink;
+            canvas.drawRect(-20, -ry - 1, 20, -ry - 1 + lid * 2, lidFill);
         }
         canvas.restore();
     }
@@ -291,7 +473,7 @@ public class MascotView extends View {
         vein.setStyle(Paint.Style.STROKE);
         vein.setStrokeWidth(2.5f);
         vein.setColor(STATE_ALERT.equals(state) ? C_ALERT : accent);
-        vein.setAlpha((int) (255 * glow));
+        vein.setAlpha((int) (255 * effectiveGlow()));
         // The bioluminescent glow — needs software rendering, which is
         // why cracks live on the cached bitmap, not in onDraw.
         vein.setMaskFilter(new BlurMaskFilter(6, BlurMaskFilter.Blur.SOLID));
@@ -319,6 +501,15 @@ public class MascotView extends View {
     }
 
     // --- helpers --------------------------------------------------------------------
+
+    /** State glow × battery vein-brightness, dimmed further when worried. */
+    private float effectiveGlow() {
+        return glow * batteryGlow * (concerned ? 0.75f : 1f);
+    }
+
+    private static float clamp(float v, float lo, float hi) {
+        return v < lo ? lo : (v > hi ? hi : v);
+    }
 
     private float scale() {
         return Math.min(getWidth() / (float) VIEW_W,

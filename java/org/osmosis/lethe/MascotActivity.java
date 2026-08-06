@@ -29,7 +29,7 @@ public class MascotActivity extends Activity {
         MascotView.STATE_ALERT, MascotView.STATE_SLEEP,
     };
 
-    private MascotView mascot;
+    private View mascot;              // SpriteMascotView or MascotView
     private TextView hint;
     private int demoIndex;
 
@@ -39,7 +39,10 @@ public class MascotActivity extends Activity {
         FrameLayout root = new FrameLayout(this);
         root.setBackgroundColor(0xFF080808);
 
-        mascot = new MascotView(this);
+        // The pre-rendered Blender model when its sheets are reachable,
+        // the Canvas guardian otherwise (see SpriteMascotView docs).
+        mascot = SpriteMascotView.available(this)
+            ? new SpriteMascotView(this) : new MascotView(this);
         root.addView(mascot, new FrameLayout.LayoutParams(
             FrameLayout.LayoutParams.MATCH_PARENT,
             FrameLayout.LayoutParams.MATCH_PARENT));
@@ -65,11 +68,19 @@ public class MascotActivity extends Activity {
         mascot.setOnLongClickListener(new View.OnLongClickListener() {
             @Override public boolean onLongClick(View v) {
                 demoIndex = (demoIndex + 1) % DEMO_STATES.length;
-                mascot.setMascotState(DEMO_STATES[demoIndex]);
+                setMascotState(DEMO_STATES[demoIndex]);
                 hint.setText(DEMO_STATES[demoIndex]);
                 return true;
             }
         });
         setContentView(root);
+    }
+
+    private void setMascotState(String state) {
+        if (mascot instanceof SpriteMascotView) {
+            ((SpriteMascotView) mascot).setMascotState(state);
+        } else {
+            ((MascotView) mascot).setMascotState(state);
+        }
     }
 }
