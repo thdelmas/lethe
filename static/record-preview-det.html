@@ -59,7 +59,7 @@
 
   var mixers = [];
   var loader = new THREE.GLTFLoader();
-  loader.load('lethe-3d.glb', function(gltf) {
+  loader.load(params.get('glb') || 'lethe-3d.glb', function(gltf) {
     var rotDeg = parseFloat(params.get('rot') || '285');
     gltf.scene.rotation.y = rotDeg * Math.PI / 180;
 

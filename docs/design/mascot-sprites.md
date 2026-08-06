@@ -23,14 +23,31 @@ The launcher/app should stay within ONE generation per surface. The
 native app (SpriteMascotView) currently uses dark/floor everywhere except
 the rare fidget one-shots (walk/run — bright, no dark render exists yet).
 
-Known open items:
+RESOLVED 2026-08-06 — the dark-generation staging was recovered:
 
-- **True wave**: `mascot-wave-green.sprite.png` is a copy of the nod
-  sheet. `mascot-taproot.glb` has a native `wave` clip (idx 96, 15s) but
-  taproot is the *slim/pale* model, and the dark-generation staging is
-  unreproduced — recover or rebuild that staging before re-rendering.
-- **Dark walk/run** for the fidget pool.
-- The old pale idle lives at
+- **Source model**: historical versions of `mascot-taproot.glb` are the
+  dark cracked model (current HEAD taproot is a different slim/gray
+  model — do not use). Re-extract with
+  `git show 87242e6:static/mascot-taproot.glb` (12 conversation clips,
+  durations match the record-all.js table; wave = idx 9) and
+  `git show acfd45e:static/mascot-taproot.glb` (97 clips, 0–59 named:
+  walk@10, run@54, idle@24 = 17.29s — the idle_alt source).
+- **Staging**: the deleted pre-acfd45e `record-preview.html` (ACES 1.3,
+  ambient 0x222222 + key + teal fill/rim, camera z=3.0). Recovered as
+  `static/record-taproot-det.html` with deterministic `window._step(dt)`,
+  `?glb=`/`?rot=`/`?dist=` params, and a reconstructed floor plate
+  (translucent teal quad — the page that originally added it was never
+  committed; color sampled from the shipped sheets). Sheet-matching
+  params: `rot=290&dist=3.0`.
+- **Clip-collapse pitfall**: long NlaTrack clips from these Tripo
+  exports collapse mid-clip under three.js (wave collapses ~1.0–2.7s,
+  idle likewise) in BOTH historical GLBs. Short clips (walk 2.38s,
+  run 1.29s) are clean. The shipped wave sheet is a splice of the clean
+  segments (frames 0–16 + 47–65, 36 frames ≈ 2.4s one-shot). Inspect
+  every full-clip render for collapsed frames before shipping.
+- **Shipped 06-08**: true wave (spliced, replaces the nod-copy), dark
+  walk + run (fidget pool now consistent). All at 15fps native → no
+  sidecars needed. The old pale idle lives at
   `static/mascot-idle-green.sprite.png.pale-oldrender`.
 
 ## Recorder pitfalls (both fixed by the -det pages)

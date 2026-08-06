@@ -55,3 +55,8 @@ node_modules/
 # Private grant-application drafts (kept in ../lethe-grants-private/)
 lethe-nlnet-*.md
 static/*.sprite.png.*
+# extracted historical taproot models (re-extract: git show 87242e6/acfd45e:static/mascot-taproot.glb)
+static/mascot-taproot-old.glb
+static/mascot-taproot-mid.glb
+static/lethe-3d-old.glb
+static/mascot-3d-preview.html
