@@ -101,6 +101,19 @@ systemd-run --user --unit=lethe-build --collect \
   sudo build, which failed every host compile with "Permission denied".
   Fix: `--setenv=CCACHE_DIR=/home/mia/android/.ccache-lethe
   --setenv=CCACHE_MAXSIZE=50G`.
+- **Soong tracks env vars — never launch a build without the full canonical
+  env block above.** A 2026-08-06 `mka Lethe` missing `USE_CCACHE=1` made
+  soong invalidate its analysis (`environment variables changed value`)
+  and drop into cold re-analysis: ~26GB RSS, froze the desktop, oomd kill.
+  The damage is sticky — the analysis is regenerated in place, so the NEXT
+  run is cold even with the env restored (it froze the machine a second
+  time). Cold analysis cannot run on this 30G box while it's in use unless
+  swap absorbs the overshoot: `/swapfile2` (32G) is now active + fstab'd
+  for exactly this. Unit caps that survived the incident:
+  `-p MemoryHigh=22G -p MemoryMax=26G -p CPUWeight=40 -p IOWeight=20`
+  (`ManagedOOM*` properties are rejected on user transient units). Warm
+  module builds are seconds-to-minutes; the one-time cold pass was 34 min
+  over swap with the desktop usable.
 
 ## SELinux
 
