@@ -84,6 +84,7 @@ public class SpriteMascotView extends View {
     private float tiltX, tiltY;
     private float flinch;
     private long lastInteraction = System.currentTimeMillis();
+    private long lastFidget;
     private SensorManager sensorManager;
 
     private final Runnable ticker = new Runnable() {
@@ -91,11 +92,14 @@ public class SpriteMascotView extends View {
             if (strip != null && !reducedMotion) {
                 frame++;
                 if (frame >= frameCount) {
-                    frame = 0;
                     if (oneShot != null) {      // one-shot done → state loop
                         oneShot = null;
                         loadStrip(stateAnim());
                     }
+                    // Hold the last pose while a replacement strip decodes
+                    // (the idle sheet takes 1-2s); wrapping here would
+                    // replay the finished one-shot from the top.
+                    frame = (loading == null) ? 0 : frameCount - 1;
                 }
                 invalidate();
             }
@@ -200,12 +204,17 @@ public class SpriteMascotView extends View {
     }
 
     /** Idle 2–5min → occasional walk/run, mirroring the web boredom
-     *  tiers. Past 5min the agent is expected to push sleep. */
+     *  tiers. Past 5min the agent is expected to push sleep. The 1/150
+     *  roll runs per tick (~8.6/s on the 116ms idle sheet), so without
+     *  the min-gap a fidget fired every ~17s — frantic, not occasional. */
     private void maybeFidget() {
         if (oneShot != null || reducedMotion) return;
         if (!MascotView.STATE_IDLE.equals(state)) return;
-        long idleMs = System.currentTimeMillis() - lastInteraction;
-        if (idleMs > 120_000 && idleMs < 300_000 && random.nextInt(150) == 0) {
+        long now = System.currentTimeMillis();
+        long idleMs = now - lastInteraction;
+        if (idleMs > 120_000 && idleMs < 300_000
+                && now - lastFidget > 60_000 && random.nextInt(150) == 0) {
+            lastFidget = now;
             playOnce(FIDGET_POOL[random.nextInt(FIDGET_POOL.length)]);
         }
     }
