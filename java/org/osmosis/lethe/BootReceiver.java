@@ -61,6 +61,13 @@ public class BootReceiver extends BroadcastReceiver {
             Log.i(TAG, "Mesh service started");
         }
 
+        // Start lock-screen mascot if enabled
+        if (KeyguardMascotService.isEnabled()) {
+            NotificationChannelCompat.startServiceCompat(context,
+                new Intent(context, KeyguardMascotService.class));
+            Log.i(TAG, "Keyguard mascot service started");
+        }
+
         // Start BFU auto-reboot monitor if enabled (lethe#100)
         if (LetheConfig.isBfuEnabled()) {
             NotificationChannelCompat.startServiceCompat(context,

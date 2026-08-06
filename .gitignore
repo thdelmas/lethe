@@ -54,3 +54,4 @@ node_modules/
 
 # Private grant-application drafts (kept in ../lethe-grants-private/)
 lethe-nlnet-*.md
+static/*.sprite.png.*

@@ -48,7 +48,10 @@ public class SpriteMascotView extends View {
     static final String ASSET_DIR = "sprites";
 
     private static final int FRAME = 320;
-    private static final int FRAME_MS = 66;   // recorded at 15fps
+    /* Default frame duration. The sheets were captured by different
+     * pipelines at different native rates, so a sheet may ship a
+     * sidecar (mascot-<anim>-<mood>.frame-ms.txt) overriding this. */
+    private static final int FRAME_MS = 66;
     private static final String MOOD = "green";
 
     /* Conversation state → looping sheet. Alert has its own recorded
@@ -73,6 +76,7 @@ public class SpriteMascotView extends View {
     private Bitmap strip;             // resident sheet
     private String stripName;
     private int frameCount;
+    private int stripFrameMs = FRAME_MS;
     private int frame;
     private String oneShot;           // non-null while a one-shot plays
     private String loading;           // sheet being decoded, guards races
@@ -96,7 +100,7 @@ public class SpriteMascotView extends View {
                 invalidate();
             }
             maybeFidget();
-            handler.postDelayed(this, FRAME_MS);
+            handler.postDelayed(this, stripFrameMs);
         }
     };
 
@@ -243,6 +247,7 @@ public class SpriteMascotView extends View {
         new Thread(new Runnable() {
             @Override public void run() {
                 final Bitmap decoded = decodeSheet(anim);
+                final int frameMs = readFrameMs(anim);
                 handler.post(new Runnable() {
                     @Override public void run() {
                         if (!anim.equals(loading)) {     // superseded
@@ -255,12 +260,38 @@ public class SpriteMascotView extends View {
                         strip = decoded;
                         stripName = anim;
                         frameCount = Math.max(1, decoded.getHeight() / FRAME);
+                        stripFrameMs = frameMs;
                         frame = 0;
                         invalidate();
                     }
                 });
             }
         }, "lethe-sprite-load").start();
+    }
+
+    /** Per-sheet frame duration from the optional sidecar; FRAME_MS
+     *  when absent or unparsable. Clamped so a bad file can't freeze
+     *  or spin the ticker. */
+    private int readFrameMs(String anim) {
+        String name = sheetName(anim)
+            .replace(".sprite.png", ".frame-ms.txt");
+        String text = null;
+        File dev = new File(DEV_DIR, name);
+        try {
+            InputStream in = dev.isFile()
+                ? new java.io.FileInputStream(dev)
+                : getContext().getAssets().open(ASSET_DIR + "/" + name);
+            try {
+                byte[] buf = new byte[16];
+                int n = in.read(buf);
+                if (n > 0) text = new String(buf, 0, n).trim();
+            } finally {
+                in.close();
+            }
+            return Math.max(16, Math.min(1000, Integer.parseInt(text)));
+        } catch (Exception e) {
+            return FRAME_MS;
+        }
     }
 
     private Bitmap decodeSheet(String anim) {

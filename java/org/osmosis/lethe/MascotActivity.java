@@ -59,6 +59,13 @@ public class MascotActivity extends Activity {
             .getDisplayMetrics().density);
         root.addView(hint, lp);
 
+        // Re-arm the lock-screen mascot after an adb install -r kills the
+        // process — launching this activity is the shell-reachable hook
+        // (the service itself is not exported).
+        if (KeyguardMascotService.isEnabled()) {
+            startService(new Intent(this, KeyguardMascotService.class));
+        }
+
         mascot.setOnClickListener(new View.OnClickListener() {
             @Override public void onClick(View v) {
                 Intent chat = new Intent(MascotActivity.this, ChatActivity.class);
