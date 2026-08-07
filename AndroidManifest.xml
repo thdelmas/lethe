@@ -169,6 +169,25 @@
             </intent-filter>
         </activity>
 
+        <!-- Void launcher — the avatar as home screen. CATEGORY_HOME
+             makes Android's default-launcher chooser offer this vs the
+             legacy UI (Trebuchet); the stock UX stays one Settings
+             toggle away. stateNotNeeded per the launcher contract. -->
+        <activity
+            android:name="org.osmosis.lethe.LauncherActivity"
+            android:label="LETHE Home"
+            android:theme="@android:style/Theme.DeviceDefault.NoActionBar.Fullscreen"
+            android:launchMode="singleTask"
+            android:stateNotNeeded="true"
+            android:excludeFromRecents="true"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.HOME" />
+                <category android:name="android.intent.category.DEFAULT" />
+            </intent-filter>
+        </activity>
+
         <!-- Native mascot presentation (lethe#189 phase 1, Route 3).
              Canvas-drawn guardian per docs/design/mascot-layers.md —
              first time the mascot renders on user builds. Tap opens
