@@ -244,6 +244,14 @@ public class FilamentMascotView extends SurfaceView
         MascotStateController.get(getContext()).removeListener(this);
         choreographer.removeFrameCallback(this);
         if (uiHelper != null) uiHelper.detach();      // destroys swapChain
+        // Cancel BEFORE destroying anything. The keyguard builds a fresh view
+        // per show and detaches it on unlock, so a detach lands mid-load
+        // routinely; tearing the asset down under an in-flight async load
+        // segfaults gltfio at the same instruction as the source-buffer bug.
+        // Size-dependent, so it only shows up on the 20.5 MB shelled asset —
+        // the 12.5 MB stone GLB finishes loading before the detach arrives.
+        if (resourceLoader != null && loadingResources) resourceLoader.asyncCancelLoad();
+        loadingResources = false;
         if (asset != null) {
             assetLoader.destroyAsset(asset);
             asset = null;
@@ -251,8 +259,7 @@ public class FilamentMascotView extends SurfaceView
         }
         if (resourceLoader != null) resourceLoader.destroy();
         if (assetLoader != null) assetLoader.destroy();
-        sourceGlb = null;   // detached mid-load: nothing points into it now
-        loadingResources = false;
+        sourceGlb = null;   // load is cancelled and the asset is gone
         if (materialProvider != null) {
             materialProvider.destroyMaterials();
             materialProvider.destroy();

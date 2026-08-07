@@ -142,6 +142,16 @@ introduced: the 12.5 MB one-texture asset loaded fast enough to hide it, the
 launcher down with it — same process). Now held in `sourceGlb` and cleared
 at `releaseSourceData()` and on detach.
 
+**And `asyncCancelLoad()` before tearing the view down**, which is the same
+bug's other half and was missed on the first pass. The keyguard builds a
+fresh mascot view per show and detaches it on unlock, so a detach lands
+mid-load routinely; destroying the asset under an in-flight async load
+segfaults gltfio at the *same instruction* as the buffer bug. Also
+size-dependent, so it hides behind small assets: measured 1 crash per
+lock/unlock cycle on the 20.5 MB shelled GLB and 0 on the 12.5 MB stone
+GLB, which is the cheap way to tell "my asset broke this" from "my asset
+exposed this". Verified 0 crashes over 3 cycles after the fix.
+
 ### Per-state color tints (2026-08-07)
 
 `persist.lethe.mascot.tint=on` (default off = stock look) recolors the

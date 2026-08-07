@@ -447,3 +447,60 @@ that /metadata is clean. If slot A boots too, the whole July bisection
 was chasing an image bug that never existed, and enforcing + app +
 allowlist can likely ship as-is after the lethe-service sepolicy and
 exec-bit fixes.
+
+## Attempt 6 (2026-08-07) — slot-A counter-test: **CONFIRMED, slot A boots**
+
+The counter-test above is now run. **The revised prime hypothesis holds: the
+July blocker was the stale VAB state, not any image bug.**
+
+Procedure (nothing was written to /metadata — `set_active` only, so the
+03-08 parked stale state is untouched):
+
+1. Pre-state from the bootloader: `current-slot: b`, `slot-successful:a: yes`,
+   **`slot-unbootable:a: yes`**, `retry-count:a: 3`, `slot-unbootable:b: no`,
+   `retry-count:b: 2`. Slot A carried the unbootable flag from the July
+   failures.
+2. `fastboot set_active a` → cleared it (`unbootable:a: no`, retry 3), then
+   `fastboot reboot`.
+3. **It booted.** Mía confirmed the **lock screen** on the device — keyguard
+   means system_server completed boot, which is the property-level fact the
+   USB evidence could only infer.
+
+Signature contrast, which is the whole point:
+
+| | July (attempts 1–4) | slot A now |
+|---|---|---|
+| behaviour | crash-loop every ~8 s | boots to lock screen |
+| bootloader | fell back after retries | no fallback |
+| USB | re-enumerating constantly | 1 re-enumeration in 19 min |
+
+**Consequences.** The July bisection — no-app build, permissive build, WebView
+— was chasing a defect that never existed; those rulings say nothing about the
+images and should not be trusted as evidence about them. Enforcing + app +
+allowlist can likely ship as-is once the lethe-service sepolicy domain
+(port fix 9: 10 neverallow violations / 7 rules, still OPEN) and the agent
+exec-bit fix land.
+
+**Two open observations, not conclusions:**
+
+- **No adb on slot A.** It enumerates MTP-only (`18d1:4ee1`, product string
+  `Pixel 4a (5G)`, real serial) and adbd never appears, even though
+  `adb_enabled` lives in the shared /data that slot B uses adb from. Slot A is
+  the *pre-permissive* (enforcing) build, so adbd or the USB config being
+  blocked by a denial is the obvious suspect — consistent with the sepolicy
+  work still outstanding. Unverified: there is no adb with which to verify it.
+- **Whether SELinux is actually enforcing at runtime on slot A is unknown**
+  for the same reason. "Pre-permissive build reaches the lock screen" is what
+  was observed; "boots enforcing" is not yet established.
+
+**Getting back from slot A needs physical access** — no adb means no
+`adb reboot bootloader`. Power off, then Vol Down + Power for the bootloader,
+then `fastboot set_active b`. Budget for that before starting a slot test.
+
+### Device state (attempt 6 end): **active slot = A**, booted to the lock
+### screen, no adb. Supersedes the attempt-5 header above, which describes
+### slot B. Slot B is untouched and still holds the vcap diagnostic build
+### (permissive + bootlog + adb-keys) plus the step-4 Lethe APK installed to
+### the shared /data; `fastboot set_active b` restores it. Stale VAB state
+### still parked in /metadata/ota-stale-20260803 — attempt 6 wrote nothing
+### to /metadata.
