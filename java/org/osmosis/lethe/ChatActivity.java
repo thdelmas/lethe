@@ -357,4 +357,19 @@ public class ChatActivity extends Activity implements AgentChatClient.Listener {
         float density = getResources().getDisplayMetrics().density;
         return Math.round(v * density);
     }
+
+    /* An open chat IS the agentic session — the avatar wears the
+     * session vital wherever it is visible while this is foreground
+     * (docs/design/avatar-ui.md). */
+    @Override
+    protected void onResume() {
+        super.onResume();
+        MascotStateController.get(this).setSessionActive(true);
+    }
+
+    @Override
+    protected void onPause() {
+        super.onPause();
+        MascotStateController.get(this).setSessionActive(false);
+    }
 }

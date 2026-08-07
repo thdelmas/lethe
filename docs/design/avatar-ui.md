@@ -110,12 +110,11 @@ amber listening avatar reads "I hear you, and something also wants your
 attention." One meaning per channel is the rule that keeps the avatar
 legible as it gains states.
 
-**Implementation status:** the tint machinery is shipped and per-state,
-but the states it keys off are still the *conversational* set (idle,
-listening, thinking, speaking, alert, sleep) inherited from the chat
-work. Reconciling the palette onto the vital scale is part of the state
-controller step below — the doctrine is decided, the mapping is not yet
-migrated.
+**Implementation status: shipped 2026-08-07.** The channels are
+genuinely separate — `MascotStateController` owns the colour channel and
+`MascotViews.setState` owns behaviour, and neither touches the other.
+Verified on device: cycling behaviour through listening → thinking →
+speaking left the colour fixed and emitted no vital change at all.
 
 Tint knobs (`persist.lethe.mascot.tint*`), the desaturate → luminance-
 normalize formula and its tuned defaults live in
@@ -129,30 +128,55 @@ defaults and should not be silently re-litigated:
   crushes the model to near-black and makes the moss indistinguishable
   from the stone.
 
-## What drives the states
+## What drives the colour — `MascotStateController`
 
-**Today: nothing.** States change only by explicit call —
-`MascotViews.setState`, the long-press demo cycle, or the `tap=cycle`
-harness. The avatar is a face that does not yet react on its own.
+Shipped 2026-08-07. One arbiter resolves a single vital from the
+device's own condition, so the avatar reflects the phone rather than
+being puppeted. Behaviour still comes from explicit
+`MascotViews.setState` calls.
 
-**Next: `MascotStateController`** — one arbiter with priorities, fed by
-cheap receivers, so the avatar reflects the device's own condition
-rather than being puppeted:
+**Inputs are permission-free by construction** — every one is a sticky
+broadcast, a world-readable setting, or a system property. The avatar
+must never become the reason this OS holds a permission it would
+otherwise refuse.
 
-| Input | Signals |
-|---|---|
-| battery | low, charging |
-| connectivity / Tor | isolated, degraded |
-| notifications | needs attention |
-| mic | listening |
-| agent daemon (`localhost:8080`) | thinking, speaking |
-| clock | night / resting |
+| Vital | Wins when | Colour |
+|---|---|---|
+| `alarm` | `init.svc.lethe_tor` is configured but not running — the advertised privacy guarantee is not being kept | red |
+| `attention` | battery ≤15% and not charging | amber |
+| `session` | an agentic session is open (`ChatActivity` foreground) | teal |
+| `resting` | 23:00–06:00 | violet |
+| `nominal` | otherwise | green |
 
-This is the step that makes the avatar the phone's face rather than an
-animation host. It wants a healthy agent daemon to talk to: as of
-2026-08-07 `lethe-agent` still restart-loops on device
-(`cannot setexeccon('u:r:lethe:s0')`, status 6) pending the sepolicy
-domain — see the pre-enforcing fix list in the release notes.
+Priority runs top to bottom: a broken guarantee outranks a request for
+attention, which outranks a live session, which outranks rest.
+**Airplane mode is deliberately not a vital** — being offline is a
+normal state for this OS, not a fault.
+
+Refresh cadence: broadcast-driven inputs (battery, screen-on, airplane)
+apply immediately; polled ones (tor, the night boundary, and the force
+prop below) land on the next `ACTION_TIME_TICK`, so **up to 60 s**. Vitals
+are a mood, not a real-time alarm, so this is deliberate — but it will
+surprise you when testing, so poll the log rather than sleeping a
+couple of seconds.
+
+Gates:
+
+- `persist.lethe.mascot.vitals=false` — pin to nominal.
+- `persist.lethe.mascot.vital.force=<vital>` — force one, for checking
+  the palette without draining the battery or killing tor.
+- `persist.lethe.mascot.tint.<vital>=RRGGBB` — per-vital colour.
+
+Receivers register only while a view is listening, so an avatar nobody
+can see costs no wakeups.
+
+**Not yet wired:** notifications (needs a `NotificationListenerService`
+— `LetheNotificationService` only posts, it does not listen), the mic,
+and the agent daemon's thinking/speaking states. The daemon in
+particular has nothing to say yet: it restart-loops
+(`cannot setexeccon('u:r:lethe:s0')`) until the sepolicy domain is
+reworked — see port fix 9 in
+[bramble-modern-port-notes.md](../release/bramble-modern-port-notes.md).
 
 ## Roadmap
 
@@ -160,8 +184,9 @@ domain — see the pre-enforcing fix list in the release notes.
 |---|---|---|
 | 1 | Void launcher — avatar as home | shipped 2026-08-07 (`251e414`) |
 | 1b | Lock-screen tap → unlock flow | shipped 2026-08-07 (`ef500a5`) |
-| 2 | `MascotStateController` — vitals drive the avatar | next |
-| 3 | Clip cross-fades (~300 ms) so states stop hard-cutting | planned |
+| 2 | `MascotStateController` — vitals drive the avatar | shipped 2026-08-07 |
+| 2b | Remaining inputs: notifications, mic, agent daemon | blocked on sepolicy (port fix 9) + a listener service |
+| 3 | Clip cross-fades (~300 ms) so states stop hard-cutting | next |
 | 4 | Two-material GLB re-author → colour in the cracks only | planned |
 
 Step 4 is blocked on asset work, not code: the GLB is a single material

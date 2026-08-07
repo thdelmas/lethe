@@ -59,7 +59,8 @@ import java.util.Random;
  * clip index or clip name.
  */
 public class FilamentMascotView extends SurfaceView
-        implements Choreographer.FrameCallback {
+        implements Choreographer.FrameCallback,
+                   MascotStateController.Listener {
 
     static final String DEV_GLB = "/data/local/tmp/lethe-sprites/mascot.glb";
     static final String ASSET_GLB = "mascot.glb";
@@ -80,17 +81,10 @@ public class FilamentMascotView extends SurfaceView
     private static final String[] TAP_POOL = { "wave", "nod" };
     private static final String[] FIDGET_POOL = { "walk", "run" };
 
-    /* state → default tint (sRGB hex). Master gate
-     * persist.lethe.mascot.tint=on (default off = shipped look);
-     * per-state override persist.lethe.mascot.tint.<state> = hex. */
-    private static final String[][] TINT_DEFAULTS = {
-        { MascotView.STATE_IDLE, "58e06b" },
-        { MascotView.STATE_LISTENING, "35e0b8" },
-        { MascotView.STATE_THINKING, "f2c14e" },
-        { MascotView.STATE_SPEAKING, "6fb7ff" },
-        { MascotView.STATE_ALERT, "ff4f3e" },
-        { MascotView.STATE_SLEEP, "7a5cff" },
-    };
+    /* Colour is the VITALS channel, not the state channel — the palette
+     * and the arbitration live in MascotStateController. This view only
+     * renders whichever vital it is told. Master gate
+     * persist.lethe.mascot.tint=on (default off = shipped look). */
 
     private static boolean filamentReady;
 
@@ -111,6 +105,7 @@ public class FilamentMascotView extends SurfaceView
     private boolean loadingResources;
 
     private String state = MascotView.STATE_IDLE;
+    private String vital = MascotStateController.VITAL_NOMINAL;
     private String oneShot;             // non-null while a one-shot plays
     private long clipStartNanos;
     private long lastRenderNanos;
@@ -149,6 +144,17 @@ public class FilamentMascotView extends SurfaceView
         state = newState;
         oneShot = null;
         clipStartNanos = 0L;
+        // No applyTint() here: state is the BEHAVIOUR channel and must
+        // not move the colour (docs/design/avatar-ui.md).
+    }
+
+    /** Vitals changed — repaint the colour channel, leave the clip be.
+     *  Delivered on the main thread (the controller's receivers are
+     *  registered without a handler). */
+    @Override
+    public void onVitalChanged(String newVital) {
+        if (newVital == null || newVital.equals(vital)) return;
+        vital = newVital;
         applyTint();
     }
 
@@ -222,11 +228,15 @@ public class FilamentMascotView extends SurfaceView
         uiHelper.attachTo(this);
 
         loadAsset();
+        // Seeds `vital` synchronously via onVitalChanged before the
+        // first frame, so the avatar never flashes the wrong colour.
+        MascotStateController.get(getContext()).addListener(this);
         choreographer.postFrameCallback(this);
     }
 
     @Override
     protected void onDetachedFromWindow() {
+        MascotStateController.get(getContext()).removeListener(this);
         choreographer.removeFrameCallback(this);
         if (uiHelper != null) uiHelper.detach();      // destroys swapChain
         if (asset != null) {
@@ -402,7 +412,7 @@ public class FilamentMascotView extends SurfaceView
     private void applyTint() {
         if (engine == null || asset == null) return;
         if (!"on".equals(LetheConfig.get("persist.lethe.mascot.tint", "off"))) return;
-        float[] rgb = resolveTint(state);
+        float[] rgb = parseHex(MascotStateController.colorFor(vital));
         if (rgb == null) return;
         // A raw multiply crushes the dark albedo (near-black model, moss
         // indistinguishable from stone — ruled out 07-08). Desaturate toward
@@ -440,16 +450,6 @@ public class FilamentMascotView extends SurfaceView
                 } catch (Exception ignored) { }
             }
         }
-    }
-
-    private float[] resolveTint(String key) {
-        String v = LetheConfig.get("persist.lethe.mascot.tint." + key, "");
-        if (v.isEmpty()) {
-            for (String[] pair : TINT_DEFAULTS) {
-                if (pair[0].equals(key)) { v = pair[1]; break; }
-            }
-        }
-        return parseHex(v);
     }
 
     /** "#RRGGBB"/"RRGGBB" sRGB → linear float3 (material factors are linear). */
