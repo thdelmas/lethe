@@ -13,6 +13,9 @@ import android.util.Log;
 import android.view.Gravity;
 import android.view.View;
 import android.view.WindowManager;
+import android.view.WindowManagerGlobal;
+
+import com.android.internal.policy.KeyguardDismissCallback;
 
 /**
  * Guardian on the lock screen — floats the mascot bottom-center on the
@@ -22,9 +25,12 @@ import android.view.WindowManager;
  * the platform signature) rather than a SystemUI patch, so it ships in
  * the normal `mka Lethe` + adb install loop with no image rebuild.
  *
- * The window is NOT_TOUCHABLE: the bottom-center of the keyguard is the
- * swipe-to-unlock gesture zone, and a touchable window there would eat
- * the gesture. A fresh view is created per show — SpriteMascotView keeps
+ * The mascot's box IS touchable (since 07-08): tap or fling-up on the
+ * guardian starts the unlock flow (KeyguardDismissActivity → bouncer),
+ * matching what the swipe-to-unlock zone under it would do — both
+ * gestures lead to the same place, so eating them costs nothing.
+ * Touches OUTSIDE the box keep the greet-then-get-out-of-the-way
+ * behavior. A fresh view is created per show — SpriteMascotView keeps
  * stripName across detach, so a reused instance skips reloading its
  * recycled strip.
  *
@@ -122,22 +128,40 @@ public class KeyguardMascotService extends Service {
             Math.round(propDp("persist.lethe.mascot.kg.size", SIZE_DP)
                 * density),
             getResources().getDisplayMetrics().widthPixels);
-        // WATCH_OUTSIDE_TOUCH + NOT_TOUCHABLE: every screen touch is an
-        // OUTSIDE event for this window. The TYPE_KEYGUARD_DIALOG layer
-        // sits above the bouncer, so any interaction (swipe-to-PIN, tap)
-        // hides the mascot before it can cover the PIN pad; it comes
-        // back on the next screen-on. Greet, then get out of the way.
+        // Touchable box + WATCH_OUTSIDE_TOUCH: touches ON the mascot are
+        // ours (tap / fling-up → unlock flow); every other screen touch
+        // is an OUTSIDE event. The TYPE_KEYGUARD_DIALOG layer sits above
+        // the bouncer, so outside interactions (swipe-to-PIN, PIN typing)
+        // hide the mascot before it can cover the PIN pad; it comes back
+        // after a quiet period or on the next screen-on.
         WindowManager.LayoutParams lp = new WindowManager.LayoutParams(
             size, size,
             WindowManager.LayoutParams.TYPE_KEYGUARD_DIALOG,
             WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE
-                | WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE
                 | WindowManager.LayoutParams.FLAG_WATCH_OUTSIDE_TOUCH,
             PixelFormat.TRANSLUCENT);
         lp.gravity = Gravity.BOTTOM | Gravity.CENTER_HORIZONTAL;
         lp.y = Math.round(propDp("persist.lethe.mascot.kg.margin",
             BOTTOM_MARGIN_DP) * density);
         lp.setTitle("LetheKeyguardMascot");
+        final android.view.GestureDetector gd = new android.view.GestureDetector(
+            this, new android.view.GestureDetector.SimpleOnGestureListener() {
+                @Override public boolean onSingleTapUp(
+                        android.view.MotionEvent e) {
+                    startUnlockFlow();
+                    return true;
+                }
+                @Override public boolean onFling(android.view.MotionEvent e1,
+                        android.view.MotionEvent e2, float vx, float vy) {
+                    if (e1 != null && e2 != null
+                            && e2.getY() - e1.getY() < -80 * density
+                            && vy < -500) {
+                        startUnlockFlow();
+                        return true;
+                    }
+                    return false;
+                }
+            });
         mascot.setOnTouchListener(new View.OnTouchListener() {
             @Override public boolean onTouch(View v, android.view.MotionEvent e) {
                 if (e.getActionMasked()
@@ -152,8 +176,10 @@ public class KeyguardMascotService extends Service {
                         handler.removeCallbacks(reshow);
                         handler.postDelayed(reshow, quiet);
                     }
+                    return false;
                 }
-                return false;
+                gd.onTouchEvent(e);
+                return true;
             }
         });
 
@@ -163,6 +189,46 @@ public class KeyguardMascotService extends Service {
         } catch (Exception e) {
             Log.e(TAG, "addView failed", e);
             mascot = null;
+        }
+    }
+
+    /** Tap on the guardian → system unlock flow (bouncer, or straight
+     *  through when the device is unsecured/trusted).
+     *
+     *  Goes to IWindowManager directly rather than
+     *  KeyguardManager.requestDismissKeyguard: that one is activity-
+     *  scoped and fails with onDismissError unless the requesting
+     *  activity is already visible over the keyguard — a service has no
+     *  such activity, and a transparent trampoline launched into the
+     *  mascot's task inherits its hidden-behind-keyguard visibility
+     *  (measured 07-08). CONTROL_KEYGUARD is granted by the platform
+     *  signature.
+     *
+     *  Hide first so the mascot never covers the bouncer; the
+     *  quiet-period re-show covers the cancel path (evaluate() no-ops
+     *  once USER_PRESENT has fired). */
+    private void startUnlockFlow() {
+        hide();
+        int quiet = propMs("persist.lethe.mascot.kg.reshow", 3500);
+        if (quiet > 0) {
+            handler.removeCallbacks(reshow);
+            handler.postDelayed(reshow, quiet);
+        }
+        try {
+            WindowManagerGlobal.getWindowManagerService().dismissKeyguard(
+                new KeyguardDismissCallback() {
+                    @Override public void onDismissSucceeded() {
+                        Log.i(TAG, "unlock: dismissed");
+                    }
+                    @Override public void onDismissCancelled() {
+                        Log.i(TAG, "unlock: cancelled");
+                    }
+                    @Override public void onDismissError() {
+                        Log.w(TAG, "unlock: error");
+                    }
+                }, null);
+        } catch (Exception e) {
+            Log.e(TAG, "unlock flow failed", e);
         }
     }
 

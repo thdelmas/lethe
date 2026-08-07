@@ -175,8 +175,25 @@ loop). Bottom-center, under the notification stack.
   `persist.lethe.mascot.kg.size` (default 440, box self-clamps to screen
   width because WM edge-pins oversized windows instead of centering) and
   `persist.lethe.mascot.kg.margin` (default 40).
-- `FLAG_NOT_TOUCHABLE`: bottom-center of the keyguard is the
-  swipe-to-unlock zone; the window must not eat that gesture.
+- **Tap/fling-up on the guardian starts the unlock flow** (07-08). The
+  box is touchable; touches OUTSIDE it still hide-then-re-show. Eating
+  the swipe-to-unlock zone costs nothing now that both gestures lead to
+  the same bouncer.
+  - Goes through `IWindowManager.dismissKeyguard(cb, msg)`
+    (`WindowManagerGlobal.getWindowManagerService()`), NOT
+    `KeyguardManager.requestDismissKeyguard`: that one is
+    activity-scoped and fails instantly with `onDismissError` unless the
+    requesting activity is already visible over the keyguard. A service
+    has none, and a transparent trampoline activity inherits the
+    mascot task's hidden-behind-keyguard visibility — measured 07-08,
+    the bouncer never appeared. The dead end is documented so it isn't
+    retried.
+  - Needs `android.permission.CONTROL_KEYGUARD`: plain `signature`
+    (NOT `signature|privileged`), so the platform key grants it and it
+    needs **no** entry in `privapp-permissions-*.xml` — nothing to
+    boot-abort on.
+  - The mascot hides before the request so it never covers the PIN pad;
+    the `kg.reshow` quiet period covers the cancel path.
 - Lifecycle: shows on SCREEN_ON while `isKeyguardLocked()`, hides (and
   frees the ~60MB strip) on SCREEN_OFF / USER_PRESENT. A **fresh view is
   created per show** — SpriteMascotView keeps `stripName` across detach,

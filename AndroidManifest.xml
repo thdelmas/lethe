@@ -20,6 +20,11 @@
     <!-- TYPE_KEYGUARD_DIALOG window for the lock-screen mascot — signature
          permission, granted via the platform key. -->
     <uses-permission android:name="android.permission.INTERNAL_SYSTEM_WINDOW" />
+    <!-- Tap the keyguard mascot → summon the bouncer via
+         IWindowManager.dismissKeyguard. Plain `signature` (not
+         signature|privileged), so the platform key grants it and it needs
+         NO entry in privapp-permissions-*.xml. -->
+    <uses-permission android:name="android.permission.CONTROL_KEYGUARD" />
 
     <!-- Mesh signaling (BLE heartbeat) -->
     <uses-permission android:name="android.permission.BLUETOOTH" />
