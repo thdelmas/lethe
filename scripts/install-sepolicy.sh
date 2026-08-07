@@ -44,6 +44,25 @@ merge_contexts() {
     } >> "$dst"
 }
 
+# Types that exist on cm-14.1 (Android 7.1) but were REMOVED from modern
+# AOSP. A .te referencing one fails the whole policy build with
+#   ERROR 'unknown type <t>'
+# and, because checkpolicy stops at the first error, hides every later
+# problem. The source .te files stay cm-14.1-correct; this strips the
+# dead lines on modern trees only.
+#
+#   urandom_device — merged into random_device; /dev/urandom carries
+#                    random_device on modern AOSP, so the surviving
+#                    `allow ... random_device` line already covers it.
+LEGACY_ONLY_TYPES=(urandom_device)
+
+strip_legacy_types() {
+    local target="$1" t
+    for t in "${LEGACY_ONLY_TYPES[@]}"; do
+        sed -i "/\b${t}\b/d" "$target"/*.te 2>/dev/null || true
+    done
+}
+
 copy_policy() {
     local target="$1"
     # Stale lethe.te from a previous run is dropped here: this file is
@@ -88,17 +107,62 @@ if [ -d "vendor/cm" ]; then
     exit 0
 fi
 
+# ── Modern-tree gate ────────────────────────────────────────────────
+# The policy is cm-14.1-era and is NOT yet neverallow-clean on modern
+# AOSP. Measured 2026-08-07 against lineage-22.1 (Android 15): once
+# correctly wired, `mka selinux_policy` fails with 10 neverallow
+# violations across 7 rules — lethe: system_file execute_no_trans,
+# system_data_file dir, app_data_file dir, system_prop set,
+# self:capability sys_admin/dac_override/…; tor: self:capability,
+# system_file. These are deliberate AOSP restrictions tightened after
+# Android 7, so clearing them is a domain redesign (split the daemon's
+# real needs out of the blanket grants), not a syntax fix.
+#
+# Installing anyway makes the POLICY BUILD FAIL, which kills `mka bacon`
+# ~20 minutes in. So modern installs are skipped by default. The cost of
+# skipping is the status quo: no `lethe` domain at runtime, init cannot
+# setexeccon('u:r:lethe:s0'), and lethe-agent restart-loops — visible in
+# logcat, harmless on a permissive diag build, blocking for enforcing.
+#
+# Set LETHE_SEPOLICY_MODERN=1 to install once the domain is reworked.
+# See docs/release/bramble-modern-port-notes.md.
+if [ "${LETHE_SEPOLICY_MODERN:-0}" != "1" ] && [ ! -d vendor/cm ]; then
+    echo "  -> SKIP: SELinux policy not installed (not neverallow-clean on"
+    echo "     modern AOSP; would fail the policy build). lethe-agent will"
+    echo "     restart-loop until the domain is reworked. Override with"
+    echo "     LETHE_SEPOLICY_MODERN=1 — see bramble-modern-port-notes.md."
+    exit 0
+fi
+
 # LineageOS 15.1+ ships device/lineage/sepolicy/ as a board sepolicy
-# overlay included by every device. Most-specific subdir first.
+# overlay included by every device (build/make/core/config.mk includes
+# common/sepolicy.mk last, for LINEAGE_BUILD).
+#
+# Target a POLICY dir, never a container. `device/lineage/sepolicy/common`
+# is NOT itself on the policy path — common/sepolicy.mk only adds its
+# subdirs (public / private / dynamic / vendor+system) to
+# SYSTEM_EXT_*_SEPOLICY_DIRS and BOARD_VENDOR_SEPOLICY_DIRS. Installing
+# into the container leaves the .te files and the merged file_contexts
+# sitting in the tree, never compiled, and the domain silently does not
+# exist at runtime: init then dies with
+#   cannot setexeccon('u:r:lethe:s0'): Invalid argument
+# and the agent restart-loops. That cost 2026-07-19 → 2026-08-07 of
+# "the sepolicy is installed, why is there no domain" (lethe#…, see
+# docs/release/bramble-modern-port-notes.md).
+#
+# common/private is where LineageOS labels its own /system/bin binaries
+# (fsck.ntfs, mkfs.*), which is what our system-partition daemons and
+# scripts are — so it is the right home, not vendor.
 SEPOLICY_TARGETS=(
-    "device/lineage/sepolicy/vendor"
-    "device/lineage/sepolicy/common"
+    "device/lineage/sepolicy/common/private"
+    "device/lineage/sepolicy/common/vendor"
     "device/lineage/sepolicy"
 )
 
 for target in "${SEPOLICY_TARGETS[@]}"; do
     if [ -d "$target" ]; then
         copy_policy "$target"
+        strip_legacy_types "$target"     # modern trees only
         echo "  -> SELinux policy installed to $target"
         exit 0
     fi

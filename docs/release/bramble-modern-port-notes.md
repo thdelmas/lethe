@@ -122,3 +122,57 @@ systemd-run --user --unit=lethe-build --collect \
 under enforcing. Watch first boot for `avc` denials
 (`dmesg | grep -i avc`) — the agent domain may need more allows once it
 actually runs on-device.
+
+### Port fix 9 — the policy was installed into a container dir (2026-08-07)
+
+**Symptom.** `lethe-agent` restart-loops on every boot:
+
+```
+init: cannot setexeccon('u:r:lethe:s0') for lethe-agent: Invalid argument
+init: Service 'lethe-agent' ... exited with status 6
+```
+
+It reads like a missing sepolicy, but `sepolicy/lethe.te` declares the
+domain and `apply-overlays.sh` does call `scripts/install-sepolicy.sh`.
+The files really were in the tree — at
+`device/lineage/sepolicy/common/`.
+
+**Cause.** That path is a **container, not a policy dir.**
+`common/sepolicy.mk` (pulled in by `build/make/core/config.mk:1298` for
+`LINEAGE_BUILD`) only adds the *subdirectories* —
+`common/public`, `common/private`, `common/dynamic`, `common/vendor` — to
+`SYSTEM_EXT_*_SEPOLICY_DIRS` / `BOARD_VENDOR_SEPOLICY_DIRS`. Nothing
+reads `common/` itself, so `lethe.te`, `tor.te` and the merged
+`file_contexts` sat in the tree, were never compiled, and the domain
+silently did not exist at runtime. **Nothing warns** — the install
+prints success and the image builds clean. This is the failure mode to
+remember: *installed* is not *compiled*. The correct target is
+`common/private`, where LineageOS labels its own `/system/bin` binaries.
+
+**What the policy does when correctly wired.** It fails to build — which
+is why the silent orphaning went unnoticed for so long. Measured with
+`mka selinux_policy` (~11 min cold, ~30 s warm — always test policy with
+this target, never by discovering it 20 minutes into `mka bacon`):
+
+1. `tor.te:73: ERROR 'unknown type urandom_device'` — the type was
+   merged into `random_device` in modern AOSP. cm-14.1 still needs it,
+   so `install-sepolicy.sh` strips `LEGACY_ONLY_TYPES` on modern trees
+   and leaves the source cm-14.1-correct. **Fixed.**
+2. With that cleared: **10 neverallow violations across 7 rules.**
+   `lethe`: `system_file` execute_no_trans, `system_data_file` dir,
+   `app_data_file` dir, `system_prop` set + read,
+   `self:capability { sys_admin dac_override dac_read_search chown
+   fowner fsetid net_admin net_raw }`. `tor`: `self:capability`,
+   `system_file`. These are AOSP restrictions tightened after Android 7
+   and are deliberate — clearing them means splitting the daemons' real
+   needs out of blanket cm-14.1-era grants, i.e. a **domain redesign,
+   not a syntax fix.** Same family as the `system_data_file` neverallow
+   that already blocks the v1.1 burner wipe. **Open.**
+
+**Current state.** `install-sepolicy.sh` skips modern trees by default
+so `mka bacon` keeps building; the cost is the status quo (no `lethe`
+domain, agent restart-loops — harmless on the permissive diag build,
+blocking for enforcing). Set `LETHE_SEPOLICY_MODERN=1` to install once
+the domain is reworked. The wiring fix and the legacy-type strip are
+already in place behind that flag, so the next attempt starts at the
+neverallows rather than re-deriving any of the above.
