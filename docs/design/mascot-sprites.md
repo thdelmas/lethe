@@ -103,6 +103,14 @@ one-shot → back to idle reloads it — or `am force-stop` + relaunch;
 a top-most resumed activity ignores the start intent and keeps its
 resident strip).
 
+## Live-renderer probe (tools/filament-probe)
+
+Sideloaded Filament+gltfio APK playing the dark taproot GLB (24.6k
+tris) directly: 59.7fps sustained on bramble, clips in authored
+seconds. Ground truth for any pacing dispute, and the feasibility gate
+for replacing sheets with a live renderer + agent-driven avatar
+control. See tools/filament-probe/README.md.
+
 ## Lock-screen mascot (KeyguardMascotService)
 
 `TYPE_KEYGUARD_DIALOG` window (INTERNAL_SYSTEM_WINDOW via the platform

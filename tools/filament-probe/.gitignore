@@ -1,0 +1,7 @@
+.gradle/
+build/
+app/build/
+local.properties
+# The GLB is extracted from git history (acfd45e:static/mascot-taproot.glb)
+# — see README; no need to store a second copy in the repo.
+app/src/main/assets/mascot.glb
