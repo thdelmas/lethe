@@ -46,10 +46,19 @@ class MainActivity : Activity() {
     private var frames = 0
     private var fpsWindowStart = 0L
     private var fps = 0.0
+    private var lastRenderNanos = 0L
+
+    /* 30fps cap. Uncapped 60fps rendering hard-crashed bramble with a
+     * PMIC regulator fault (bootreason pmic_off_fault,gp_fault0,pm0,
+     * smps5) after ~3min of GPU + screen + charging load, 2026-08-07.
+     * The power envelope, not the GPU, is the binding constraint. */
+    private val frameIntervalNanos = 33_000_000L
 
     private val frameCallback = object : Choreographer.FrameCallback {
         override fun doFrame(frameTimeNanos: Long) {
             choreographer.postFrameCallback(this)
+            if (frameTimeNanos - lastRenderNanos < frameIntervalNanos) return
+            lastRenderNanos = frameTimeNanos
             viewer.animator?.apply {
                 if (animationCount > 0) {
                     val idx = clipOrder[clipPos]
