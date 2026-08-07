@@ -40,6 +40,10 @@ public class KeyguardMascotService extends Service {
     private static final int BOTTOM_MARGIN_DP = 40;
 
     private View mascot;
+    private final android.os.Handler handler = new android.os.Handler();
+    private final Runnable reshow = new Runnable() {
+        @Override public void run() { evaluate(); }
+    };
 
     private final BroadcastReceiver screenReceiver = new BroadcastReceiver() {
         @Override public void onReceive(Context context, Intent intent) {
@@ -48,6 +52,7 @@ public class KeyguardMascotService extends Service {
                 evaluate();
             } else if (Intent.ACTION_SCREEN_OFF.equals(action)
                     || Intent.ACTION_USER_PRESENT.equals(action)) {
+                handler.removeCallbacks(reshow);
                 hide();
             }
         }
@@ -72,6 +77,7 @@ public class KeyguardMascotService extends Service {
     @Override
     public void onDestroy() {
         unregisterReceiver(screenReceiver);
+        handler.removeCallbacks(reshow);
         hide();
         super.onDestroy();
     }
@@ -136,8 +142,16 @@ public class KeyguardMascotService extends Service {
             @Override public boolean onTouch(View v, android.view.MotionEvent e) {
                 if (e.getActionMasked()
                         == android.view.MotionEvent.ACTION_OUTSIDE) {
-                    Log.i(TAG, "Lockscreen touched — hiding mascot");
+                    // Hide out of the interaction's way (PIN pad included),
+                    // then return after a quiet period with the keyguard
+                    // still up — each further touch (PIN typing) pushes the
+                    // timer back. 0 disables the re-show.
                     hide();
+                    int quiet = propMs("persist.lethe.mascot.kg.reshow", 3500);
+                    if (quiet > 0) {
+                        handler.removeCallbacks(reshow);
+                        handler.postDelayed(reshow, quiet);
+                    }
                 }
                 return false;
             }
@@ -149,6 +163,16 @@ public class KeyguardMascotService extends Service {
         } catch (Exception e) {
             Log.e(TAG, "addView failed", e);
             mascot = null;
+        }
+    }
+
+    /** Milliseconds, 0..60000; 0 = disabled. */
+    private static int propMs(String key, int def) {
+        try {
+            return Math.max(0, Math.min(60_000,
+                Integer.parseInt(LetheConfig.get(key, String.valueOf(def)))));
+        } catch (Exception e) {
+            return def;
         }
     }
 
