@@ -39,10 +39,9 @@ public class MascotActivity extends Activity {
         FrameLayout root = new FrameLayout(this);
         root.setBackgroundColor(0xFF080808);
 
-        // The pre-rendered Blender model when its sheets are reachable,
-        // the Canvas guardian otherwise (see SpriteMascotView docs).
-        mascot = SpriteMascotView.available(this)
-            ? new SpriteMascotView(this) : new MascotView(this);
+        // Same chooser as every other mascot surface (MascotViews):
+        // live Filament render (gated) → sprite strips → Canvas guardian.
+        mascot = MascotViews.create(this);
         root.addView(mascot, new FrameLayout.LayoutParams(
             FrameLayout.LayoutParams.MATCH_PARENT,
             FrameLayout.LayoutParams.MATCH_PARENT));
@@ -84,10 +83,6 @@ public class MascotActivity extends Activity {
     }
 
     private void setMascotState(String state) {
-        if (mascot instanceof SpriteMascotView) {
-            ((SpriteMascotView) mascot).setMascotState(state);
-        } else {
-            ((MascotView) mascot).setMascotState(state);
-        }
+        MascotViews.setState(mascot, state);
     }
 }

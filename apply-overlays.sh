@@ -392,6 +392,8 @@ for d in "$LETHE_ICON_SRC"/mipmap-*; do
     cp "$d/ic_lethe.png" "$LETHE_APP_DEST/res/$(basename "$d")/ic_lethe.png"
 done
 
+# Filament prebuilts + GLB (modern trees; the cm-14.1 generator strips them).
+lethe_stage_filament "$SCRIPT_DIR" "$LETHE_APP_DEST"
 # Generate the app build file (Android.mk on cm-14.1, Android.bp on modern
 # trees — see the helper for why the split is mandatory on Android 15).
 lethe_generate_app_buildfile "$PROPS_TARGET" "$LETHE_APP_DEST"

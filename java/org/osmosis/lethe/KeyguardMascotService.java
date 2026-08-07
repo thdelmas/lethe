@@ -107,8 +107,7 @@ public class KeyguardMascotService extends Service {
             getSystemService(Context.WINDOW_SERVICE);
         if (wm == null) return;
 
-        mascot = SpriteMascotView.available(this)
-            ? new SpriteMascotView(this) : new MascotView(this);
+        mascot = MascotViews.create(this);
 
         // Clamp to the screen ourselves: an oversized window gets edge-
         // pinned by WM, not centered.

@@ -103,6 +103,28 @@ one-shot → back to idle reloads it — or `am force-stop` + relaunch;
 a top-most resumed activity ignores the start intent and keeps its
 resident strip).
 
+## Live mascot SHIPPED 07-08 (FilamentMascotView)
+
+`persist.lethe.mascot.live3d=true` switches every mascot surface to a
+live Filament render of the dark taproot GLB (24.6k tris). All hosts go
+through `MascotViews.create()` — one look everywhere. Clips play in
+authored seconds (the sidecar machinery below only applies to the
+sprite fallback). 15fps cap — the PMIC power envelope, not the GPU, is
+the constraint. Framing lives in `persist.lethe.mascot.{scale,rot,dy,
+dist}` (defaults baked from the 07-08 keyguard tuning loop; rot 290 =
+front, matching the det-recorder's sheet params). State→clip map:
+`persist.lethe.mascot.clip.<state>` = index or name — the conversation
+clips are the unnamed NlaTracks (sleep=66, alert=70, listening≈88,
+speaking=89, thinking=90, wave=91, nod≈69), identified by authored
+duration. GLB: `/data/local/tmp/lethe-sprites/mascot.glb` overrides the
+APK asset (re-extract: `git show acfd45e:static/mascot-taproot.glb`).
+Filament 1.51.0 vendored under `prebuilt/filament/` (jars + arm64 JNI),
+wired by `lethe_stage_filament` + the Android.bp generator; the cm-14.1
+generator strips the live path. Gotchas that cost time: `Gltfio.init()`
+is separate from `Filament.init()`; `SystemProperties.get` returns ""
+never null (empty-string prop == unset); the keyguard shows bind-pose
+T-pose only if clip resolution fails.
+
 ## Live-renderer probe (tools/filament-probe)
 
 Sideloaded Filament+gltfio APK playing the dark taproot GLB (24.6k
