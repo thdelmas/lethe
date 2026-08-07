@@ -1,8 +1,12 @@
 # Mascot sprite pipeline — provenance, pacing, lock screen
 
-State as of 2026-08-06. Written after a debugging session whose root cause
+State as of 2026-08-07. Written after a debugging session whose root cause
 was undocumented asset provenance; keep this current when touching
 `static/mascot-*` or the mascot views.
+
+This is the **implementation** doc — how the avatar is rendered, paced,
+tinted and hosted. For what the avatar *is*, which surfaces it owns and
+what each gesture means, see [avatar-ui.md](avatar-ui.md).
 
 ## Three sheet generations coexist in static/
 

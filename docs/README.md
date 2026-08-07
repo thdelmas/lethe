@@ -13,10 +13,14 @@ LETHE agent personality, safety constraints, LLM routing, and onboarding.
 - [first-boot-wizard.yaml](agent/first-boot-wizard.yaml) — 5-phase onboarding flow, <3 min target
 
 ## design/
-Hardware tiers, mascot visuals, competitive positioning.
+The avatar UI, hardware tiers, mascot visuals, competitive positioning.
 
+- [avatar-ui.md](design/avatar-ui.md) — **Start here for the UI/UX.** The avatar as the phone's appearance: surfaces it owns, gesture grammar, colour/animation doctrine, roadmap, dead ends
+- [mascot-sprites.md](design/mascot-sprites.md) — Render/asset implementation: sheet provenance, frame pacing, live Filament renderer, per-state tints, lock-screen window
+- [launcher-architecture-routes.md](design/launcher-architecture-routes.md) — ADR: native rewrite over split-app/WebView for every launcher surface
 - [device-tiers.yaml](design/device-tiers.yaml) — Shallow/taproot/deeproot tiers, 40+ device mappings
 - [mascot-layers.md](design/mascot-layers.md) — SVG layer decomposition, animation states, 3D/FBX retargeting pipeline, context-aware animation pools
+- [contextual-suggestions.md](design/contextual-suggestions.md) — On-screen protection alerts and freedom alternatives, without coaching or nudging
 - [competitive-gaps.md](design/competitive-gaps.md) — Gap analysis vs 2026 AI agents (P0-P3 priorities)
 - [protection-domains.md](design/protection-domains.md) — Guardian protection modules: Bios, PreuJust, Vigil, Mnemo, Hora, Egida, Themis, Oikos
 

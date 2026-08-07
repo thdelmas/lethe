@@ -221,6 +221,14 @@ runtime tax.
    native fidelity is acceptable and Route 3 is fine. If the mascot is
    the differentiating UX — parallax, gaze, glow as core — Route 2 or
    the hybrid preserves work already done.
+
+   **Answered 2026-08-07 — the strong form.** The avatar is not brand
+   identity, it is the phone's appearance: it owns the home screen
+   (Void launcher, `CATEGORY_HOME`) and the lock screen, and tapping it
+   is how the user enters agentic mode. Route 3 held up — the native
+   Filament renderer exceeded the CSS fidelity it replaced, so the
+   deciding tradeoff never had to be paid. See
+   [avatar-ui.md](avatar-ui.md).
 2. **Is there a planned Rust-agent migration?** #159 referenced a "new
    Rust-agent issue" that hasn't surfaced yet. If the agent backend is
    going to be rewritten, Route 2's loose coupling matters more —
