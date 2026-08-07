@@ -413,7 +413,8 @@ public class FilamentMascotView extends SurfaceView
         float s = propF("persist.lethe.mascot.tint.strength", 0.8f);
         for (int c = 0; c < 3; c++) rgb[c] = 1f - s * (1f - rgb[c]);
         float lum = 0.2126f * rgb[0] + 0.7152f * rgb[1] + 0.0722f * rgb[2];
-        float gain = propF("persist.lethe.mascot.tint.gain", 0.9f);
+        // 0.9 read too dark on device; 1.8 blows the crack highlights.
+        float gain = propF("persist.lethe.mascot.tint.gain", 1.5f);
         if (lum > 0f) {
             for (int c = 0; c < 3; c++) rgb[c] = rgb[c] / lum * gain;
         }

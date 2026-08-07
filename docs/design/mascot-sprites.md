@@ -137,7 +137,8 @@ linearized on parse). The factor is NOT the raw hex — a raw multiply
 crushes the dark albedo (near-black model, moss = stone). Pipeline:
 desaturate toward white by `tint.strength` (default 0.8; 0.92 tested
 07-08 = marginally redder alert but darker overall, rejected), then
-LUMINANCE-normalize × `tint.gain` (default 0.9) so hues the greenish
+LUMINANCE-normalize × `tint.gain` (default 1.5; 0.9 too dark, 1.8
+blows crack highlights — tuned live 07-08) so hues the greenish
 albedo is poor in (red/violet) get factors >1 and every state lands at
 similar brightness. `tint.emissive` default 0 — albedo-only keeps it
 colored STONE under shading; any emissive washes it into a flat glow
