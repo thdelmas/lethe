@@ -125,6 +125,28 @@ is separate from `Filament.init()`; `SystemProperties.get` returns ""
 never null (empty-string prop == unset); the keyguard shows bind-pose
 T-pose only if clip resolution fails.
 
+### Per-state color tints (2026-08-07)
+
+`persist.lethe.mascot.tint=on` (default off = stock look) recolors the
+live model per state by writing `baseColorFactor` + `emissiveFactor`
+(glow, so the color reads on the dark plates) on every material
+instance. Defaults: idle `58e06b` · listening `35e0b8` · thinking
+`f2c14e` · speaking `6fb7ff` · alert `ff4f3e` · sleep `7a5cff`.
+Override per state: `persist.lethe.mascot.tint.<state>=RRGGBB` (sRGB,
+linearized on parse); glow scale `persist.lethe.mascot.tint.emissive`
+(default 0.35). Factors are absolute — MaterialInstance has no getters,
+so the gate tints EVERY state or none; recreating the view (screen-off
+on keyguard, relaunch for the activity) restores the stock look.
+Sprite fallback untouched — mood colors are baked into those sheets.
+Verified 07-08 on MascotActivity (all six states) and keyguard.
+
+`persist.lethe.mascot.tap=cycle` turns tap into the state-cycler on
+MascotActivity (hint shows the state name; chat is NOT reachable while
+set; FilamentMascotView suppresses its wave/nod one-shot so the state
+clip isn't fought) — test harness for per-state tints and the coming
+tap-driven temporal state behavior. Long-press cycling still works
+regardless.
+
 ## Live-renderer probe (tools/filament-probe)
 
 Sideloaded Filament+gltfio APK playing the dark taproot GLB (24.6k

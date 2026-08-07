@@ -14,6 +14,8 @@ import com.google.android.filament.Engine;
 import com.google.android.filament.EntityManager;
 import com.google.android.filament.Filament;
 import com.google.android.filament.LightManager;
+import com.google.android.filament.MaterialInstance;
+import com.google.android.filament.RenderableManager;
 import com.google.android.filament.Renderer;
 import com.google.android.filament.Scene;
 import com.google.android.filament.SwapChain;
@@ -78,6 +80,18 @@ public class FilamentMascotView extends SurfaceView
     private static final String[] TAP_POOL = { "wave", "nod" };
     private static final String[] FIDGET_POOL = { "walk", "run" };
 
+    /* state → default tint (sRGB hex). Master gate
+     * persist.lethe.mascot.tint=on (default off = shipped look);
+     * per-state override persist.lethe.mascot.tint.<state> = hex. */
+    private static final String[][] TINT_DEFAULTS = {
+        { MascotView.STATE_IDLE, "58e06b" },
+        { MascotView.STATE_LISTENING, "35e0b8" },
+        { MascotView.STATE_THINKING, "f2c14e" },
+        { MascotView.STATE_SPEAKING, "6fb7ff" },
+        { MascotView.STATE_ALERT, "ff4f3e" },
+        { MascotView.STATE_SLEEP, "7a5cff" },
+    };
+
     private static boolean filamentReady;
 
     private Engine engine;
@@ -135,6 +149,7 @@ public class FilamentMascotView extends SurfaceView
         state = newState;
         oneShot = null;
         clipStartNanos = 0L;
+        applyTint();
     }
 
     public String getMascotState() {
@@ -334,6 +349,7 @@ public class FilamentMascotView extends SurfaceView
                 loadingResources = false;
                 asset.releaseSourceData();
                 animator = asset.getInstance().getAnimator();
+                applyTint();
                 Log.i("lethe-3d", "load done, clips="
                     + (animator != null ? animator.getAnimationCount() : -1));
             }
@@ -377,6 +393,64 @@ public class FilamentMascotView extends SurfaceView
         animator.updateBoneMatrices();
     }
 
+    /** Recolor every material of the asset for the current state.
+     *  baseColorFactor multiplies the albedo texture; emissiveFactor adds
+     *  glow so the color still reads on the dark plates. Factors are
+     *  absolute (originals are not readable back from a MaterialInstance),
+     *  so the gate tints EVERY state or none — a per-state opt-out would
+     *  leave the previous state's tint behind. */
+    private void applyTint() {
+        if (engine == null || asset == null) return;
+        if (!"on".equals(LetheConfig.get("persist.lethe.mascot.tint", "off"))) return;
+        float[] rgb = resolveTint(state);
+        if (rgb == null) return;
+        float glow = propF("persist.lethe.mascot.tint.emissive", 0.35f);
+        RenderableManager rm = engine.getRenderableManager();
+        for (int entity : asset.getEntities()) {
+            if (!rm.hasComponent(entity)) continue;
+            int inst = rm.getInstance(entity);
+            for (int i = 0; i < rm.getPrimitiveCount(inst); i++) {
+                MaterialInstance mi = rm.getMaterialInstanceAt(inst, i);
+                try {
+                    if (mi.getMaterial().hasParameter("baseColorFactor")) {
+                        mi.setParameter("baseColorFactor",
+                            rgb[0], rgb[1], rgb[2], 1f);
+                    }
+                    if (mi.getMaterial().hasParameter("emissiveFactor")) {
+                        mi.setParameter("emissiveFactor",
+                            rgb[0] * glow, rgb[1] * glow, rgb[2] * glow);
+                    }
+                } catch (Exception ignored) { }
+            }
+        }
+    }
+
+    private float[] resolveTint(String key) {
+        String v = LetheConfig.get("persist.lethe.mascot.tint." + key, "");
+        if (v.isEmpty()) {
+            for (String[] pair : TINT_DEFAULTS) {
+                if (pair[0].equals(key)) { v = pair[1]; break; }
+            }
+        }
+        return parseHex(v);
+    }
+
+    /** "#RRGGBB"/"RRGGBB" sRGB → linear float3 (material factors are linear). */
+    private static float[] parseHex(String v) {
+        if (v == null || v.isEmpty()) return null;
+        try {
+            int c = Integer.parseInt(
+                v.startsWith("#") ? v.substring(1) : v, 16);
+            return new float[] {
+                (float) Math.pow(((c >> 16) & 0xff) / 255.0, 2.2),
+                (float) Math.pow(((c >> 8) & 0xff) / 255.0, 2.2),
+                (float) Math.pow((c & 0xff) / 255.0, 2.2),
+            };
+        } catch (NumberFormatException e) {
+            return null;
+        }
+    }
+
     /** persist.lethe.mascot.clip.<key> (index or name) → defaults table.
      *  NB: SystemProperties returns "" (never null) for unset keys. */
     private int resolveClip(String key) {
@@ -407,7 +481,11 @@ public class FilamentMascotView extends SurfaceView
             boolean quiet = MascotView.STATE_ALERT.equals(state)
                 || MascotView.STATE_THINKING.equals(state)
                 || MascotView.STATE_SLEEP.equals(state);
-            if (!quiet && !reducedMotion && oneShot == null) {
+            // tap=cycle: the host advances the state per tap (MascotActivity)
+            // — a wave/nod one-shot would fight the new state's clip.
+            boolean cycling = "cycle".equals(
+                LetheConfig.get("persist.lethe.mascot.tap", ""));
+            if (!cycling && !quiet && !reducedMotion && oneShot == null) {
                 oneShot = TAP_POOL[random.nextInt(TAP_POOL.length)];
                 clipStartNanos = 0L;
             }

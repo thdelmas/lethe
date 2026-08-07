@@ -20,6 +20,11 @@ import android.widget.TextView;
  * open the chat, mirroring the home-screen gesture in
  * static/launcher.js. Long-press cycles the conversation states for
  * visual verification until the agent drives them (phase 2).
+ *
+ * persist.lethe.mascot.tap=cycle turns tap into the state-cycler too
+ * (chat NOT reachable while set) — test harness for per-state color
+ * tints (persist.lethe.mascot.tint=on) and the coming tap-driven
+ * temporal state behavior.
  */
 public class MascotActivity extends Activity {
 
@@ -67,6 +72,13 @@ public class MascotActivity extends Activity {
 
         mascot.setOnClickListener(new View.OnClickListener() {
             @Override public void onClick(View v) {
+                if ("cycle".equals(LetheConfig.get(
+                        "persist.lethe.mascot.tap", ""))) {
+                    demoIndex = (demoIndex + 1) % DEMO_STATES.length;
+                    setMascotState(DEMO_STATES[demoIndex]);
+                    hint.setText(DEMO_STATES[demoIndex]);
+                    return;
+                }
                 Intent chat = new Intent(MascotActivity.this, ChatActivity.class);
                 startActivity(chat);
             }
