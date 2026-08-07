@@ -116,16 +116,32 @@ public class KeyguardMascotService extends Service {
             Math.round(propDp("persist.lethe.mascot.kg.size", SIZE_DP)
                 * density),
             getResources().getDisplayMetrics().widthPixels);
+        // WATCH_OUTSIDE_TOUCH + NOT_TOUCHABLE: every screen touch is an
+        // OUTSIDE event for this window. The TYPE_KEYGUARD_DIALOG layer
+        // sits above the bouncer, so any interaction (swipe-to-PIN, tap)
+        // hides the mascot before it can cover the PIN pad; it comes
+        // back on the next screen-on. Greet, then get out of the way.
         WindowManager.LayoutParams lp = new WindowManager.LayoutParams(
             size, size,
             WindowManager.LayoutParams.TYPE_KEYGUARD_DIALOG,
             WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE
-                | WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE,
+                | WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE
+                | WindowManager.LayoutParams.FLAG_WATCH_OUTSIDE_TOUCH,
             PixelFormat.TRANSLUCENT);
         lp.gravity = Gravity.BOTTOM | Gravity.CENTER_HORIZONTAL;
         lp.y = Math.round(propDp("persist.lethe.mascot.kg.margin",
             BOTTOM_MARGIN_DP) * density);
         lp.setTitle("LetheKeyguardMascot");
+        mascot.setOnTouchListener(new View.OnTouchListener() {
+            @Override public boolean onTouch(View v, android.view.MotionEvent e) {
+                if (e.getActionMasked()
+                        == android.view.MotionEvent.ACTION_OUTSIDE) {
+                    Log.i(TAG, "Lockscreen touched — hiding mascot");
+                    hide();
+                }
+                return false;
+            }
+        });
 
         try {
             wm.addView(mascot, lp);
