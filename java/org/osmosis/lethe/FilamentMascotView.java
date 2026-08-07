@@ -107,6 +107,11 @@ public class FilamentMascotView extends SurfaceView
     private String state = MascotView.STATE_IDLE;
     private String vital = MascotStateController.VITAL_NOMINAL;
     private String oneShot;             // non-null while a one-shot plays
+    private int lastClip = -1;          // clip applied on the previous frame
+    private float lastClipTime;
+    private int fadeFromClip = -1;      // >=0 while a cross-fade runs
+    private float fadeFromTime;
+    private long fadeStartNanos;
     private long clipStartNanos;
     private long lastRenderNanos;
     private boolean reducedMotion;
@@ -399,7 +404,41 @@ public class FilamentMascotView extends SurfaceView
                 t = t % dur;                     // loop the state clip
             }
         }
+        // Clip changes are detected here rather than at each call site,
+        // so state switches, one-shot starts AND one-shot endings all
+        // cross-fade without three separate hooks.
+        if (clip != lastClip) {
+            if (lastClip >= 0 && !reducedMotion) {
+                fadeFromClip = lastClip;
+                fadeFromTime = lastClipTime;
+                fadeStartNanos = nanos;
+            }
+            lastClip = clip;
+        }
+        lastClipTime = t;
+
         animator.applyAnimation(clip, t);
+
+        /* applyCrossFade stashes what applyAnimation just wrote, applies
+         * the previous clip, then blends: alpha 0 = previous pose,
+         * 1 = current. So it must come AFTER applyAnimation and BEFORE
+         * updateBoneMatrices. persist.lethe.mascot.fade.ms, 0 = hard cut. */
+        int fadeMs = (int) propF("persist.lethe.mascot.fade.ms", 300f);
+        if (fadeMs <= 0 || reducedMotion) {
+            fadeFromClip = -1;
+        } else if (fadeFromClip >= 0) {
+            float alpha = (nanos - fadeStartNanos) / (fadeMs * 1_000_000f);
+            if (alpha >= 1f) {
+                fadeFromClip = -1;
+            } else {
+                // Keep the outgoing clip running through the blend —
+                // a frozen pose reads as a stutter on locomotion clips.
+                float pd = animator.getAnimationDuration(fadeFromClip);
+                float pt = fadeFromTime + (nanos - fadeStartNanos) / 1e9f;
+                if (pd > 0f) pt = pt % pd;
+                animator.applyCrossFade(fadeFromClip, pt, alpha);
+            }
+        }
         animator.updateBoneMatrices();
     }
 

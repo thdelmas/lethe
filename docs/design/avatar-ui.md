@@ -186,8 +186,8 @@ reworked — see port fix 9 in
 | 1b | Lock-screen tap → unlock flow | shipped 2026-08-07 (`ef500a5`) |
 | 2 | `MascotStateController` — vitals drive the avatar | shipped 2026-08-07 |
 | 2b | Remaining inputs: notifications, mic, agent daemon | blocked on sepolicy (port fix 9) + a listener service |
-| 3 | Clip cross-fades (~300 ms) so states stop hard-cutting | next |
-| 4 | Two-material GLB re-author → colour in the cracks only | planned |
+| 3 | Clip cross-fades (~300 ms) so states stop hard-cutting | shipped 2026-08-07 |
+| 4 | Two-material GLB re-author → colour in the cracks only | next |
 
 Step 4 is blocked on asset work, not code: the GLB is a single material
 across all 23 meshes, so a "stone stays neutral, only the veins take the
@@ -219,7 +219,6 @@ touch them.
 
 - A long notification stack can overlap the lock-screen avatar; the
   window height is fixed and does not track the stack.
-- State changes hard-cut between clips (step 3).
 - The drawer is unfiltered and unsearchable by design; if the app count
   grows this may need revisiting without importing a launcher's worth of
   UI.

@@ -160,6 +160,40 @@ clip isn't fought) — test harness for per-state tints and the coming
 tap-driven temporal state behavior. Long-press cycling still works
 regardless.
 
+### Clip cross-fades (2026-08-07)
+
+State switches used to hard-cut between clips. `FilamentMascotView` now
+blends them with gltfio's `Animator.applyCrossFade`:
+
+```java
+animator.applyAnimation(clip, t);                       // must be first
+animator.applyCrossFade(prevClip, prevTime, alpha);     // then blend
+animator.updateBoneMatrices();                          // then bones
+```
+
+That order is not optional: `applyCrossFade` stashes whatever
+`applyAnimation` just wrote, applies the *previous* clip over the
+hierarchy, then blends the two — `alpha` 0 = previous pose, 1 = current.
+Calling it before `applyAnimation`, or after `updateBoneMatrices`,
+silently does nothing useful.
+
+- Duration: `persist.lethe.mascot.fade.ms` (default 300, 0 = hard cut).
+  Also skipped under reduced-motion.
+- The outgoing clip keeps advancing through the blend (with modulo)
+  rather than freezing — a frozen pose reads as a stutter on the
+  locomotion clips.
+- Clip changes are detected centrally in `advanceAnimation` by
+  comparing against the clip applied last frame, so state switches,
+  one-shot starts and one-shot endings all fade through one code path
+  instead of three hooks.
+
+Verified 07-08 by A/B on the sleep→idle transition (the most distinct
+pose pair): at `fade.ms=3000` the frame after the switch still showed
+the crouched sleep pose and morphed through a rising side profile
+before settling; at `fade.ms=0` the very next frame was the full
+front-facing idle pose. A 300 ms fade is too fast to catch in a
+screencap — always A/B against 0 with an exaggerated duration.
+
 ## Live-renderer probe (tools/filament-probe)
 
 Sideloaded Filament+gltfio APK playing the dark taproot GLB (24.6k
