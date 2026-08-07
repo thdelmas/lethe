@@ -187,12 +187,24 @@ reworked — see port fix 9 in
 | 2 | `MascotStateController` — vitals drive the avatar | shipped 2026-08-07 |
 | 2b | Remaining inputs: notifications, mic, agent daemon | blocked on sepolicy (port fix 9) + a listener service |
 | 3 | Clip cross-fades (~300 ms) so states stop hard-cutting | shipped 2026-08-07 |
-| 4 | Two-material GLB re-author → colour in the cracks only | next |
+| 4 | Two-material GLB re-author → colour in the cracks only | shipped 2026-08-07 |
 
-Step 4 is blocked on asset work, not code: the GLB is a single material
-across all 23 meshes, so a "stone stays neutral, only the veins take the
-state colour" split cannot be done at runtime. Layer sources exist in
-`overlays/` (`mascot-layer-veins.png`, `mascot-layer-body.png`).
+Step 4 shipped as a **crack shell**, not a mesh split. The 23 meshes are body
+parts sharing one albedo atlas and one UV set, and the cracks are painted into
+that texture rather than modelled — so no split of the existing geometry can
+isolate them. Instead every mesh is duplicated, pushed out along its normals by
+0.0008, and given a second material that is opaque only on crack pixels;
+`applyTint` then tints that material alone and the stone keeps its authored
+albedo. Pipeline, costs and re-author gotchas:
+[tools/mascot-shell/README.md](../../tools/mascot-shell/README.md).
+
+The cost is real and was taken deliberately: 23→46 meshes, ~24.6k→~49k
+triangles, 12.5→20.5 MB. The 15 fps cap is what keeps that inside the power
+envelope — do not raise it for this asset.
+
+Note the colour now reads as tinted *stone in the veins*, not glow: the shell
+is tinted through `baseColorFactor`, so the 07-08 "no emissive" ruling still
+holds and `tint.emissive` stays 0.
 
 Shipping any of this to a real (enforcing) build still sits behind the
 standing gates — sepolicy domain, agent binary mode, tor labelling, and

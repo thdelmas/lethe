@@ -60,4 +60,7 @@ static/mascot-taproot-old.glb
 static/mascot-taproot-mid.glb
 static/lethe-3d-old.glb
 static/mascot-3d-preview.html
+# mascot-stone.glb = un-shelled INPUT, mascot.glb = shelled OUTPUT that ships.
+# Regenerate the output with tools/mascot-shell/ — never shell the output again.
 prebuilt/filament/mascot.glb
+prebuilt/filament/mascot-stone.glb

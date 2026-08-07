@@ -129,6 +129,19 @@ is separate from `Filament.init()`; `SystemProperties.get` returns ""
 never null (empty-string prop == unset); the keyguard shows bind-pose
 T-pose only if clip resolution fails.
 
+**The source GLB ByteBuffer must stay strongly referenced until
+`releaseSourceData()`.** `createAsset` keeps a raw pointer into the direct
+buffer's native memory while `asyncUpdateLoad` runs across frames, so a
+buffer held only as a local in `loadAsset()` becomes GC-eligible the moment
+that method returns; a GC inside the load window unmaps it and gltfio dies
+with `SIGSEGV / SEGV_ACCERR` on an unmapped page — roughly 6 s after
+`load done`, with a one-frame backtrace naming only `libfilament-jni.so`,
+which reads like asset corruption and is not. Latent since the buffer was
+introduced: the 12.5 MB one-texture asset loaded fast enough to hide it, the
+20.5 MB two-material GLB crashed 100% of launches (and took the Void
+launcher down with it — same process). Now held in `sourceGlb` and cleared
+at `releaseSourceData()` and on detach.
+
 ### Per-state color tints (2026-08-07)
 
 `persist.lethe.mascot.tint=on` (default off = stock look) recolors the
@@ -146,8 +159,13 @@ blows crack highlights — tuned live 07-08) so hues the greenish
 albedo is poor in (red/violet) get factors >1 and every state lands at
 similar brightness. `tint.emissive` default 0 — albedo-only keeps it
 colored STONE under shading; any emissive washes it into a flat glow
-(ruled out 07-08). Single-material GLB → cracks-only tint needs
-re-authoring. Factors are absolute — MaterialInstance has no getters,
+(ruled out 07-08). **Superseded 07-08 by the crack shell** (step 4): the GLB now
+carries a second `LetheCrackShell` material, alpha-masked to the vein
+network, and `applyTint` tints ONLY that material — stone and moss keep
+their authored albedo. `isShell()` matches it by name; a single-material
+GLB finds no shell and falls back to tinting everything, so the old
+behaviour above still describes what happens on pre-step-4 assets. See
+[tools/mascot-shell/README.md](../../tools/mascot-shell/README.md). Factors are absolute — MaterialInstance has no getters,
 so the gate tints EVERY state or none; recreating the view (screen-off
 on keyguard, relaunch for the activity) restores the stock look.
 Sprite fallback untouched — mood colors are baked into those sheets.

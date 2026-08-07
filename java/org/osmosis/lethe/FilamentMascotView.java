@@ -251,6 +251,8 @@ public class FilamentMascotView extends SurfaceView
         }
         if (resourceLoader != null) resourceLoader.destroy();
         if (assetLoader != null) assetLoader.destroy();
+        sourceGlb = null;   // detached mid-load: nothing points into it now
+        loadingResources = false;
         if (materialProvider != null) {
             materialProvider.destroyMaterials();
             materialProvider.destroy();
@@ -270,13 +272,23 @@ public class FilamentMascotView extends SurfaceView
 
     // --- asset ------------------------------------------------------------------
 
+    /** Source GLB bytes. MUST stay strongly referenced until
+     *  {@link FilamentAsset#releaseSourceData()}: createAsset keeps a raw
+     *  pointer into this direct buffer's native memory, and async resource
+     *  loading runs across many frames in doFrame(). Held as a local, the
+     *  buffer became GC-eligible the moment loadAsset() returned — a GC
+     *  inside the load window unmaps it and gltfio segfaults (SEGV_ACCERR).
+     *  Latent since the buffer was introduced; a 12.5 MB one-texture asset
+     *  loaded fast enough to hide it, the 20.4 MB two-material GLB does not. */
+    private ByteBuffer sourceGlb;
+
     private void loadAsset() {
-        ByteBuffer buffer = readGlb();
-        if (buffer == null) return;
+        sourceGlb = readGlb();
+        if (sourceGlb == null) return;
         materialProvider = new UbershaderProvider(engine);
         assetLoader = new AssetLoader(engine, materialProvider, EntityManager.get());
-        asset = assetLoader.createAsset(buffer);
-        if (asset == null) return;
+        asset = assetLoader.createAsset(sourceGlb);
+        if (asset == null) { sourceGlb = null; return; }
         resourceLoader = new ResourceLoader(engine);
         resourceLoader.asyncBeginLoad(asset);
         loadingResources = true;
@@ -363,6 +375,7 @@ public class FilamentMascotView extends SurfaceView
             if (p >= 1.0f) {
                 loadingResources = false;
                 asset.releaseSourceData();
+                sourceGlb = null;          // safe only now — see field doc
                 animator = asset.getInstance().getAnimator();
                 applyTint();
                 Log.i("lethe-3d", "load done, clips="
@@ -442,12 +455,18 @@ public class FilamentMascotView extends SurfaceView
         animator.updateBoneMatrices();
     }
 
-    /** Recolor every material of the asset for the current state.
+    /** Recolor the asset for the current state.
      *  baseColorFactor multiplies the albedo texture; emissiveFactor adds
      *  glow so the color still reads on the dark plates. Factors are
      *  absolute (originals are not readable back from a MaterialInstance),
      *  so the gate tints EVERY state or none — a per-state opt-out would
-     *  leave the previous state's tint behind. */
+     *  leave the previous state's tint behind.
+     *
+     *  Two-material GLBs (step 4) carry a {@value #SHELL_MATERIAL} crack
+     *  shell over the stone; there we tint ONLY the shell, so colour lands
+     *  in the veins and the stone keeps its authored albedo. Single-material
+     *  GLBs have no shell to find and fall back to tinting everything —
+     *  the pre-step-4 behaviour, unchanged. */
     private void applyTint() {
         if (engine == null || asset == null) return;
         if (!"on".equals(LetheConfig.get("persist.lethe.mascot.tint", "off"))) return;
@@ -472,11 +491,29 @@ public class FilamentMascotView extends SurfaceView
         // (looks like the light changed, not the rock; ruled out 07-08).
         float glow = propF("persist.lethe.mascot.tint.emissive", 0f);
         RenderableManager rm = engine.getRenderableManager();
+        // Pass 1: is this a shelled GLB at all? gltfio names each instance
+        // after its glTF material. Deciding first means a shelled asset never
+        // gets one frame of fully-tinted stone before the shell is found.
+        boolean shelled = false;
+        for (int entity : asset.getEntities()) {
+            if (!rm.hasComponent(entity)) continue;
+            int inst = rm.getInstance(entity);
+            for (int i = 0; i < rm.getPrimitiveCount(inst) && !shelled; i++) {
+                shelled = isShell(rm.getMaterialInstanceAt(inst, i));
+            }
+            if (shelled) break;
+        }
+        if (shelled != loggedShelled) {   // once per asset load, not per tick
+            Log.i("lethe-3d", "tint target: "
+                + (shelled ? "crack shell only" : "whole model"));
+            loggedShelled = shelled;
+        }
         for (int entity : asset.getEntities()) {
             if (!rm.hasComponent(entity)) continue;
             int inst = rm.getInstance(entity);
             for (int i = 0; i < rm.getPrimitiveCount(inst); i++) {
                 MaterialInstance mi = rm.getMaterialInstanceAt(inst, i);
+                if (shelled && !isShell(mi)) continue;   // stone stays authored
                 try {
                     if (mi.getMaterial().hasParameter("baseColorFactor")) {
                         mi.setParameter("baseColorFactor",
@@ -488,6 +525,19 @@ public class FilamentMascotView extends SurfaceView
                     }
                 } catch (Exception ignored) { }
             }
+        }
+    }
+
+    /** glTF material name of the step-4 crack shell. */
+    private static final String SHELL_MATERIAL = "LetheCrackShell";
+    private boolean loggedShelled;
+
+    private static boolean isShell(MaterialInstance mi) {
+        try {
+            String n = mi.getName();
+            return n != null && n.startsWith(SHELL_MATERIAL);
+        } catch (Exception e) {
+            return false;   // no name available → treat as stone
         }
     }
 
