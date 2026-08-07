@@ -404,7 +404,10 @@ public class FilamentMascotView extends SurfaceView
         if (!"on".equals(LetheConfig.get("persist.lethe.mascot.tint", "off"))) return;
         float[] rgb = resolveTint(state);
         if (rgb == null) return;
-        float glow = propF("persist.lethe.mascot.tint.emissive", 0.35f);
+        // Default 0: albedo tint only — colored STONE under real shading.
+        // Any emissive here washes the whole model into a flat glow
+        // (looks like the light changed, not the rock; ruled out 07-08).
+        float glow = propF("persist.lethe.mascot.tint.emissive", 0f);
         RenderableManager rm = engine.getRenderableManager();
         for (int entity : asset.getEntities()) {
             if (!rm.hasComponent(entity)) continue;

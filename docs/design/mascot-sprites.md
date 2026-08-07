@@ -134,7 +134,10 @@ instance. Defaults: idle `58e06b` · listening `35e0b8` · thinking
 `f2c14e` · speaking `6fb7ff` · alert `ff4f3e` · sleep `7a5cff`.
 Override per state: `persist.lethe.mascot.tint.<state>=RRGGBB` (sRGB,
 linearized on parse); glow scale `persist.lethe.mascot.tint.emissive`
-(default 0.35). Factors are absolute — MaterialInstance has no getters,
+(default 0 — albedo-only tint keeps it looking like colored STONE with
+shading; any emissive washes the model into a flat glow, ruled out
+07-08; the GLB is a single material so a cracks-only split isn't
+possible without re-authoring). Factors are absolute — MaterialInstance has no getters,
 so the gate tints EVERY state or none; recreating the view (screen-off
 on keyguard, relaunch for the activity) restores the stock look.
 Sprite fallback untouched — mood colors are baked into those sheets.
