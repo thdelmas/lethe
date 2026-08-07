@@ -404,6 +404,19 @@ public class FilamentMascotView extends SurfaceView
         if (!"on".equals(LetheConfig.get("persist.lethe.mascot.tint", "off"))) return;
         float[] rgb = resolveTint(state);
         if (rgb == null) return;
+        // A raw multiply crushes the dark albedo (near-black model, moss
+        // indistinguishable from stone — ruled out 07-08). Desaturate toward
+        // white by (1 - strength) so the albedo's own variation survives,
+        // then LUMINANCE-normalize: hues the greenish albedo is poor in
+        // (red, violet) get factors above 1 instead of going muddy — every
+        // state lands at a similar perceived brightness. gain scales all.
+        float s = propF("persist.lethe.mascot.tint.strength", 0.8f);
+        for (int c = 0; c < 3; c++) rgb[c] = 1f - s * (1f - rgb[c]);
+        float lum = 0.2126f * rgb[0] + 0.7152f * rgb[1] + 0.0722f * rgb[2];
+        float gain = propF("persist.lethe.mascot.tint.gain", 0.9f);
+        if (lum > 0f) {
+            for (int c = 0; c < 3; c++) rgb[c] = rgb[c] / lum * gain;
+        }
         // Default 0: albedo tint only — colored STONE under real shading.
         // Any emissive here washes the whole model into a flat glow
         // (looks like the light changed, not the rock; ruled out 07-08).

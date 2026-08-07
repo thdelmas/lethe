@@ -133,11 +133,16 @@ live model per state by writing `baseColorFactor` + `emissiveFactor`
 instance. Defaults: idle `58e06b` · listening `35e0b8` · thinking
 `f2c14e` · speaking `6fb7ff` · alert `ff4f3e` · sleep `7a5cff`.
 Override per state: `persist.lethe.mascot.tint.<state>=RRGGBB` (sRGB,
-linearized on parse); glow scale `persist.lethe.mascot.tint.emissive`
-(default 0 — albedo-only tint keeps it looking like colored STONE with
-shading; any emissive washes the model into a flat glow, ruled out
-07-08; the GLB is a single material so a cracks-only split isn't
-possible without re-authoring). Factors are absolute — MaterialInstance has no getters,
+linearized on parse). The factor is NOT the raw hex — a raw multiply
+crushes the dark albedo (near-black model, moss = stone). Pipeline:
+desaturate toward white by `tint.strength` (default 0.8; 0.92 tested
+07-08 = marginally redder alert but darker overall, rejected), then
+LUMINANCE-normalize × `tint.gain` (default 0.9) so hues the greenish
+albedo is poor in (red/violet) get factors >1 and every state lands at
+similar brightness. `tint.emissive` default 0 — albedo-only keeps it
+colored STONE under shading; any emissive washes it into a flat glow
+(ruled out 07-08). Single-material GLB → cracks-only tint needs
+re-authoring. Factors are absolute — MaterialInstance has no getters,
 so the gate tints EVERY state or none; recreating the view (screen-off
 on keyguard, relaunch for the activity) restores the stock look.
 Sprite fallback untouched — mood colors are baked into those sheets.
