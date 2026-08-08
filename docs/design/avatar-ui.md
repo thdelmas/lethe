@@ -5,7 +5,8 @@ where the user meets it, and what each gesture means. For how it is
 rendered, paced and tuned, see [mascot-sprites.md](mascot-sprites.md).
 For why these surfaces are native rather than WebView, see
 [launcher-architecture-routes.md](launcher-architecture-routes.md) — this
-doc answers that one's open question 1.
+doc answers that one's open question 1. For how the user and the agent
+exchange words — text, voice, calls — see [voice-io.md](voice-io.md).
 
 ## The frame
 

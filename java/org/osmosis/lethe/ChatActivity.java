@@ -32,7 +32,8 @@ import java.util.List;
  * The 50/100-turn conversation guardrails from static/launcher-chat.js
  * are ported as-is.
  */
-public class ChatActivity extends Activity implements AgentChatClient.Listener {
+public class ChatActivity extends Activity
+        implements AgentChatClient.Listener, VoiceIo.SttListener {
 
     /** String extra: a query to send immediately on open — used by
      *  VoiceActivity to hand a transcript off to the streaming UI. */
@@ -72,12 +73,16 @@ public class ChatActivity extends Activity implements AgentChatClient.Listener {
     private static final List<JSONObject> sHistory = new ArrayList<>();
     private static int sTurnCount = 0;
 
+    private static final int REQ_MIC = 1;
+
     private final AgentChatClient client = new AgentChatClient();
+    private final VoiceIo voice = new VoiceIo();
     private final List<Row> rows = new ArrayList<>();
     private ArrayAdapter<Row> adapter;
     private ListView transcript;
     private EditText input;
     private Button send;
+    private Button mic;
     private Row streamingRow;
     private int accent;
 
@@ -146,6 +151,14 @@ public class ChatActivity extends Activity implements AgentChatClient.Listener {
         input.setMaxLines(4);
         bar.addView(input, new LinearLayout.LayoutParams(
             0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
+        mic = new Button(this);
+        mic.setText("Rec");
+        mic.setOnTouchListener(new View.OnTouchListener() {
+            @Override public boolean onTouch(View v, android.view.MotionEvent e) {
+                return onMicTouch(e);
+            }
+        });
+        bar.addView(mic);
         send = new Button(this);
         send.setText("Send");
         send.setOnClickListener(new View.OnClickListener() {
@@ -174,7 +187,31 @@ public class ChatActivity extends Activity implements AgentChatClient.Listener {
             ViewGroup.LayoutParams.WRAP_CONTENT,
             ViewGroup.LayoutParams.WRAP_CONTENT);
         wrap.addView(tv, lp);
+        if (!row.fromUser && row != streamingRow) {
+            wrap.addView(speakGlyph(row));
+        }
         return wrap;
+    }
+
+    /** Tap-to-speak on a settled agent bubble (docs/design/voice-io.md).
+     *  Tap again to stop. */
+    private View speakGlyph(final Row row) {
+        TextView glyph = new TextView(this);
+        glyph.setText("▶");
+        glyph.setTextSize(TypedValue.COMPLEX_UNIT_SP, 13);
+        glyph.setTextColor(0xFF6B675C);
+        int pad = dp(10);
+        glyph.setPadding(pad, pad, pad, pad);
+        glyph.setOnClickListener(new View.OnClickListener() {
+            @Override public void onClick(View v) {
+                if (voice.isSpeaking()) {
+                    voice.stopSpeaking();
+                } else {
+                    voice.speak(row.text, null);
+                }
+            }
+        });
+        return glyph;
     }
 
     // --- conversation flow ----------------------------------------------------
@@ -212,6 +249,62 @@ public class ChatActivity extends Activity implements AgentChatClient.Listener {
         if (text.isEmpty()) return;
         input.setText("");
         sendText(text);
+    }
+
+    // --- voice note: hold Rec, release to send --------------------------------
+
+    private boolean onMicTouch(android.view.MotionEvent e) {
+        switch (e.getActionMasked()) {
+            case android.view.MotionEvent.ACTION_DOWN:
+                if (checkSelfPermission(android.Manifest.permission.RECORD_AUDIO)
+                        != android.content.pm.PackageManager.PERMISSION_GRANTED) {
+                    requestPermissions(new String[] {
+                        android.Manifest.permission.RECORD_AUDIO }, REQ_MIC);
+                    return true;
+                }
+                if (voice.isRecording()) return true;
+                voice.stopSpeaking();
+                voice.startRecording(this);
+                mic.setText("●");
+                input.setHint("Listening…");
+                return true;
+            case android.view.MotionEvent.ACTION_UP:
+            case android.view.MotionEvent.ACTION_CANCEL:
+                if (voice.isRecording()) {
+                    voice.stopRecording();
+                    mic.setEnabled(false);
+                    input.setHint("Transcribing…");
+                }
+                return true;
+            default:
+                return false;
+        }
+    }
+
+    private void resetMic() {
+        mic.setText("Rec");
+        mic.setEnabled(true);
+        input.setHint("What do you need?");
+    }
+
+    @Override
+    public void onTranscript(final String text) {
+        runOnUiThread(new Runnable() {
+            @Override public void run() {
+                resetMic();
+                sendText(text);
+            }
+        });
+    }
+
+    @Override
+    public void onVoiceError(final String message) {
+        runOnUiThread(new Runnable() {
+            @Override public void run() {
+                resetMic();
+                addRow(false, message);
+            }
+        });
     }
 
     private void sendText(final String text) {
@@ -270,6 +363,7 @@ public class ChatActivity extends Activity implements AgentChatClient.Listener {
             streamingRow.text = "…";
         }
         streamingRow = null;
+        adapter.notifyDataSetChanged();  // settled bubble gains its ▶
         send.setEnabled(true);
         try {
             sHistory.add(new JSONObject()
@@ -367,9 +461,13 @@ public class ChatActivity extends Activity implements AgentChatClient.Listener {
         MascotStateController.get(this).setSessionActive(true);
     }
 
+    /* Mic is session-scoped (voice-io.md): leaving the surface ends
+     * capture and playback, never a background take. */
     @Override
     protected void onPause() {
         super.onPause();
+        voice.stopRecording();
+        voice.stopSpeaking();
         MascotStateController.get(this).setSessionActive(false);
     }
 }
