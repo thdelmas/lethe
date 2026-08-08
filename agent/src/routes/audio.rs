@@ -49,30 +49,41 @@ async fn transcribe(mut multipart: Multipart) -> Json<serde_json::Value> {
     let tmp = env_or("LETHE_AUDIO_TMP", TMP_AUDIO);
     let input_path = format!("{tmp}.webm");
     let wav_path = format!("{tmp}.wav");
-    if let Err(e) = tokio::fs::write(&input_path, &data).await {
-        return Json(serde_json::json!({ "error": format!("write tmp: {e}") }));
-    }
 
-    // Convert to WAV (16kHz mono) — required by both engines
-    let ffmpeg = Command::new("ffmpeg")
-        .args(["-y", "-i", &input_path, "-ar", "16000", "-ac", "1", &wav_path])
-        .output()
-        .await;
-
-    if ffmpeg.is_err() || !ffmpeg.as_ref().unwrap().status.success() {
-        // Try sox as fallback
-        let sox = Command::new("sox")
-            .args([&input_path, "-r", "16000", "-c", "1", &wav_path])
+    if data.len() > 12 && &data[..4] == b"RIFF" && &data[8..12] == b"WAVE" {
+        // Already WAV (the native surfaces send 16 kHz mono PCM; both
+        // engines resample anyway) — skip the converter entirely. The
+        // device ships neither ffmpeg nor sox, so this is the ONLY
+        // on-device path; the converter below serves host/PoC clients
+        // posting webm/opus.
+        if let Err(e) = tokio::fs::write(&wav_path, &data).await {
+            return Json(serde_json::json!({ "error": format!("write tmp: {e}") }));
+        }
+    } else {
+        if let Err(e) = tokio::fs::write(&input_path, &data).await {
+            return Json(serde_json::json!({ "error": format!("write tmp: {e}") }));
+        }
+        // Convert to WAV (16kHz mono) — required by both engines
+        let ffmpeg = Command::new("ffmpeg")
+            .args(["-y", "-i", &input_path, "-ar", "16000", "-ac", "1", &wav_path])
             .output()
             .await;
-        if sox.is_err() || !sox.as_ref().unwrap().status.success() {
-            let _ = tokio::fs::remove_file(&input_path).await;
-            return Json(serde_json::json!({
-                "error": "Cannot convert audio to WAV (need ffmpeg or sox)"
-            }));
+
+        if ffmpeg.is_err() || !ffmpeg.as_ref().unwrap().status.success() {
+            // Try sox as fallback
+            let sox = Command::new("sox")
+                .args([&input_path, "-r", "16000", "-c", "1", &wav_path])
+                .output()
+                .await;
+            if sox.is_err() || !sox.as_ref().unwrap().status.success() {
+                let _ = tokio::fs::remove_file(&input_path).await;
+                return Json(serde_json::json!({
+                    "error": "Cannot convert audio to WAV (need ffmpeg or sox)"
+                }));
+            }
         }
+        let _ = tokio::fs::remove_file(&input_path).await;
     }
-    let _ = tokio::fs::remove_file(&input_path).await;
 
     // Try sherpa-onnx first (faster, lower memory)
     let text = try_sherpa(&wav_path)

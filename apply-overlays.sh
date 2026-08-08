@@ -360,7 +360,9 @@ cp "$SCRIPT_DIR/AndroidManifest.xml"                       "$LETHE_APP_DEST/Andr
 # generated Android.bp prebuilt_etc; harmless-but-unused on cm-14.1).
 cp "$SCRIPT_DIR/privapp-permissions-org.osmosis.lethe.agent.xml" \
    "$LETHE_APP_DEST/privapp-permissions-org.osmosis.lethe.agent.xml"
-cp "$LETHE_APP_SRC/org/osmosis/lethe/res/xml/device_admin.xml" "$LETHE_APP_DEST/res/xml/device_admin.xml"
+# Whole res/xml tree — device_admin.xml plus network_security_config.xml
+# (loopback cleartext; without it every call to the local core is denied).
+cp "$LETHE_APP_SRC/org/osmosis/lethe/res/xml"/*.xml "$LETHE_APP_DEST/res/xml/"
 
 # Strip API-29+/31+ manifest attrs on cm-14.1 (API 25 AAPT rejects unknowns):
 #   usesPermissionFlags="neverForLocation"  → API 31

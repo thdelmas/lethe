@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Cleartext is permitted to the loopback address ONLY.
+
+  The agent core listens on http://127.0.0.1:8080 and every native
+  surface (chat, voice STT/TTS, device state) talks to it. Since
+  Android 9 cleartext is denied by default, so those calls failed with
+  "Cleartext HTTP traffic to 127.0.0.1 not permitted" — the surfaces
+  reported the core as unreachable while it was serving fine.
+
+  This is deliberately narrower than android:usesCleartextTraffic="true":
+  loopback traffic never leaves the device, and cleartext to any real
+  network stays blocked, which is the posture this OS advertises.
+-->
+<network-security-config>
+    <domain-config cleartextTrafficPermitted="true">
+        <domain includeSubdomains="false">127.0.0.1</domain>
+        <domain includeSubdomains="false">localhost</domain>
+    </domain-config>
+    <base-config cleartextTrafficPermitted="false" />
+</network-security-config>

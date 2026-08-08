@@ -178,6 +178,11 @@ public class ChatActivity extends Activity
         tv.setPadding(pad, pad, pad, pad);
         tv.setTextColor(row.fromUser ? 0xFF080808 : 0xFFD8D4C8);
         tv.setBackgroundColor(row.fromUser ? accent : 0xFF1C1C18);
+        /* Cap the bubble so a long reply cannot eat the whole row and
+         * push the speak glyph off-screen (measured on bramble: the
+         * cloud-provider notice did exactly that). Messenger-shaped
+         * anyway — bubbles never span edge to edge. */
+        tv.setMaxWidth((int) (getResources().getDisplayMetrics().widthPixels * 0.76f));
 
         LinearLayout wrap = new LinearLayout(this);
         int m = dp(6);

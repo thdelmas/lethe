@@ -133,19 +133,63 @@ until something forces it.
 
 | # | Step | Status / depends on |
 |---|---|---|
-| V0 | Voice notes in thread: hold Rec → STT → text; ▶ tap-to-speak on settled replies | **built 2026-08-08**¹ — code + engines done, on-device pass pending (no device attached) |
+| V0 | Voice notes in thread: hold Rec → STT → text; ▶ tap-to-speak on settled replies | **shipped + verified on bramble 2026-08-08**¹ |
 | V1 | Call mode in `MascotActivity`: duplex loop, VAD, barge-in, states bound to pipeline | V0 on-device pass |
 | V2 | Identity: nickname + voice picker (piper voices via the `voice` field) + system-prompt injection | V0; agent core alive for the prompt part |
 | V3 | Wake word (nickname), mic as vitals input (avatar-ui step 2b), lock-screen voice entry | sepolicy port fix 9 |
 
 ¹ V0 as built: `VoiceIo.java` (capture/WAV/STT/TTS/playback, shared
 with `VoiceActivity`), Rec button + ▶ glyph in `ChatActivity`, TTS
-route in the core, engines via `tools/voice-engines/` (host + arm64
-whisper-cli built; TTS→STT round-trip verified on the host loop —
-piper spoke a sentence, whisper transcribed it back verbatim). The
-*reply* half still needs a live brain: daemon restart-loops on-device
-(sepolicy), so first device test uses the host-brain loop. On-device
-piper binary is an open item — sherpa-onnx is the intended vehicle.
+route in the core, engines via `tools/voice-engines/`.
+
+Measured on bramble, sideloaded daemon as `shell`, `live3d=false`:
+
+- **STT on-device**: a known WAV transcribed **verbatim in 4.3 s**
+  (whisper tiny, arm64, 15 s clip). Hold-Rec in a silent room returned
+  `[BLANK_AUDIO]` and posted it as a user bubble — the correct answer,
+  and proof the whole capture → WAV → POST → send path runs.
+- **TTS audible**: playback **witnessed** via `dumpsys audio`
+  (`AudioTrack state:started`) — ~1.5 s for a short bubble, 6 s+ for a
+  130-char one, so duration tracks text length. Ran through the
+  host-brain loop, since no piper binary exists for the device yet.
+- **Graceful degradation**: with no TTS engine on-device the ▶ returns
+  503, the app logs it and stays alive — zero crashes across the pass.
+
+Open: an on-device TTS binary (sherpa-onnx is the vehicle) and a live
+brain — the packaged daemon still restart-loops on sepolicy, and even
+the sideloaded one has no LLM provider (`providers.yaml` unpackaged),
+so replies currently 502. Neither blocks the voice transport.
+
+## Traps found on device (2026-08-08, bramble)
+
+- **Cleartext to `127.0.0.1` is denied by default** (Android 9+), so
+  *every* call to the local core failed — chat, device state and voice
+  alike — while the core was serving 200s to `curl`. The surface said
+  "I need a thinking core to talk"; the daemon was fine. Fixed with
+  `res/xml/network_security_config.xml` (loopback only, base config
+  still denies cleartext) + `android:networkSecurityConfig` on
+  `<application>`. **The native chat surface had never reached the core
+  on a modern build.** Diagnose with
+  `adb logcat | grep lethe-voice` — the exception names it exactly.
+- **The device ships neither ffmpeg nor sox**, so the STT route's
+  converter could never run there. WAV input now bypasses it (the
+  native surfaces already send 16 kHz mono PCM); the converter is for
+  host/PoC clients posting webm.
+- **The status bar overlays the top ~110 px** of the chat surface
+  (`Theme.NoTitleBar.Fullscreen`), so `input tap` on a first-row speak
+  glyph is swallowed and looks exactly like a dead listener. Test
+  glyphs on a lower row.
+- **A long reply pushed the ▶ off-screen** — the bubble `TextView` ate
+  the full row width. Bubbles are now capped at 76 % of screen width.
+- **`live3d=true` + opening `ChatActivity` over the launcher →
+  SIGSEGV in `libfilament-jni.so`** within ~15 s, killing the whole
+  (persistent) app and taking the chat with it. Reproduced 3×, all on
+  the same single-frame `base.apk!libfilament-jni.so (offset
+  0x1550000)`. Pre-existing and unrelated to voice — but it makes the
+  chat surface unusable at the documented default device state.
+  Workaround while it stands: `persist.lethe.mascot.live3d=false`
+  (sprite path), under which the whole voice pass ran clean. Needs its
+  own investigation.
 
 ## Open questions
 
