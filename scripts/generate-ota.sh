@@ -12,7 +12,8 @@ CODENAME="${1:?Usage: generate-ota.sh <codename> [--publish]}"
 PUBLISH="${2:-}"
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 BUILD_DIR="${LETHE_BUILD_DIR:-$HOME/Osmosis-downloads/lethe-builds}"
-KEYS_DIR="$SCRIPT_DIR/../../keys"
+# Signing keys: $LETHE_KEYS_DIR, default `keys/` at the repo root (gitignored).
+KEYS_DIR="${LETHE_KEYS_DIR:-$(cd "$SCRIPT_DIR/.." && pwd)/keys}"
 
 # Find latest signed build
 # shellcheck disable=SC2012  # ls -t is the natural sort-by-mtime here

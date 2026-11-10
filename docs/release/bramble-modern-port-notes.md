@@ -99,7 +99,7 @@ systemd-run --user --unit=lethe-build --collect \
   introduced a failure. Point `CCACHE_DIR` at a **writable** path you own
   — the default `~/.ccache` here had a root-owned `tmp/` from an earlier
   sudo build, which failed every host compile with "Permission denied".
-  Fix: `--setenv=CCACHE_DIR=/home/mia/android/.ccache-lethe
+  Fix: `--setenv=CCACHE_DIR=$HOME/android/.ccache-lethe
   --setenv=CCACHE_MAXSIZE=50G`.
 - **Soong tracks env vars — never launch a build without the full canonical
   env block above.** A 2026-08-06 `mka Lethe` missing `USE_CCACHE=1` made

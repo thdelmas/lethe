@@ -83,9 +83,13 @@ in {
 
       # ── Signing ──
       signing.enable = true;
-      # Key store path is relative to the build invocation.
+      # Key store path: $LETHE_KEYS_DIR when set (needs --impure), otherwise
+      # `keys/` relative to the build invocation (gitignored at the repo root).
       # Keys are never committed — generated via: nix build .#generateKeysScript
-      signing.keyStorePath = lib.mkDefault "/home/mia/OSmosis/keys";
+      signing.keyStorePath = lib.mkDefault (
+        let env = builtins.getEnv "LETHE_KEYS_DIR";
+        in if env != "" then env else "keys"
+      );
     })
   ];
 }

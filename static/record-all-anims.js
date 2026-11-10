@@ -67,12 +67,12 @@ const ANIMS = [
     execSync(`python3 -c "
 from PIL import Image
 import os
-d='/home/mia/OSmosis/lethe/static/_frames'
+d=${JSON.stringify(framesDir)}
 fs=sorted([f for f in os.listdir(d) if f.endswith('.png')])
 imgs=[Image.open(os.path.join(d,f)).convert('RGBA').resize((360,480),Image.LANCZOS) for f in fs]
-imgs[0].save('/home/mia/OSmosis/lethe/static/mascot-${anim.name}.webp',
+imgs[0].save(${JSON.stringify(path.join(__dirname, `mascot-${anim.name}.webp`))},
   save_all=True,append_images=imgs[1:],duration=${Math.round(1000/FPS)},loop=0,quality=70)
-sz=os.path.getsize('/home/mia/OSmosis/lethe/static/mascot-${anim.name}.webp')
+sz=os.path.getsize(${JSON.stringify(path.join(__dirname, `mascot-${anim.name}.webp`))})
 print(f'${anim.name}: {sz:,} bytes, {len(imgs)} frames')
 "`, { stdio: 'inherit' });
   }
