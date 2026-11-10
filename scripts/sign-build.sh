@@ -5,7 +5,8 @@
 #
 # Expects:
 #   - Build output at ~/Osmosis-downloads/lethe-builds/Lethe-*-<codename>.zip
-#   - Signing key at ../keys/update-privkey.pem (Ed25519)
+#   - Signing key at $LETHE_KEYS_DIR/update-privkey.pem (Ed25519);
+#     default: keys/ at the repo root (gitignored)
 #
 # Produces:
 #   - .sha256       alongside the ZIP
@@ -17,7 +18,7 @@ set -euo pipefail
 CODENAME="${1:?Usage: sign-build.sh <codename>}"
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 LETHE_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
-KEYS_DIR="$SCRIPT_DIR/../../keys"
+KEYS_DIR="${LETHE_KEYS_DIR:-$LETHE_DIR/keys}"
 BUILD_DIR="${LETHE_BUILD_DIR:-$HOME/Osmosis-downloads/lethe-builds}"
 PRIVKEY="$KEYS_DIR/update-privkey.pem"
 MANIFEST="$LETHE_DIR/manifest.yaml"

@@ -8,7 +8,7 @@ Usage:
   3. Click Run Script (or Alt+P)
 
 Or from Blender's Python console:
-  exec(open("/home/mia/Lethe/scripts/fix-mixamo-hands.py").read())
+  exec(open("<path to your Lethe clone>/scripts/fix-mixamo-hands.py").read())
 """
 
 import math
